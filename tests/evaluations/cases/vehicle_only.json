@@ -1,0 +1,28 @@
+{
+  "id": "vehicle_only",
+  "scenario": "nonqualifying_vehicle_only",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Two hurt in I-8 head-on crash",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-13T18:00:00Z",
+    "text": "SAN DIEGO \u2014 Two drivers were injured in a head-on collision on Interstate 8 near College Avenue on Monday night, the California Highway Patrol said. Both were taken to hospitals with moderate injuries. No pedestrians, cyclists or motorcyclists were involved."
+  },
+  "expected": {
+    "verdict": "nonqualifying",
+    "kind": "current_incident",
+    "incidents": []
+  },
+  "synthetic_response": {
+    "verdict": "nonqualifying",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": false,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": []
+  }
+}

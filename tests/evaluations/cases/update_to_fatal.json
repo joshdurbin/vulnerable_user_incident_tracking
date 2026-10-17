@@ -1,0 +1,70 @@
+{
+  "id": "update_to_fatal",
+  "scenario": "injury_later_fatal",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Wheelchair user hit in Pasadena crash dies",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-16T18:00:00Z",
+    "text": "PASADENA \u2014 The man in a wheelchair who was struck by a car at Colorado Boulevard and Lake Avenue last Tuesday has died of his injuries, Pasadena police said Friday. Police identified him as a 52-year-old Pasadena resident. No charges have been filed."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "update",
+    "incidents": [
+      {
+        "date": "2026-10-13",
+        "city": "Pasadena",
+        "state": "CA",
+        "vru_categories": [
+          "wheelchair_user"
+        ],
+        "fatality_count": 1,
+        "severity": "fatal",
+        "location_precision": "intersection"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "update",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": true,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-13",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Pasadena",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Colorado Boulevard and Lake Avenue",
+        "location_precision": "intersection",
+        "vru_categories": [
+          "wheelchair_user"
+        ],
+        "vehicle_categories": [
+          "passenger_car"
+        ],
+        "injured_count": null,
+        "fatality_count": 1,
+        "severity": "fatal",
+        "hit_and_run": "unknown",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "fatality_count",
+            "quote": "has died of his injuries"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "ped_fatality",
+  "scenario": "pedestrian_fatality",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Pedestrian killed in Oakland crash",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-12T18:00:00Z",
+    "text": "OAKLAND, Calif. \u2014 A 58-year-old man walking across International Boulevard was struck and killed by a sedan late Sunday night, the Oakland Police Department said.\n\nThe crash happened around 11:40 p.m. near 23rd Avenue. The driver remained at the scene and cooperated with investigators, police said. The pedestrian was pronounced dead at the scene."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-11",
+        "city": "Oakland",
+        "state": "CA",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "fatality_count": 1,
+        "severity": "fatal",
+        "hit_and_run": "no",
+        "location_precision": "intersection"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-11T23:40:00",
+        "occurred_at_precision": "datetime",
+        "timezone": null,
+        "city": "Oakland",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "International Boulevard near 23rd Avenue",
+        "location_precision": "intersection",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "vehicle_categories": [
+          "passenger_car"
+        ],
+        "injured_count": null,
+        "fatality_count": 1,
+        "severity": "fatal",
+        "hit_and_run": "no",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "fatality_count",
+            "quote": "was struck and killed by a sedan"
+          },
+          {
+            "field": "hit_and_run",
+            "quote": "The driver remained at the scene"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "id": "hit_and_run",
+  "scenario": "hit_and_run",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Fresno police seek hit-and-run driver",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-15T18:00:00Z",
+    "text": "FRESNO \u2014 Police are searching for a driver who struck a pedestrian in a crosswalk and fled early Thursday. The 67-year-old woman was crossing Shaw Avenue at Blackstone when a dark-colored sedan hit her around 6:15 a.m. and kept going, officers said. She was taken to Community Regional Medical Center with a head injury."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-15",
+        "city": "Fresno",
+        "state": "CA",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "hit_and_run": "yes",
+        "severity": "serious",
+        "location_precision": "intersection"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-15T06:15:00",
+        "occurred_at_precision": "datetime",
+        "timezone": null,
+        "city": "Fresno",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Shaw Avenue at Blackstone",
+        "location_precision": "intersection",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "vehicle_categories": [
+          "passenger_car"
+        ],
+        "injured_count": 1,
+        "fatality_count": null,
+        "severity": "serious",
+        "hit_and_run": "yes",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "hit_and_run",
+            "quote": "kept going"
+          },
+          {
+            "field": "location",
+            "quote": "crossing Shaw Avenue at Blackstone"
+          }
+        ]
+      }
+    ]
+  }
+}

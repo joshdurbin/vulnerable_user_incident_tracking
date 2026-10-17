@@ -1,0 +1,72 @@
+{
+  "id": "same_collision_b",
+  "scenario": "multiple_articles_one_collision",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Police seek witnesses in wheelchair crash",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-15T18:00:00Z",
+    "text": "PASADENA \u2014 Police are asking for witnesses after a driver struck a man in a wheelchair at Colorado and Lake on Tuesday afternoon. The 52-year-old victim remains hospitalized. Investigators said the intersection has no protected left-turn signal."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-13",
+        "city": "Pasadena",
+        "state": "CA",
+        "vru_categories": [
+          "wheelchair_user"
+        ],
+        "location_precision": "intersection"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-13",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Pasadena",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Colorado and Lake",
+        "location_precision": "intersection",
+        "vru_categories": [
+          "wheelchair_user"
+        ],
+        "vehicle_categories": [
+          "passenger_car"
+        ],
+        "injured_count": 1,
+        "fatality_count": null,
+        "severity": "unknown",
+        "hit_and_run": "unknown",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "vru_categories",
+            "quote": "struck a man in a wheelchair"
+          },
+          {
+            "field": "severity",
+            "quote": "remains hospitalized"
+          }
+        ]
+      }
+    ]
+  }
+}

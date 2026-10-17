@@ -1,0 +1,109 @@
+{
+  "id": "multiple_collisions",
+  "scenario": "multiple_incidents",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Two pedestrians hit in separate Fresno County crashes",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-12T18:00:00Z",
+    "text": "FRESNO COUNTY \u2014 Two people on foot were hit by vehicles in separate crashes over the weekend, authorities said.\n\nIn Clovis, a 34-year-old man was struck by a van on Saturday while walking on Herndon Avenue and suffered minor injuries. On Sunday in Sanger, a 79-year-old woman was killed when a pickup truck hit her as she crossed Jensen Avenue, the sheriff's office said."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-10",
+        "city": "Clovis",
+        "state": "CA",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "severity": "minor",
+        "location_precision": "street"
+      },
+      {
+        "date": "2026-10-11",
+        "city": "Sanger",
+        "state": "CA",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "fatality_count": 1,
+        "severity": "fatal",
+        "location_precision": "street"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": true,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-10",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Clovis",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Herndon Avenue",
+        "location_precision": "street",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "vehicle_categories": [
+          "van"
+        ],
+        "injured_count": 1,
+        "fatality_count": null,
+        "severity": "minor",
+        "hit_and_run": "unknown",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "severity",
+            "quote": "suffered minor injuries"
+          }
+        ]
+      },
+      {
+        "occurred_at": "2026-10-11",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Sanger",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Jensen Avenue",
+        "location_precision": "street",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "vehicle_categories": [
+          "pickup_truck"
+        ],
+        "injured_count": null,
+        "fatality_count": 1,
+        "severity": "fatal",
+        "hit_and_run": "unknown",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "fatality_count",
+            "quote": "was killed when a pickup truck hit her"
+          }
+        ]
+      }
+    ]
+  }
+}

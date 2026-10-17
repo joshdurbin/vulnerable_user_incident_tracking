@@ -1,0 +1,70 @@
+{
+  "id": "motorcyclist_injury",
+  "scenario": "motorcyclist_injury",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Motorcyclist critically hurt in Sacramento",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-14T18:00:00Z",
+    "text": "SACRAMENTO \u2014 A motorcyclist was critically injured Tuesday evening when a car pulled out of a parking lot onto Fruitridge Road and the two collided, the California Highway Patrol said. The motorcyclist, a 41-year-old man, was taken to UC Davis Medical Center in critical condition."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-13",
+        "city": "Sacramento",
+        "state": "CA",
+        "vru_categories": [
+          "motorcyclist"
+        ],
+        "severity": "serious",
+        "fatality_count": 0,
+        "location_precision": "street"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-13",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Sacramento",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Fruitridge Road",
+        "location_precision": "street",
+        "vru_categories": [
+          "motorcyclist"
+        ],
+        "vehicle_categories": [
+          "passenger_car"
+        ],
+        "injured_count": 1,
+        "fatality_count": 0,
+        "severity": "serious",
+        "hit_and_run": "no",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "severity",
+            "quote": "taken to UC Davis Medical Center in critical condition"
+          }
+        ]
+      }
+    ]
+  }
+}

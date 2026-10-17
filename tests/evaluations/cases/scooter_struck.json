@@ -1,0 +1,73 @@
+{
+  "id": "scooter_struck",
+  "scenario": "scooter_struck",
+  "synthetic": true,
+  "note": "Publication Saturday 2026-10-10; 'Friday' = 2026-10-09.",
+  "article": {
+    "title": "Scooter rider hit by SUV in Mid-City",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-10T18:00:00Z",
+    "text": "LOS ANGELES \u2014 An electric scooter rider was struck by an SUV at the intersection of Western Avenue and Pico Boulevard on Friday afternoon, the Los Angeles Police Department said. The rider, a man in his 20s, suffered a broken leg and was taken to a hospital. Police said the SUV driver was cooperating."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-09",
+        "city": "Los Angeles",
+        "state": "CA",
+        "vru_categories": [
+          "scooter_rider"
+        ],
+        "severity": "serious",
+        "location_precision": "intersection"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-09",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Los Angeles",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Western Avenue and Pico Boulevard",
+        "location_precision": "intersection",
+        "vru_categories": [
+          "scooter_rider"
+        ],
+        "vehicle_categories": [
+          "suv"
+        ],
+        "injured_count": 1,
+        "fatality_count": null,
+        "severity": "serious",
+        "hit_and_run": "no",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "vru_categories",
+            "quote": "An electric scooter rider was struck by an SUV"
+          },
+          {
+            "field": "severity",
+            "quote": "suffered a broken leg"
+          }
+        ]
+      }
+    ]
+  }
+}

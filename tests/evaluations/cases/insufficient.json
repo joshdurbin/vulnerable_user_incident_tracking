@@ -1,0 +1,28 @@
+{
+  "id": "insufficient",
+  "scenario": "insufficient_information",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Police investigate crash near Modesto park",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-16T18:00:00Z",
+    "text": "MODESTO \u2014 Police are investigating a crash near Graceada Park on Friday morning. Officers asked drivers to avoid the area. No further details were immediately available."
+  },
+  "expected": {
+    "verdict": "insufficient",
+    "kind": "current_incident",
+    "incidents": []
+  },
+  "synthetic_response": {
+    "verdict": "insufficient",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": null,
+    "vru_involved": null,
+    "injury_or_death": null,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": []
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "same_collision_a",
+  "scenario": "multiple_articles_one_collision",
+  "synthetic": true,
+  "note": "Same crash as same_collision_b and update_to_fatal; used by Milestone 3 entity-resolution tests.",
+  "article": {
+    "title": "Wheelchair user hit in Pasadena",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-14T18:00:00Z",
+    "text": "PASADENA \u2014 A man who uses a wheelchair was hit by a car while crossing Colorado Boulevard at Lake Avenue on Tuesday, Pasadena police said. He was taken to Huntington Hospital with serious injuries. The driver stopped and spoke with officers."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-13",
+        "city": "Pasadena",
+        "state": "CA",
+        "vru_categories": [
+          "wheelchair_user"
+        ],
+        "severity": "serious",
+        "fatality_count": 0,
+        "hit_and_run": "no",
+        "location_precision": "intersection"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-13",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Pasadena",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Colorado Boulevard at Lake Avenue",
+        "location_precision": "intersection",
+        "vru_categories": [
+          "wheelchair_user"
+        ],
+        "vehicle_categories": [
+          "passenger_car"
+        ],
+        "injured_count": 1,
+        "fatality_count": 0,
+        "severity": "serious",
+        "hit_and_run": "no",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "vru_categories",
+            "quote": "A man who uses a wheelchair was hit by a car"
+          },
+          {
+            "field": "severity",
+            "quote": "serious injuries"
+          }
+        ]
+      }
+    ]
+  }
+}

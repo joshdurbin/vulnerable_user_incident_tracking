@@ -1,0 +1,28 @@
+{
+  "id": "historical",
+  "scenario": "historical",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Advocates mark anniversary of child's death",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-12T18:00:00Z",
+    "text": "Five years ago this week, a 12-year-old boy was killed by a driver while crossing Main Street in Riverside. Advocates gathered Sunday at the site to renew calls for a protected crosswalk, citing city data showing that pedestrian deaths have risen across the county since 2021."
+  },
+  "expected": {
+    "verdict": "nonqualifying",
+    "kind": "historical",
+    "incidents": []
+  },
+  "synthetic_response": {
+    "verdict": "nonqualifying",
+    "article_kind": "historical",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": []
+  }
+}

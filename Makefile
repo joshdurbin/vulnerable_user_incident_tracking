@@ -4,7 +4,7 @@ export PATH := $(PATH):$(GOBIN)
 IMAGE_PREFIX ?= ghcr.io/joshdurbin/fuck_cars
 TAG ?= dev
 
-.PHONY: generate lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
+.PHONY: eval eval-replay generate lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
 
 generate: ## regenerate protobuf code (Go + Python)
 	buf generate
@@ -22,6 +22,12 @@ test-go:
 
 test-py:
 	cd crawler && uv run pytest -q
+
+eval-replay: ## harness check only; scores are NOT model quality
+	go run ./cmd/collisionctl eval --replay
+
+eval: ## score a real model: LLM_MODEL=... LLM_BASE_URL=... make eval
+	go run ./cmd/collisionctl eval
 
 test-integration: ## needs docker (postgres, temporal); added in Milestone 3
 	go test -tags=integration ./tests/integration/...

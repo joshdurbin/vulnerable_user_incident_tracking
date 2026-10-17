@@ -32,14 +32,7 @@ func classifyCmd(ctx context.Context, args []string, out, errw io.Writer, deps c
 	addr := fs.String("crawler", envOr("COLLISION_CRAWLER_ADDR", "localhost:9090"), "crawler gRPC address (URL input)")
 	file := fs.String("file", "", "classify a saved article: JSON from `fetch --json`, or plain text")
 	asJSON := fs.Bool("json", false, "print JSON")
-	base := fs.String("llm-url", envOr("LLM_BASE_URL", "http://bifrost.bifrost.svc.cluster.local:8080/v1"), "OpenAI-compatible gateway base URL")
-	model := fs.String("model", envOr("LLM_MODEL", ""), "primary model (env LLM_MODEL)")
-	fallback := fs.String("fallback-model", envOr("LLM_FALLBACK_MODEL", ""), "fallback model (env LLM_FALLBACK_MODEL)")
-	mode := fs.String("structured-mode", envOr("LLM_STRUCTURED_MODE", "json_schema"), "json_schema|json_object|prompt")
-	timeout := fs.Duration("timeout", 120*time.Second, "LLM request timeout")
-	prices := fs.String("prices", envOr("LLM_PRICES", ""), `JSON {"model":{"input_per_m":0.2,"output_per_m":0.6}}`)
-	budget := fs.Float64("budget-usd", envFloat("LLM_BUDGET_USD", 0), "spend limit for this run (0 = unlimited)")
-
+	lo := registerLLMFlags(fs)
 	var url string
 	rest := args
 	if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
@@ -51,7 +44,7 @@ func classifyCmd(ctx context.Context, args []string, out, errw io.Writer, deps c
 	if url == "" && *file == "" {
 		return errors.New("usage: collisionctl classify <url> | --file article.json|txt  [--model M] [--json]")
 	}
-	if *model == "" {
+	if *lo.model == "" {
 		return errors.New("a model is required: --model or LLM_MODEL")
 	}
 
@@ -65,18 +58,12 @@ func classifyCmd(ctx context.Context, args []string, out, errw io.Writer, deps c
 
 	completer := deps.completer
 	if completer == nil {
-		pm := map[string]llm.Price{}
-		if *prices != "" {
-			if err := json.Unmarshal([]byte(*prices), &pm); err != nil {
-				return fmt.Errorf("invalid --prices: %w", err)
-			}
+		var err error
+		if completer, err = lo.completer(); err != nil {
+			return err
 		}
-		completer = llm.NewClient(llm.Config{
-			BaseURL: *base, APIKey: envOr("LLM_API_KEY", "unused"), Timeout: *timeout, MaxRetries: 2,
-			StartMode: llm.StructuredMode(*mode), Prices: pm,
-		}, llm.NewMemoryBudget(*budget))
 	}
-	cl, err := classification.New(completer, classification.Config{PrimaryModel: *model, FallbackModel: *fallback})
+	cl, err := classification.New(completer, classification.Config{PrimaryModel: *lo.model, FallbackModel: *lo.fallback})
 	if err != nil {
 		return err
 	}
@@ -165,4 +152,36 @@ func envFloat(k string, def float64) float64 {
 		return v
 	}
 	return def
+}
+
+// llmOpts are the gateway flags shared by commands that call the LLM.
+type llmOpts struct {
+	base, model, fallback, mode, prices *string
+	timeout                             *time.Duration
+	budget                              *float64
+}
+
+func registerLLMFlags(fs *flag.FlagSet) *llmOpts {
+	return &llmOpts{
+		base:     fs.String("llm-url", envOr("LLM_BASE_URL", "http://bifrost.bifrost.svc.cluster.local:8080/v1"), "OpenAI-compatible gateway base URL"),
+		model:    fs.String("model", envOr("LLM_MODEL", ""), "primary model (env LLM_MODEL)"),
+		fallback: fs.String("fallback-model", envOr("LLM_FALLBACK_MODEL", ""), "fallback model (env LLM_FALLBACK_MODEL)"),
+		mode:     fs.String("structured-mode", envOr("LLM_STRUCTURED_MODE", "json_schema"), "json_schema|json_object|prompt"),
+		timeout:  fs.Duration("timeout", 120*time.Second, "LLM request timeout"),
+		prices:   fs.String("prices", envOr("LLM_PRICES", ""), `JSON {"model":{"input_per_m":0.2,"output_per_m":0.6}}`),
+		budget:   fs.Float64("budget-usd", envFloat("LLM_BUDGET_USD", 0), "spend limit for this run (0 = unlimited)"),
+	}
+}
+
+func (o *llmOpts) completer() (llm.Completer, error) {
+	pm := map[string]llm.Price{}
+	if *o.prices != "" {
+		if err := json.Unmarshal([]byte(*o.prices), &pm); err != nil {
+			return nil, fmt.Errorf("invalid --prices: %w", err)
+		}
+	}
+	return llm.NewClient(llm.Config{
+		BaseURL: *o.base, APIKey: envOr("LLM_API_KEY", "unused"), Timeout: *o.timeout, MaxRetries: 2,
+		StartMode: llm.StructuredMode(*o.mode), Prices: pm,
+	}, llm.NewMemoryBudget(*o.budget)), nil
 }

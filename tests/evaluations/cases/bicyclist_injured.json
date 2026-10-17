@@ -1,0 +1,75 @@
+{
+  "id": "bicyclist_injured",
+  "scenario": "injured_bicyclist",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Cyclist seriously hurt in San Jose collision",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-14T18:00:00Z",
+    "text": "SAN JOSE, Calif. \u2014 A bicyclist was hospitalized with serious injuries Wednesday morning after a pickup truck turned left into the rider's path on Almaden Road, San Jose police said.\n\nThe cyclist, a woman in her 30s, was taken to a hospital with injuries described as serious but not life-threatening. The truck's driver stayed at the scene."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-14",
+        "city": "San Jose",
+        "state": "CA",
+        "vru_categories": [
+          "bicyclist"
+        ],
+        "severity": "serious",
+        "fatality_count": 0,
+        "hit_and_run": "no",
+        "location_precision": "street"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-14",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "San Jose",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Almaden Road",
+        "location_precision": "street",
+        "vru_categories": [
+          "bicyclist"
+        ],
+        "vehicle_categories": [
+          "pickup_truck"
+        ],
+        "injured_count": 1,
+        "fatality_count": 0,
+        "severity": "serious",
+        "hit_and_run": "no",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "severity",
+            "quote": "serious but not life-threatening"
+          },
+          {
+            "field": "vru_categories",
+            "quote": "A bicyclist was hospitalized"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "id": "conflicting_reports",
+  "scenario": "conflicting_source_reports",
+  "synthetic": true,
+  "note": "Injured count is genuinely disputed in the article; either 1 or 2 is defensible, expected leaves it unset.",
+  "article": {
+    "title": "Conflicting accounts after Stockton pedestrian crash",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-15T18:00:00Z",
+    "text": "STOCKTON \u2014 A pedestrian was hit by a car on Pacific Avenue on Wednesday night. Police said the man was crossing outside a crosswalk; a witness told KXYZ the man had the walk signal. Police initially reported one person hurt, but a hospital spokesperson said two pedestrians were treated for injuries. The cause remains under investigation."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-14",
+        "city": "Stockton",
+        "state": "CA",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "location_precision": "street"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-14",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": "Stockton",
+        "county": null,
+        "state": "CA",
+        "country": "US",
+        "street_address": "Pacific Avenue",
+        "location_precision": "street",
+        "vru_categories": [
+          "pedestrian"
+        ],
+        "vehicle_categories": [
+          "passenger_car"
+        ],
+        "injured_count": 2,
+        "fatality_count": null,
+        "severity": "unknown",
+        "hit_and_run": "unknown",
+        "circumstances": "Accounts differ on whether the pedestrian had the walk signal and how many were hurt",
+        "facts_status": "alleged",
+        "evidence": [
+          {
+            "field": "injured_count",
+            "quote": "two pedestrians were treated for injuries"
+          },
+          {
+            "field": "injured_count",
+            "quote": "Police initially reported one person hurt"
+          }
+        ]
+      }
+    ]
+  }
+}

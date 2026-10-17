@@ -39,6 +39,8 @@ func run(ctx context.Context, args []string, out, errw io.Writer) error {
 		return fetchCmd(ctx, args[1:], out, errw, nil)
 	case "classify":
 		return classifyCmd(ctx, args[1:], out, errw, classifyDeps{})
+	case "eval":
+		return evalCmd(ctx, args[1:], out, errw)
 	case "help", "-h", "--help":
 		usage(out)
 		return nil
@@ -53,6 +55,7 @@ func usage(w io.Writer) {
 
 Commands:
   fetch <url>      Fetch and extract an article through the crawler service
+  eval             Score a model against labeled cases (tests/evaluations)
   classify <url>   Classify an article (or --file) and extract incident candidates via the LLM gateway
 
 Global flags (per command): --json for machine-readable output.

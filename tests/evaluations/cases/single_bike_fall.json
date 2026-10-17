@@ -1,0 +1,28 @@
+{
+  "id": "single_bike_fall",
+  "scenario": "nonqualifying_single_bicycle",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Cyclist hurt in solo fall on Grizzly Peak",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-11T18:00:00Z",
+    "text": "BERKELEY \u2014 A cyclist was taken to a hospital Saturday after losing control of their bike on a wet downhill stretch of Grizzly Peak Boulevard and falling. Police said no other vehicles were involved."
+  },
+  "expected": {
+    "verdict": "nonqualifying",
+    "kind": "current_incident",
+    "incidents": []
+  },
+  "synthetic_response": {
+    "verdict": "nonqualifying",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": false,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": []
+  }
+}

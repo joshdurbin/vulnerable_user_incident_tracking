@@ -1,0 +1,73 @@
+{
+  "id": "ambiguous_location",
+  "scenario": "missing_or_ambiguous_location",
+  "synthetic": true,
+  "note": "",
+  "article": {
+    "title": "Cyclist killed on rural Kern County road",
+    "publisher": "Example Gazette",
+    "published_at": "2026-10-16T18:00:00Z",
+    "text": "KERN COUNTY \u2014 A bicyclist was killed Thursday on a rural road in the county's southern area after being hit by a truck, the Highway Patrol said. The agency did not release the cyclist's name or the exact location pending notification of relatives."
+  },
+  "expected": {
+    "verdict": "confirmed",
+    "kind": "current_incident",
+    "incidents": [
+      {
+        "date": "2026-10-15",
+        "state": "CA",
+        "vru_categories": [
+          "bicyclist"
+        ],
+        "fatality_count": 1,
+        "severity": "fatal",
+        "location_precision": "county"
+      }
+    ]
+  },
+  "synthetic_response": {
+    "verdict": "confirmed",
+    "article_kind": "current_incident",
+    "collision_occurred": true,
+    "motor_vehicle_involved": true,
+    "vru_involved": true,
+    "injury_or_death": true,
+    "multiple_incidents": false,
+    "updates_earlier_incident": false,
+    "incidents": [
+      {
+        "occurred_at": "2026-10-15",
+        "occurred_at_precision": "date",
+        "timezone": null,
+        "city": null,
+        "county": "Kern",
+        "state": "CA",
+        "country": "US",
+        "street_address": null,
+        "location_precision": "county",
+        "vru_categories": [
+          "bicyclist"
+        ],
+        "vehicle_categories": [
+          "commercial_truck"
+        ],
+        "injured_count": null,
+        "fatality_count": 1,
+        "severity": "fatal",
+        "hit_and_run": "unknown",
+        "circumstances": null,
+        "facts_status": "confirmed",
+        "evidence": [
+          {
+            "field": "fatality_count",
+            "quote": "A bicyclist was killed Thursday"
+          },
+          {
+            "field": "location",
+            "quote": "a rural road in the county's southern area"
+          }
+        ]
+      }
+    ]
+  }
+}
