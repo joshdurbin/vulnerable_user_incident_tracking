@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -450,12 +451,24 @@ func (s *Server) ListSources(ctx context.Context, req ListSourcesRequestObject) 
 			Discoveries: &st.Discoveries, UniqueUrls: &st.UniqueURLs, ExclusiveUrls: &st.ExclusiveURLs, ArticlesFetched: &st.ArticlesFetched,
 			Incidents: &st.Incidents, AvgDelaySeconds: &avg, FetchSuccessRate: &fsr, RelevantRate: &rr,
 		}
-		if s.wf != nil {
-			if sch, err := s.wf.Schedule(ctx, src.Slug); err == nil {
-				info.Schedule = sch
-			}
-		}
 		out = append(out, info)
+	}
+	// Schedule state is best effort and fetched concurrently under a short deadline, so an
+	// unreachable Temporal slows this page by seconds at most, never by one timeout per source.
+	if s.wf != nil {
+		sctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		var wg sync.WaitGroup
+		for i := range out {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if sch, err := s.wf.Schedule(sctx, out[i].Slug); err == nil {
+					out[i].Schedule = sch
+				}
+			}()
+		}
+		wg.Wait()
 	}
 	return ListSources200JSONResponse(out), nil
 }

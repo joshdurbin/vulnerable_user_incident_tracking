@@ -20,6 +20,15 @@ jobs:
           make generate
           git diff --exit-code
       - run: cd crawler && uv run --python 3.13 pytest -q
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - name: web
+        run: |
+          cd web
+          npm ci
+          npm run gen:api && git diff --exit-code src/api/schema.d.ts
+          npm run build
+          npm test
 
   images:
     needs: test
@@ -31,6 +40,7 @@ jobs:
         include:
           - { name: crawler, file: deploy/docker/crawler.Dockerfile, args: "" }
           - { name: collisionctl, file: deploy/docker/go.Dockerfile, args: "CMD=collisionctl" }
+          - { name: web, file: deploy/docker/web.Dockerfile, args: "" }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3

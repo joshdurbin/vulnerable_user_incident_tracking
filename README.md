@@ -22,6 +22,12 @@ go run ./cmd/collisionctl fetch https://example.org/article --temporal-address l
 `make generate`). Reads are open (the service is tailnet-only); POST routes need
 `Authorization: Bearer $COLLISION_API_ADMIN_TOKEN` and are disabled when no token is set.
 
+## Web UI
+`web/` is a React + Vite + TypeScript app (map, trends, incident detail, review queue, operations). Types come from
+`api/openapi.yaml`. `cd web && npm run dev` serves on :5173 and proxies `/v1` to `collisionctl api` on :8080. The
+container is nginx serving the build, proxying `/v1` to `$API_UPSTREAM`, and writing `config.json` (Temporal UI
+link) from `TEMPORAL_UI_URL` at start. The map loads tiles from OpenFreeMap in the browser.
+
 ## Layout
 `crawler/` Python Temporal worker (fetch + extraction), `internal/` Go packages,
 `cmd/` binaries, `deploy/` Dockerfiles and compose.

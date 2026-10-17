@@ -4,20 +4,24 @@ export PATH := $(PATH):$(GOBIN)
 IMAGE_PREFIX ?= ghcr.io/joshdurbin/fuck_cars
 TAG ?= dev
 
-.PHONY: generate eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
+.PHONY: test-web web-dev generate eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
 
 generate: ## regenerate sqlc queries and the API server from api/openapi.yaml
 	sqlc generate
+	cd web && npm run gen:api
 	cd internal/api && go tool oapi-codegen -config oapi.cfg.yaml ../../api/openapi.yaml
 
 lint:
 	go vet ./...
 	gofmt -l . | (! grep .)
 
-test: test-go test-py
+test: test-go test-py test-web
 
 test-go:
 	go test ./...
+
+test-web:
+	cd web && npm test
 
 test-py:
 	cd crawler && uv run pytest -q
@@ -36,6 +40,7 @@ build:
 
 docker-build: ## local single-arch images; CI builds multi-arch
 	docker build -f deploy/docker/crawler.Dockerfile -t $(IMAGE_PREFIX)/crawler:$(TAG) .
+	docker build -f deploy/docker/web.Dockerfile -t $(IMAGE_PREFIX)/web:$(TAG) .
 	docker build -f deploy/docker/go.Dockerfile --build-arg CMD=collisionctl -t $(IMAGE_PREFIX)/collisionctl:$(TAG) .
 
 dev-up:
