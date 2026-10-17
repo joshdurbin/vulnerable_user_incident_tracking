@@ -30,7 +30,7 @@ eval: ## score a real model: COLLISION_LLM_MODEL=... COLLISION_LLM_BASE_URL=... 
 	go run ./cmd/collisionctl eval
 
 test-integration: ## needs docker (postgres, temporal); added in Milestone 3
-	go test -tags=integration ./tests/integration/...
+	TESTCONTAINERS_RYUK_DISABLED=true go test -tags=integration -count=1 ./internal/...
 
 build:
 	go build -o bin/ ./cmd/...
@@ -45,5 +45,5 @@ dev-up:
 dev-down:
 	docker compose -f deploy/local/docker-compose.yaml down
 
-migrate: ## added in Milestone 3
-	@echo "no migrations yet"
+migrate: ## COLLISION_DATABASE_URL=postgres://... make migrate
+	go run ./cmd/collisionctl migrate

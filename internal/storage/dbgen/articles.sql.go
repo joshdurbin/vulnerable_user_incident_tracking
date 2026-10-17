@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getArticle = `-- name: GetArticle :one
@@ -145,40 +144,40 @@ RETURNING id, article_id, model, prompt_version, schema_version, structured_mode
 `
 
 type UpsertExtractionParams struct {
-	ArticleID      uuid.UUID      `json:"article_id"`
-	Model          string         `json:"model"`
-	PromptVersion  string         `json:"prompt_version"`
-	SchemaVersion  string         `json:"schema_version"`
-	StructuredMode *string        `json:"structured_mode"`
-	Verdict        string         `json:"verdict"`
-	ArticleKind    string         `json:"article_kind"`
-	Result         []byte         `json:"result"`
-	Warnings       []string       `json:"warnings"`
-	InputTokens    int64          `json:"input_tokens"`
-	OutputTokens   int64          `json:"output_tokens"`
-	CostUsd        pgtype.Numeric `json:"cost_usd"`
-	LatencyMs      int32          `json:"latency_ms"`
-	UsedFallback   bool           `json:"used_fallback"`
+	ArticleID      uuid.UUID `json:"article_id"`
+	Model          string    `json:"model"`
+	PromptVersion  string    `json:"prompt_version"`
+	SchemaVersion  string    `json:"schema_version"`
+	StructuredMode *string   `json:"structured_mode"`
+	Verdict        string    `json:"verdict"`
+	ArticleKind    string    `json:"article_kind"`
+	Result         []byte    `json:"result"`
+	Warnings       []string  `json:"warnings"`
+	InputTokens    int64     `json:"input_tokens"`
+	OutputTokens   int64     `json:"output_tokens"`
+	CostUsd        float64   `json:"cost_usd"`
+	LatencyMs      int32     `json:"latency_ms"`
+	UsedFallback   bool      `json:"used_fallback"`
 }
 
 type UpsertExtractionRow struct {
-	ID             uuid.UUID      `json:"id"`
-	ArticleID      uuid.UUID      `json:"article_id"`
-	Model          string         `json:"model"`
-	PromptVersion  string         `json:"prompt_version"`
-	SchemaVersion  string         `json:"schema_version"`
-	StructuredMode *string        `json:"structured_mode"`
-	Verdict        string         `json:"verdict"`
-	ArticleKind    string         `json:"article_kind"`
-	Result         []byte         `json:"result"`
-	Warnings       []string       `json:"warnings"`
-	InputTokens    int64          `json:"input_tokens"`
-	OutputTokens   int64          `json:"output_tokens"`
-	CostUsd        pgtype.Numeric `json:"cost_usd"`
-	LatencyMs      int32          `json:"latency_ms"`
-	UsedFallback   bool           `json:"used_fallback"`
-	CreatedAt      time.Time      `json:"created_at"`
-	Inserted       bool           `json:"inserted"`
+	ID             uuid.UUID `json:"id"`
+	ArticleID      uuid.UUID `json:"article_id"`
+	Model          string    `json:"model"`
+	PromptVersion  string    `json:"prompt_version"`
+	SchemaVersion  string    `json:"schema_version"`
+	StructuredMode *string   `json:"structured_mode"`
+	Verdict        string    `json:"verdict"`
+	ArticleKind    string    `json:"article_kind"`
+	Result         []byte    `json:"result"`
+	Warnings       []string  `json:"warnings"`
+	InputTokens    int64     `json:"input_tokens"`
+	OutputTokens   int64     `json:"output_tokens"`
+	CostUsd        float64   `json:"cost_usd"`
+	LatencyMs      int32     `json:"latency_ms"`
+	UsedFallback   bool      `json:"used_fallback"`
+	CreatedAt      time.Time `json:"created_at"`
+	Inserted       bool      `json:"inserted"`
 }
 
 // Idempotent on (article, model, prompt, schema): a repeat returns the existing row.

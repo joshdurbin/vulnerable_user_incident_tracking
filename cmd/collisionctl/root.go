@@ -67,14 +67,14 @@ func newRootCmd(d deps) *cobra.Command {
 	pf.String("log-format", "json", "log format: json|console")
 	pf.Bool("json", false, "machine-readable JSON output")
 
-	root.AddCommand(newFetchCmd(a), newClassifyCmd(a), newEvalCmd(a))
+	root.AddCommand(newFetchCmd(a), newClassifyCmd(a), newEvalCmd(a), newMigrateCmd(a))
 	return root
 }
 
 // flagKeys maps config keys to the flag that overrides each. A flag is bound
 // only if the executing command defines it.
 var flagKeys = map[string]string{
-	"log.level": "log-level", "log.format": "log-format", "crawler.addr": "crawler",
+	"log.level": "log-level", "database.url": "database-url", "log.format": "log-format", "crawler.addr": "crawler",
 	"llm.base_url": "llm-url", "llm.model": "model", "llm.fallback_model": "fallback-model",
 	"llm.structured_mode": "structured-mode", "llm.timeout": "llm-timeout", "llm.prices": "prices", "llm.budget_usd": "budget-usd",
 }

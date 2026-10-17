@@ -10,8 +10,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const countIncidentArticles = `-- name: CountIncidentArticles :one
+SELECT count(DISTINCT article_id)::int AS n FROM incident_articles WHERE incident_id = $1
+`
+
+func (q *Queries) CountIncidentArticles(ctx context.Context, incidentID uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countIncidentArticles, incidentID)
+	var n int32
+	err := row.Scan(&n)
+	return n, err
+}
 
 const decideReview = `-- name: DecideReview :exec
 UPDATE match_reviews SET status = $2, decided_by = $3, decided_at = now() WHERE id = $1
@@ -28,11 +38,21 @@ func (q *Queries) DecideReview(ctx context.Context, arg DecideReviewParams) erro
 	return err
 }
 
+const deleteParticipants = `-- name: DeleteParticipants :exec
+DELETE FROM incident_participants WHERE incident_id = $1
+`
+
+func (q *Queries) DeleteParticipants(ctx context.Context, incidentID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteParticipants, incidentID)
+	return err
+}
+
 const findCandidates = `-- name: FindCandidates :many
 SELECT v.id, v.occurred_on, v.occurred_at, v.occurred_precision, v.timezone, v.city, v.county, v.state, v.country, v.street_address, v.location_precision, v.lat, v.lon, v.geocode_source, v.geocode_confidence, v.geocode_precision, v.vru_categories, v.vehicle_categories, v.injured_count, v.fatality_count, v.severity, v.hit_and_run, v.circumstances, v.facts_status, v.verification_status, v.article_count, v.merged_into, v.version, v.created_at, v.updated_at,
-       CASE WHEN $1::float8 IS NULL OR $2::float8 IS NULL OR i.geom IS NULL THEN NULL
+       -- -1 when either side has no coordinates
+       COALESCE(CASE WHEN $1::float8 IS NULL OR $2::float8 IS NULL OR i.geom IS NULL THEN NULL
             ELSE ST_Distance(i.geom, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8
-       END AS distance_m,
+       END, -1.0)::float8 AS distance_m,
        similarity(coalesce(v.street_address,''), coalesce($3::text,''))::float4 AS street_sim,
        similarity(coalesce(v.city,''), coalesce($4::text,''))::float4 AS city_sim
 FROM incidents_v v JOIN incidents i ON i.id = v.id
@@ -51,51 +71,51 @@ LIMIT 50
 `
 
 type FindCandidatesParams struct {
-	Lon        *float64    `json:"lon"`
-	Lat        *float64    `json:"lat"`
-	Street     *string     `json:"street"`
-	City       *string     `json:"city"`
-	State      *string     `json:"state"`
-	OnDate     pgtype.Date `json:"on_date"`
-	WindowDays int32       `json:"window_days"`
-	RadiusM    float64     `json:"radius_m"`
-	County     *string     `json:"county"`
+	Lon        *float64   `json:"lon"`
+	Lat        *float64   `json:"lat"`
+	Street     *string    `json:"street"`
+	City       *string    `json:"city"`
+	State      *string    `json:"state"`
+	OnDate     *time.Time `json:"on_date"`
+	WindowDays int32      `json:"window_days"`
+	RadiusM    float64    `json:"radius_m"`
+	County     *string    `json:"county"`
 }
 
 type FindCandidatesRow struct {
-	ID                 uuid.UUID   `json:"id"`
-	OccurredOn         pgtype.Date `json:"occurred_on"`
-	OccurredAt         *time.Time  `json:"occurred_at"`
-	OccurredPrecision  string      `json:"occurred_precision"`
-	Timezone           *string     `json:"timezone"`
-	City               *string     `json:"city"`
-	County             *string     `json:"county"`
-	State              *string     `json:"state"`
-	Country            string      `json:"country"`
-	StreetAddress      *string     `json:"street_address"`
-	LocationPrecision  string      `json:"location_precision"`
-	Lat                float64     `json:"lat"`
-	Lon                float64     `json:"lon"`
-	GeocodeSource      *string     `json:"geocode_source"`
-	GeocodeConfidence  *float32    `json:"geocode_confidence"`
-	GeocodePrecision   *string     `json:"geocode_precision"`
-	VruCategories      []string    `json:"vru_categories"`
-	VehicleCategories  []string    `json:"vehicle_categories"`
-	InjuredCount       *int32      `json:"injured_count"`
-	FatalityCount      *int32      `json:"fatality_count"`
-	Severity           string      `json:"severity"`
-	HitAndRun          string      `json:"hit_and_run"`
-	Circumstances      *string     `json:"circumstances"`
-	FactsStatus        string      `json:"facts_status"`
-	VerificationStatus string      `json:"verification_status"`
-	ArticleCount       int32       `json:"article_count"`
-	MergedInto         *uuid.UUID  `json:"merged_into"`
-	Version            int32       `json:"version"`
-	CreatedAt          time.Time   `json:"created_at"`
-	UpdatedAt          time.Time   `json:"updated_at"`
-	DistanceM          float64     `json:"distance_m"`
-	StreetSim          float32     `json:"street_sim"`
-	CitySim            float32     `json:"city_sim"`
+	ID                 uuid.UUID  `json:"id"`
+	OccurredOn         *time.Time `json:"occurred_on"`
+	OccurredAt         *time.Time `json:"occurred_at"`
+	OccurredPrecision  string     `json:"occurred_precision"`
+	Timezone           *string    `json:"timezone"`
+	City               *string    `json:"city"`
+	County             *string    `json:"county"`
+	State              *string    `json:"state"`
+	Country            string     `json:"country"`
+	StreetAddress      *string    `json:"street_address"`
+	LocationPrecision  string     `json:"location_precision"`
+	Lat                *float64   `json:"lat"`
+	Lon                *float64   `json:"lon"`
+	GeocodeSource      *string    `json:"geocode_source"`
+	GeocodeConfidence  *float32   `json:"geocode_confidence"`
+	GeocodePrecision   *string    `json:"geocode_precision"`
+	VruCategories      []string   `json:"vru_categories"`
+	VehicleCategories  []string   `json:"vehicle_categories"`
+	InjuredCount       *int32     `json:"injured_count"`
+	FatalityCount      *int32     `json:"fatality_count"`
+	Severity           string     `json:"severity"`
+	HitAndRun          string     `json:"hit_and_run"`
+	Circumstances      *string    `json:"circumstances"`
+	FactsStatus        string     `json:"facts_status"`
+	VerificationStatus string     `json:"verification_status"`
+	ArticleCount       int32      `json:"article_count"`
+	MergedInto         *uuid.UUID `json:"merged_into"`
+	Version            int32      `json:"version"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	DistanceM          float64    `json:"distance_m"`
+	StreetSim          float32    `json:"street_sim"`
+	CitySim            float32    `json:"city_sim"`
 }
 
 // Plausible duplicates: same state (or unknown), nearby date, and either spatially close or textually similar place.
@@ -299,29 +319,29 @@ RETURNING id
 `
 
 type InsertIncidentParams struct {
-	OccurredOn        pgtype.Date `json:"occurred_on"`
-	OccurredAt        *time.Time  `json:"occurred_at"`
-	OccurredPrecision string      `json:"occurred_precision"`
-	Timezone          *string     `json:"timezone"`
-	City              *string     `json:"city"`
-	County            *string     `json:"county"`
-	State             *string     `json:"state"`
-	Country           string      `json:"country"`
-	StreetAddress     *string     `json:"street_address"`
-	LocationPrecision string      `json:"location_precision"`
-	GeocodeSource     *string     `json:"geocode_source"`
-	GeocodeConfidence *float32    `json:"geocode_confidence"`
-	GeocodePrecision  *string     `json:"geocode_precision"`
-	VruCategories     []string    `json:"vru_categories"`
-	VehicleCategories []string    `json:"vehicle_categories"`
-	InjuredCount      *int32      `json:"injured_count"`
-	FatalityCount     *int32      `json:"fatality_count"`
-	Severity          string      `json:"severity"`
-	HitAndRun         string      `json:"hit_and_run"`
-	Circumstances     *string     `json:"circumstances"`
-	FactsStatus       string      `json:"facts_status"`
-	Lon               *float64    `json:"lon"`
-	Lat               *float64    `json:"lat"`
+	OccurredOn        *time.Time `json:"occurred_on"`
+	OccurredAt        *time.Time `json:"occurred_at"`
+	OccurredPrecision string     `json:"occurred_precision"`
+	Timezone          *string    `json:"timezone"`
+	City              *string    `json:"city"`
+	County            *string    `json:"county"`
+	State             *string    `json:"state"`
+	Country           string     `json:"country"`
+	StreetAddress     *string    `json:"street_address"`
+	LocationPrecision string     `json:"location_precision"`
+	GeocodeSource     *string    `json:"geocode_source"`
+	GeocodeConfidence *float32   `json:"geocode_confidence"`
+	GeocodePrecision  *string    `json:"geocode_precision"`
+	VruCategories     []string   `json:"vru_categories"`
+	VehicleCategories []string   `json:"vehicle_categories"`
+	InjuredCount      *int32     `json:"injured_count"`
+	FatalityCount     *int32     `json:"fatality_count"`
+	Severity          string     `json:"severity"`
+	HitAndRun         string     `json:"hit_and_run"`
+	Circumstances     *string    `json:"circumstances"`
+	FactsStatus       string     `json:"facts_status"`
+	Lon               *float64   `json:"lon"`
+	Lat               *float64   `json:"lat"`
 }
 
 func (q *Queries) InsertIncident(ctx context.Context, arg InsertIncidentParams) (uuid.UUID, error) {
@@ -432,6 +452,29 @@ func (q *Queries) InsertObservation(ctx context.Context, arg InsertObservationPa
 		arg.CandidateIdx,
 		arg.ObservedAt,
 		arg.Data,
+	)
+	return err
+}
+
+const insertParticipant = `-- name: InsertParticipant :exec
+INSERT INTO incident_participants (incident_id, kind, category, count, outcome) VALUES ($1,$2,$3,$4,$5)
+`
+
+type InsertParticipantParams struct {
+	IncidentID uuid.UUID `json:"incident_id"`
+	Kind       string    `json:"kind"`
+	Category   string    `json:"category"`
+	Count      *int32    `json:"count"`
+	Outcome    string    `json:"outcome"`
+}
+
+func (q *Queries) InsertParticipant(ctx context.Context, arg InsertParticipantParams) error {
+	_, err := q.db.Exec(ctx, insertParticipant,
+		arg.IncidentID,
+		arg.Kind,
+		arg.Category,
+		arg.Count,
+		arg.Outcome,
 	)
 	return err
 }
@@ -551,6 +594,75 @@ func (q *Queries) ListObservations(ctx context.Context, incidentID uuid.UUID) ([
 	return items, nil
 }
 
+const listObservationsForArticle = `-- name: ListObservationsForArticle :many
+SELECT id, incident_id, article_id, extraction_id, candidate_idx, observed_at, data, created_at FROM incident_observations WHERE incident_id = $1 AND article_id = $2 ORDER BY candidate_idx
+`
+
+type ListObservationsForArticleParams struct {
+	IncidentID uuid.UUID `json:"incident_id"`
+	ArticleID  uuid.UUID `json:"article_id"`
+}
+
+func (q *Queries) ListObservationsForArticle(ctx context.Context, arg ListObservationsForArticleParams) ([]IncidentObservation, error) {
+	rows, err := q.db.Query(ctx, listObservationsForArticle, arg.IncidentID, arg.ArticleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IncidentObservation
+	for rows.Next() {
+		var i IncidentObservation
+		if err := rows.Scan(
+			&i.ID,
+			&i.IncidentID,
+			&i.ArticleID,
+			&i.ExtractionID,
+			&i.CandidateIdx,
+			&i.ObservedAt,
+			&i.Data,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listParticipants = `-- name: ListParticipants :many
+SELECT id, incident_id, kind, category, count, outcome FROM incident_participants WHERE incident_id = $1 ORDER BY kind, category
+`
+
+func (q *Queries) ListParticipants(ctx context.Context, incidentID uuid.UUID) ([]IncidentParticipant, error) {
+	rows, err := q.db.Query(ctx, listParticipants, incidentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IncidentParticipant
+	for rows.Next() {
+		var i IncidentParticipant
+		if err := rows.Scan(
+			&i.ID,
+			&i.IncidentID,
+			&i.Kind,
+			&i.Category,
+			&i.Count,
+			&i.Outcome,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingReviews = `-- name: ListPendingReviews :many
 SELECT id, extraction_id, candidate_idx, new_incident_id, candidate_incident_id, score, reasons, status, decided_by, decided_at, created_at FROM match_reviews WHERE status = 'pending' ORDER BY created_at LIMIT $1
 `
@@ -596,6 +708,36 @@ func (q *Queries) LockKey(ctx context.Context, key string) error {
 	return err
 }
 
+const moveArticleLinks = `-- name: MoveArticleLinks :exec
+UPDATE incident_articles SET incident_id = $1 WHERE incident_id = $2 AND article_id = $3
+`
+
+type MoveArticleLinksParams struct {
+	ToID      uuid.UUID `json:"to_id"`
+	FromID    uuid.UUID `json:"from_id"`
+	ArticleID uuid.UUID `json:"article_id"`
+}
+
+func (q *Queries) MoveArticleLinks(ctx context.Context, arg MoveArticleLinksParams) error {
+	_, err := q.db.Exec(ctx, moveArticleLinks, arg.ToID, arg.FromID, arg.ArticleID)
+	return err
+}
+
+const moveArticleObservations = `-- name: MoveArticleObservations :exec
+UPDATE incident_observations SET incident_id = $1 WHERE incident_id = $2 AND article_id = $3
+`
+
+type MoveArticleObservationsParams struct {
+	ToID      uuid.UUID `json:"to_id"`
+	FromID    uuid.UUID `json:"from_id"`
+	ArticleID uuid.UUID `json:"article_id"`
+}
+
+func (q *Queries) MoveArticleObservations(ctx context.Context, arg MoveArticleObservationsParams) error {
+	_, err := q.db.Exec(ctx, moveArticleObservations, arg.ToID, arg.FromID, arg.ArticleID)
+	return err
+}
+
 const moveIncidentArticles = `-- name: MoveIncidentArticles :exec
 UPDATE incident_articles SET incident_id = $1 WHERE incident_id = $2
 `
@@ -624,6 +766,33 @@ func (q *Queries) MoveObservations(ctx context.Context, arg MoveObservationsPara
 	return err
 }
 
+const setGeocode = `-- name: SetGeocode :exec
+UPDATE incidents SET geom = ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography,
+    geocode_source = $3, geocode_confidence = $4, geocode_precision = $5, updated_at = now()
+WHERE id = $6
+`
+
+type SetGeocodeParams struct {
+	Lon        float64   `json:"lon"`
+	Lat        float64   `json:"lat"`
+	Source     *string   `json:"source"`
+	Confidence *float32  `json:"confidence"`
+	Precision  *string   `json:"precision"`
+	ID         uuid.UUID `json:"id"`
+}
+
+func (q *Queries) SetGeocode(ctx context.Context, arg SetGeocodeParams) error {
+	_, err := q.db.Exec(ctx, setGeocode,
+		arg.Lon,
+		arg.Lat,
+		arg.Source,
+		arg.Confidence,
+		arg.Precision,
+		arg.ID,
+	)
+	return err
+}
+
 const softMergeIncident = `-- name: SoftMergeIncident :exec
 UPDATE incidents SET merged_into = $1, article_count = 0, version = version + 1, updated_at = now() WHERE id = $2
 `
@@ -635,6 +804,21 @@ type SoftMergeIncidentParams struct {
 
 func (q *Queries) SoftMergeIncident(ctx context.Context, arg SoftMergeIncidentParams) error {
 	_, err := q.db.Exec(ctx, softMergeIncident, arg.ToID, arg.FromID)
+	return err
+}
+
+const supersedeOtherReviews = `-- name: SupersedeOtherReviews :exec
+UPDATE match_reviews SET status = 'rejected', decided_by = 'system:superseded', decided_at = now()
+WHERE new_incident_id = $1 AND status = 'pending' AND id <> $2
+`
+
+type SupersedeOtherReviewsParams struct {
+	NewIncidentID uuid.UUID `json:"new_incident_id"`
+	KeepID        uuid.UUID `json:"keep_id"`
+}
+
+func (q *Queries) SupersedeOtherReviews(ctx context.Context, arg SupersedeOtherReviewsParams) error {
+	_, err := q.db.Exec(ctx, supersedeOtherReviews, arg.NewIncidentID, arg.KeepID)
 	return err
 }
 
@@ -652,28 +836,28 @@ WHERE id = $1
 `
 
 type UpdateIncidentCanonicalParams struct {
-	ID                 uuid.UUID   `json:"id"`
-	OccurredOn         pgtype.Date `json:"occurred_on"`
-	OccurredAt         *time.Time  `json:"occurred_at"`
-	OccurredPrecision  string      `json:"occurred_precision"`
-	Timezone           *string     `json:"timezone"`
-	City               *string     `json:"city"`
-	County             *string     `json:"county"`
-	State              *string     `json:"state"`
-	StreetAddress      *string     `json:"street_address"`
-	LocationPrecision  string      `json:"location_precision"`
-	VruCategories      []string    `json:"vru_categories"`
-	VehicleCategories  []string    `json:"vehicle_categories"`
-	InjuredCount       *int32      `json:"injured_count"`
-	FatalityCount      *int32      `json:"fatality_count"`
-	Severity           string      `json:"severity"`
-	HitAndRun          string      `json:"hit_and_run"`
-	Circumstances      *string     `json:"circumstances"`
-	FactsStatus        string      `json:"facts_status"`
-	VerificationStatus string      `json:"verification_status"`
-	ArticleCount       int32       `json:"article_count"`
-	Lon                *float64    `json:"lon"`
-	Lat                *float64    `json:"lat"`
+	ID                 uuid.UUID  `json:"id"`
+	OccurredOn         *time.Time `json:"occurred_on"`
+	OccurredAt         *time.Time `json:"occurred_at"`
+	OccurredPrecision  string     `json:"occurred_precision"`
+	Timezone           *string    `json:"timezone"`
+	City               *string    `json:"city"`
+	County             *string    `json:"county"`
+	State              *string    `json:"state"`
+	StreetAddress      *string    `json:"street_address"`
+	LocationPrecision  string     `json:"location_precision"`
+	VruCategories      []string   `json:"vru_categories"`
+	VehicleCategories  []string   `json:"vehicle_categories"`
+	InjuredCount       *int32     `json:"injured_count"`
+	FatalityCount      *int32     `json:"fatality_count"`
+	Severity           string     `json:"severity"`
+	HitAndRun          string     `json:"hit_and_run"`
+	Circumstances      *string    `json:"circumstances"`
+	FactsStatus        string     `json:"facts_status"`
+	VerificationStatus string     `json:"verification_status"`
+	ArticleCount       int32      `json:"article_count"`
+	Lon                *float64   `json:"lon"`
+	Lat                *float64   `json:"lat"`
 }
 
 func (q *Queries) UpdateIncidentCanonical(ctx context.Context, arg UpdateIncidentCanonicalParams) error {

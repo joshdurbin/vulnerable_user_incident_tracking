@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Article struct {
@@ -44,22 +43,22 @@ type ArticleDiscovery struct {
 }
 
 type ArticleExtraction struct {
-	ID             uuid.UUID      `json:"id"`
-	ArticleID      uuid.UUID      `json:"article_id"`
-	Model          string         `json:"model"`
-	PromptVersion  string         `json:"prompt_version"`
-	SchemaVersion  string         `json:"schema_version"`
-	StructuredMode *string        `json:"structured_mode"`
-	Verdict        string         `json:"verdict"`
-	ArticleKind    string         `json:"article_kind"`
-	Result         []byte         `json:"result"`
-	Warnings       []string       `json:"warnings"`
-	InputTokens    int64          `json:"input_tokens"`
-	OutputTokens   int64          `json:"output_tokens"`
-	CostUsd        pgtype.Numeric `json:"cost_usd"`
-	LatencyMs      int32          `json:"latency_ms"`
-	UsedFallback   bool           `json:"used_fallback"`
-	CreatedAt      time.Time      `json:"created_at"`
+	ID             uuid.UUID `json:"id"`
+	ArticleID      uuid.UUID `json:"article_id"`
+	Model          string    `json:"model"`
+	PromptVersion  string    `json:"prompt_version"`
+	SchemaVersion  string    `json:"schema_version"`
+	StructuredMode *string   `json:"structured_mode"`
+	Verdict        string    `json:"verdict"`
+	ArticleKind    string    `json:"article_kind"`
+	Result         []byte    `json:"result"`
+	Warnings       []string  `json:"warnings"`
+	InputTokens    int64     `json:"input_tokens"`
+	OutputTokens   int64     `json:"output_tokens"`
+	CostUsd        float64   `json:"cost_usd"`
+	LatencyMs      int32     `json:"latency_ms"`
+	UsedFallback   bool      `json:"used_fallback"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type ArticleFetchAttempt struct {
@@ -114,7 +113,7 @@ type DiscoverySource struct {
 
 type Incident struct {
 	ID                 uuid.UUID   `json:"id"`
-	OccurredOn         pgtype.Date `json:"occurred_on"`
+	OccurredOn         *time.Time  `json:"occurred_on"`
 	OccurredAt         *time.Time  `json:"occurred_at"`
 	OccurredPrecision  string      `json:"occurred_precision"`
 	Timezone           *string     `json:"timezone"`
@@ -185,36 +184,36 @@ type IncidentParticipant struct {
 }
 
 type IncidentsV struct {
-	ID                 uuid.UUID   `json:"id"`
-	OccurredOn         pgtype.Date `json:"occurred_on"`
-	OccurredAt         *time.Time  `json:"occurred_at"`
-	OccurredPrecision  string      `json:"occurred_precision"`
-	Timezone           *string     `json:"timezone"`
-	City               *string     `json:"city"`
-	County             *string     `json:"county"`
-	State              *string     `json:"state"`
-	Country            string      `json:"country"`
-	StreetAddress      *string     `json:"street_address"`
-	LocationPrecision  string      `json:"location_precision"`
-	Lat                float64     `json:"lat"`
-	Lon                float64     `json:"lon"`
-	GeocodeSource      *string     `json:"geocode_source"`
-	GeocodeConfidence  *float32    `json:"geocode_confidence"`
-	GeocodePrecision   *string     `json:"geocode_precision"`
-	VruCategories      []string    `json:"vru_categories"`
-	VehicleCategories  []string    `json:"vehicle_categories"`
-	InjuredCount       *int32      `json:"injured_count"`
-	FatalityCount      *int32      `json:"fatality_count"`
-	Severity           string      `json:"severity"`
-	HitAndRun          string      `json:"hit_and_run"`
-	Circumstances      *string     `json:"circumstances"`
-	FactsStatus        string      `json:"facts_status"`
-	VerificationStatus string      `json:"verification_status"`
-	ArticleCount       int32       `json:"article_count"`
-	MergedInto         *uuid.UUID  `json:"merged_into"`
-	Version            int32       `json:"version"`
-	CreatedAt          time.Time   `json:"created_at"`
-	UpdatedAt          time.Time   `json:"updated_at"`
+	ID                 uuid.UUID  `json:"id"`
+	OccurredOn         *time.Time `json:"occurred_on"`
+	OccurredAt         *time.Time `json:"occurred_at"`
+	OccurredPrecision  string     `json:"occurred_precision"`
+	Timezone           *string    `json:"timezone"`
+	City               *string    `json:"city"`
+	County             *string    `json:"county"`
+	State              *string    `json:"state"`
+	Country            string     `json:"country"`
+	StreetAddress      *string    `json:"street_address"`
+	LocationPrecision  string     `json:"location_precision"`
+	Lat                *float64   `json:"lat"`
+	Lon                *float64   `json:"lon"`
+	GeocodeSource      *string    `json:"geocode_source"`
+	GeocodeConfidence  *float32   `json:"geocode_confidence"`
+	GeocodePrecision   *string    `json:"geocode_precision"`
+	VruCategories      []string   `json:"vru_categories"`
+	VehicleCategories  []string   `json:"vehicle_categories"`
+	InjuredCount       *int32     `json:"injured_count"`
+	FatalityCount      *int32     `json:"fatality_count"`
+	Severity           string     `json:"severity"`
+	HitAndRun          string     `json:"hit_and_run"`
+	Circumstances      *string    `json:"circumstances"`
+	FactsStatus        string     `json:"facts_status"`
+	VerificationStatus string     `json:"verification_status"`
+	ArticleCount       int32      `json:"article_count"`
+	MergedInto         *uuid.UUID `json:"merged_into"`
+	Version            int32      `json:"version"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 type MatchReview struct {

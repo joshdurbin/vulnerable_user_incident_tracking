@@ -57,9 +57,10 @@ WHERE ia.incident_id = $1 ORDER BY ia.created_at;
 -- name: FindCandidates :many
 -- Plausible duplicates: same state (or unknown), nearby date, and either spatially close or textually similar place.
 SELECT v.*,
-       CASE WHEN sqlc.narg(lon)::float8 IS NULL OR sqlc.narg(lat)::float8 IS NULL OR i.geom IS NULL THEN NULL
+       -- -1 when either side has no coordinates
+       COALESCE(CASE WHEN sqlc.narg(lon)::float8 IS NULL OR sqlc.narg(lat)::float8 IS NULL OR i.geom IS NULL THEN NULL
             ELSE ST_Distance(i.geom, ST_SetSRID(ST_MakePoint(sqlc.narg(lon)::float8, sqlc.narg(lat)::float8), 4326)::geography)::float8
-       END AS distance_m,
+       END, -1.0)::float8 AS distance_m,
        similarity(coalesce(v.street_address,''), coalesce(sqlc.narg(street)::text,''))::float4 AS street_sim,
        similarity(coalesce(v.city,''), coalesce(sqlc.narg(city)::text,''))::float4 AS city_sim
 FROM incidents_v v JOIN incidents i ON i.id = v.id
@@ -98,3 +99,33 @@ UPDATE incident_observations SET incident_id = @to_id WHERE incident_id = @from_
 
 -- name: SoftMergeIncident :exec
 UPDATE incidents SET merged_into = @to_id, article_count = 0, version = version + 1, updated_at = now() WHERE id = @from_id;
+
+-- name: DeleteParticipants :exec
+DELETE FROM incident_participants WHERE incident_id = $1;
+
+-- name: InsertParticipant :exec
+INSERT INTO incident_participants (incident_id, kind, category, count, outcome) VALUES ($1,$2,$3,$4,$5);
+
+-- name: ListParticipants :many
+SELECT * FROM incident_participants WHERE incident_id = $1 ORDER BY kind, category;
+
+-- name: MoveArticleLinks :exec
+UPDATE incident_articles SET incident_id = @to_id WHERE incident_id = @from_id AND article_id = @article_id;
+
+-- name: MoveArticleObservations :exec
+UPDATE incident_observations SET incident_id = @to_id WHERE incident_id = @from_id AND article_id = @article_id;
+
+-- name: CountIncidentArticles :one
+SELECT count(DISTINCT article_id)::int AS n FROM incident_articles WHERE incident_id = $1;
+
+-- name: ListObservationsForArticle :many
+SELECT * FROM incident_observations WHERE incident_id = $1 AND article_id = $2 ORDER BY candidate_idx;
+
+-- name: SetGeocode :exec
+UPDATE incidents SET geom = ST_SetSRID(ST_MakePoint(@lon::float8, @lat::float8), 4326)::geography,
+    geocode_source = @source, geocode_confidence = @confidence, geocode_precision = @precision, updated_at = now()
+WHERE id = @id;
+
+-- name: SupersedeOtherReviews :exec
+UPDATE match_reviews SET status = 'rejected', decided_by = 'system:superseded', decided_at = now()
+WHERE new_incident_id = @new_incident_id AND status = 'pending' AND id <> @keep_id;
