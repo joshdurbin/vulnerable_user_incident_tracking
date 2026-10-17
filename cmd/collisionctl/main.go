@@ -37,6 +37,8 @@ func run(ctx context.Context, args []string, out, errw io.Writer) error {
 	switch args[0] {
 	case "fetch":
 		return fetchCmd(ctx, args[1:], out, errw, nil)
+	case "classify":
+		return classifyCmd(ctx, args[1:], out, errw, classifyDeps{})
 	case "help", "-h", "--help":
 		usage(out)
 		return nil
@@ -50,7 +52,8 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, `collisionctl - collision tracker admin CLI
 
 Commands:
-  fetch <url>   Fetch and extract an article through the crawler service
+  fetch <url>      Fetch and extract an article through the crawler service
+  classify <url>   Classify an article (or --file) and extract incident candidates via the LLM gateway
 
 Global flags (per command): --json for machine-readable output.
 `)

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "collision_extraction_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "article_kind", "collision_occurred", "motor_vehicle_involved", "vru_involved", "injury_or_death", "multiple_incidents", "updates_earlier_incident", "incidents"],
+  "properties": {
+    "verdict": {"type": "string", "enum": ["confirmed", "possible", "nonqualifying", "insufficient"]},
+    "article_kind": {"type": "string", "enum": ["current_incident", "update", "historical", "hypothetical", "unrelated"]},
+    "collision_occurred": {"type": ["boolean", "null"]},
+    "motor_vehicle_involved": {"type": ["boolean", "null"]},
+    "vru_involved": {"type": ["boolean", "null"]},
+    "injury_or_death": {"type": ["boolean", "null"]},
+    "multiple_incidents": {"type": "boolean"},
+    "updates_earlier_incident": {"type": "boolean"},
+    "incidents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["occurred_at", "occurred_at_precision", "timezone", "city", "county", "state", "country", "street_address", "location_precision", "vru_categories", "vehicle_categories", "injured_count", "fatality_count", "severity", "hit_and_run", "circumstances", "facts_status", "evidence"],
+        "properties": {
+          "occurred_at": {"type": ["string", "null"], "description": "YYYY-MM-DD or RFC3339 datetime; null if unknown"},
+          "occurred_at_precision": {"type": "string", "enum": ["datetime", "date", "unknown"]},
+          "timezone": {"type": ["string", "null"]},
+          "city": {"type": ["string", "null"]},
+          "county": {"type": ["string", "null"]},
+          "state": {"type": ["string", "null"], "description": "US state two-letter code when known"},
+          "country": {"type": ["string", "null"]},
+          "street_address": {"type": ["string", "null"], "description": "street address or intersection as written"},
+          "location_precision": {"type": "string", "enum": ["exact_address", "intersection", "block", "street", "neighborhood", "city", "county", "unknown"]},
+          "vru_categories": {"type": "array", "items": {"type": "string", "enum": ["pedestrian", "bicyclist", "e_bike_rider", "scooter_rider", "motorcyclist", "moped_rider", "wheelchair_user", "skateboarder", "other"]}},
+          "vehicle_categories": {"type": "array", "items": {"type": "string", "enum": ["passenger_car", "suv", "pickup_truck", "van", "bus", "semi_truck", "commercial_truck", "motorcycle", "other", "unknown"]}},
+          "injured_count": {"type": ["integer", "null"]},
+          "fatality_count": {"type": ["integer", "null"]},
+          "severity": {"type": "string", "enum": ["fatal", "serious", "minor", "unknown"]},
+          "hit_and_run": {"type": "string", "enum": ["yes", "no", "unknown"]},
+          "circumstances": {"type": ["string", "null"]},
+          "facts_status": {"type": "string", "enum": ["confirmed", "alleged", "unclear"]},
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["field", "quote"],
+              "properties": {"field": {"type": "string"}, "quote": {"type": "string"}}
+            }
+          }
+        }
+      }
+    }
+  }
+}
