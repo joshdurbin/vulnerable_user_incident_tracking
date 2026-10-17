@@ -1,60 +1,60 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"sort"
+
+	"github.com/spf13/cobra"
 
 	"github.com/joshdurbin/fuck_cars/internal/classification"
 	"github.com/joshdurbin/fuck_cars/internal/eval"
 )
 
-func evalCmd(ctx context.Context, args []string, out, errw io.Writer) error {
-	fs := flag.NewFlagSet("eval", flag.ContinueOnError)
-	fs.SetOutput(errw)
-	dir := fs.String("cases", "tests/evaluations/cases", "directory of labeled cases")
-	replay := fs.Bool("replay", false, "use each case's author-written synthetic_response instead of calling a model (tests the harness only)")
-	asJSON := fs.Bool("json", false, "print JSON report")
-	lo := registerLLMFlags(fs)
-	if err := fs.Parse(args); err != nil {
-		return err
+func newEvalCmd(a *app) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "eval",
+		Short: "Score a model against the labeled cases in tests/evaluations",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			dir, _ := cmd.Flags().GetString("cases")
+			replay, _ := cmd.Flags().GetBool("replay")
+			asJSON, _ := cmd.Flags().GetBool("json")
+			cases, err := eval.Load(dir)
+			if err != nil {
+				return err
+			}
+			var build eval.Builder
+			if replay {
+				build = func(c eval.Case) (*classification.Classifier, error) {
+					return classification.New(eval.Replay{Body: string(c.SyntheticResponse)}, classification.Config{PrimaryModel: "replay"})
+				}
+			} else {
+				if a.cfg.LLM.Model == "" {
+					return errors.New("a model is required: --model or COLLISION_LLM_MODEL (or use --replay)")
+				}
+				comp := a.completer()
+				build = func(eval.Case) (*classification.Classifier, error) {
+					return classification.New(comp, classification.Config{PrimaryModel: a.cfg.LLM.Model, FallbackModel: a.cfg.LLM.FallbackModel})
+				}
+			}
+			rep, err := eval.Run(cmd.Context(), cases, build)
+			if err != nil {
+				return err
+			}
+			if asJSON {
+				return writeJSON(a.out, rep)
+			}
+			printReport(a.out, rep, replay)
+			return nil
+		},
 	}
-	cases, err := eval.Load(*dir)
-	if err != nil {
-		return err
-	}
-	var build eval.Builder
-	if *replay {
-		build = func(c eval.Case) (*classification.Classifier, error) {
-			return classification.New(eval.Replay{Body: string(c.SyntheticResponse)}, classification.Config{PrimaryModel: "replay"})
-		}
-	} else {
-		if *lo.model == "" {
-			return errors.New("a model is required: --model or LLM_MODEL (or use --replay)")
-		}
-		comp, err := lo.completer()
-		if err != nil {
-			return err
-		}
-		build = func(eval.Case) (*classification.Classifier, error) {
-			return classification.New(comp, classification.Config{PrimaryModel: *lo.model, FallbackModel: *lo.fallback})
-		}
-	}
-	rep, err := eval.Run(ctx, cases, build)
-	if err != nil {
-		return err
-	}
-	if *asJSON {
-		enc := json.NewEncoder(out)
-		enc.SetIndent("", "  ")
-		return enc.Encode(rep)
-	}
-	printReport(out, rep, *replay)
-	return nil
+	f := cmd.Flags()
+	f.String("cases", "tests/evaluations/cases", "directory of labeled cases")
+	f.Bool("replay", false, "answer with each case's author-written synthetic_response (tests the harness only)")
+	addLLMFlags(cmd)
+	return cmd
 }
 
 func printReport(w io.Writer, r *eval.Report, replay bool) {

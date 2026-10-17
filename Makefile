@@ -26,7 +26,7 @@ test-py:
 eval-replay: ## harness check only; scores are NOT model quality
 	go run ./cmd/collisionctl eval --replay
 
-eval: ## score a real model: LLM_MODEL=... LLM_BASE_URL=... make eval
+eval: ## score a real model: COLLISION_LLM_MODEL=... COLLISION_LLM_BASE_URL=... make eval
 	go run ./cmd/collisionctl eval
 
 test-integration: ## needs docker (postgres, temporal); added in Milestone 3

@@ -8,8 +8,8 @@ import (
 
 // Price is USD per million tokens.
 type Price struct {
-	InputPerM  float64 `json:"input_per_m"`
-	OutputPerM float64 `json:"output_per_m"`
+	InputPerM  float64 `json:"input_per_m" mapstructure:"input_per_m"`
+	OutputPerM float64 `json:"output_per_m" mapstructure:"output_per_m"`
 }
 
 // Cost computes the estimated USD cost of a call. Unknown models cost 0 and
