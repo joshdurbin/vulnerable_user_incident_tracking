@@ -9,6 +9,8 @@ import (
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
+
+	"github.com/joshdurbin/fuck_cars/internal/crawler"
 )
 
 // act is a typed handle used to reference activities by method.
@@ -22,7 +24,7 @@ func crawlCtx(ctx workflow.Context) workflow.Context {
 		TaskQueue: TQCrawl, StartToCloseTimeout: 2 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval: 5 * time.Second, BackoffCoefficient: 2, MaximumInterval: 2 * time.Minute, MaximumAttempts: 5,
-			NonRetryableErrorTypes: []string{ErrTypeNotFound},
+			NonRetryableErrorTypes: []string{ErrTypeNotFound, "InvalidArgument"},
 		},
 	})
 }
@@ -106,9 +108,21 @@ func ArticleWorkflow(ctx workflow.Context, in ArticleInput) (*ArticleResult, err
 	upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAArticleURL, in.URL.URL), kw(SASource, in.SourceSlug), kw(SAStage, "fetch"), kw(SAWorkflowKind, "article"))
 
 	var fetched FetchResult
-	if err := workflow.ExecuteActivity(crawlCtx(ctx), act.FetchArticle, in.URL).Get(ctx, &fetched); err != nil {
-		upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAStage, "fetch_failed"))
-		return nil, fmt.Errorf("fetch %s: %w", in.URL.URL, err)
+	if err := workflow.ExecuteActivity(dbCtx(ctx), act.FindArticle, in.URL).Get(ctx, &fetched); err != nil {
+		return nil, fmt.Errorf("find article: %w", err)
+	}
+	if fetched.ArticleID == uuid.Nil {
+		// The Python worker serves fetch_article; this call is by name across languages.
+		var page crawler.ArticleResponse
+		if err := workflow.ExecuteActivity(crawlCtx(ctx), crawler.ActivityFetchArticle, crawler.FetchArticleRequest{
+			URL: in.URL.URL, Rendering: "http_only", SourceID: in.SourceSlug, TimeoutS: 45, CorrelationID: in.CorrelationID,
+		}).Get(ctx, &page); err != nil {
+			upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAStage, "fetch_failed"))
+			return nil, fmt.Errorf("fetch %s: %w", in.URL.URL, err)
+		}
+		if err := workflow.ExecuteActivity(dbCtx(ctx), act.StoreArticle, StoreInput{Ref: in.URL, Response: page}).Get(ctx, &fetched); err != nil {
+			return nil, fmt.Errorf("store article: %w", err)
+		}
 	}
 	res.ArticleID = fetched.ArticleID
 	if fetched.Status != "fetched" {
@@ -209,4 +223,29 @@ func DiscoveryWorkflow(ctx workflow.Context, in DiscoveryInput) (*DiscoveryResul
 		}
 	}
 	return res, nil
+}
+
+// ---- wrappers for callers that are not workflows ----
+
+// CrawlFetchWorkflow runs one fetch_article activity. The CLI and other
+// non-workflow callers use it through crawler.Client.
+func CrawlFetchWorkflow(ctx workflow.Context, req crawler.FetchArticleRequest) (*crawler.ArticleResponse, error) {
+	var out crawler.ArticleResponse
+	if err := workflow.ExecuteActivity(crawlCtx(ctx), crawler.ActivityFetchArticle, req).Get(ctx, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CrawlLinksWorkflow runs one discover_links activity (used by crawl-backed discovery providers).
+func CrawlLinksWorkflow(ctx workflow.Context, req crawler.DiscoverLinksRequest) (*crawler.DiscoverLinksResponse, error) {
+	ao := workflow.ActivityOptions{
+		TaskQueue: TQCrawl, StartToCloseTimeout: time.Duration(req.MaxDurationS+30) * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{MaximumAttempts: 2, NonRetryableErrorTypes: []string{"InvalidArgument"}},
+	}
+	var out crawler.DiscoverLinksResponse
+	if err := workflow.ExecuteActivity(workflow.WithActivityOptions(ctx, ao), crawler.ActivityDiscoverLinks, req).Get(ctx, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }

@@ -60,8 +60,8 @@ Companion to `starting_design.md`. Records the cluster findings, the decisions m
 
 ### Phase 1 - foundation (Milestone 1)
 4. Monorepo scaffold: Go module, `buf` protos, Python package, Makefile, docker-compose for local dev.
-5. Python gRPC crawler: SSRF/DNS-rebinding guards, redirect validation, size/time limits, robots.txt, per-domain limits, trafilatura, HTML fixtures + pytest.
-6. Go gRPC client and `collisionctl fetch`.
+5. Python crawler (now a Temporal worker, see ADR 0002): SSRF/DNS-rebinding guards, redirect validation, size/time limits, robots.txt, per-domain limits, trafilatura, HTML fixtures + pytest.
+6. Go-side crawler client and `collisionctl fetch`.
 7. Multi-arch Dockerfiles; GitHub Actions workflow.
 
 ### Phase 2 - LLM and data model (Milestones 2-3)

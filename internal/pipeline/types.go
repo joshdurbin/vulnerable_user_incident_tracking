@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/joshdurbin/fuck_cars/internal/crawler"
 )
 
 // Options toggle cluster-dependent features. They travel in workflow inputs so
@@ -75,6 +77,13 @@ type FetchResult struct {
 	Status    string    `json:"status"` // fetched|no_content|blocked|failed
 	Reused    bool      `json:"reused"`
 	Detail    string    `json:"detail,omitempty"`
+}
+
+// StoreInput carries the crawler's response from the workflow to the activity
+// that stores it. The text travels compressed (see internal/payloadcodec).
+type StoreInput struct {
+	Ref      URLRef                  `json:"ref"`
+	Response crawler.ArticleResponse `json:"response"`
 }
 
 type ClassifyInput struct {

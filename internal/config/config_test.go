@@ -10,13 +10,12 @@ import (
 
 func TestDefaultsAndEnv(t *testing.T) {
 	t.Setenv("COLLISION_LLM_MODEL", "qwen3")
-	t.Setenv("COLLISION_CRAWLER_ADDR", "crawler:9090")
 	t.Setenv("COLLISION_LLM_PRICES", `{"qwen3":{"input_per_m":0.2,"output_per_m":0.6}}`)
 	cfg, err := Load(NewViper())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.LLM.Model != "qwen3" || cfg.CrawlerAddr != "crawler:9090" || cfg.LLM.StructuredMode != "json_schema" || cfg.LLM.Timeout != 120*time.Second {
+	if cfg.LLM.Model != "qwen3" || cfg.LLM.StructuredMode != "json_schema" || cfg.LLM.Timeout != 120*time.Second {
 		t.Fatalf("%+v", cfg)
 	}
 	if cfg.LLM.Prices["qwen3"].OutputPerM != 0.6 {

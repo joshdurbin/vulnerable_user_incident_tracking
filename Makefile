@@ -4,14 +4,9 @@ export PATH := $(PATH):$(GOBIN)
 IMAGE_PREFIX ?= ghcr.io/joshdurbin/fuck_cars
 TAG ?= dev
 
-.PHONY: eval eval-replay generate lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
-
-generate: ## regenerate protobuf code (Go + Python)
-	buf generate
-	scripts/gen-python.sh
+.PHONY: eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
 
 lint:
-	buf lint
 	go vet ./...
 	gofmt -l . | (! grep .)
 

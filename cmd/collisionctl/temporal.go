@@ -15,7 +15,6 @@ import (
 	"go.temporal.io/sdk/client"
 
 	"github.com/joshdurbin/fuck_cars/internal/classification"
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
 	"github.com/joshdurbin/fuck_cars/internal/discovery"
 	"github.com/joshdurbin/fuck_cars/internal/discovery/pgrepo"
 	"github.com/joshdurbin/fuck_cars/internal/incidents"
@@ -69,11 +68,6 @@ func newWorkerCmd(a *app) *cobra.Command {
 				return err
 			}
 			defer st.Close()
-			cr, err := crawler.Dial(a.cfg.CrawlerAddr)
-			if err != nil {
-				return err
-			}
-			defer cr.Close()
 			reg, closeReg, err := a.discoveryRegistry()
 			if err != nil {
 				return err
@@ -90,7 +84,7 @@ func newWorkerCmd(a *app) *cobra.Command {
 			defer tc.Close()
 
 			acts := &pipeline.Activities{
-				DB: st, Discovery: discovery.NewService(reg, pgrepo.New(st)), Fetcher: cr, Classifier: cl,
+				DB: st, Discovery: discovery.NewService(reg, pgrepo.New(st)), Classifier: cl,
 				Geocoder: pipeline.NoopGeocoder{}, Resolver: incidents.NewResolver(st, incidents.DefaultConfig(), a.log),
 				Temporal: tc, Log: a.log,
 			}
@@ -105,7 +99,6 @@ func newWorkerCmd(a *app) *cobra.Command {
 	cmd.Flags().StringSlice("queues", nil, "serve only these task queues (default all)")
 	addTemporalFlags(cmd)
 	addLLMFlags(cmd)
-	cmd.Flags().String("crawler", "localhost:9090", "crawler gRPC address")
 	cmd.Flags().String("database-url", "", "PostgreSQL DSN (COLLISION_DATABASE_URL)")
 	cmd.Flags().Bool("resolve-google-news", false, "resolve Google News links (undocumented endpoint)")
 	return cmd

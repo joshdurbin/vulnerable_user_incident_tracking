@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
 	"github.com/joshdurbin/fuck_cars/internal/discovery"
 	"github.com/joshdurbin/fuck_cars/internal/discovery/googlenews"
 	"github.com/joshdurbin/fuck_cars/internal/discovery/pgrepo"
@@ -23,21 +22,20 @@ func (a *app) discoveryRegistry() (*discovery.Registry, func(), error) {
 	if a.registry != nil {
 		return a.registry, func() {}, nil
 	}
-	c, err := crawler.Dial(a.cfg.CrawlerAddr)
-	if err != nil {
-		return nil, nil, err
-	}
+	// Crawl-backed source types (index pages, press pages) reach the Python worker through Temporal.
+	// The connection is made lazily so RSS, GDELT and Google News runs need no cluster.
+	c := lazyCrawler{a: a}
 	search := discovery.NewPlainHTTPClient(discovery.DefaultUserAgent, 45*time.Second)
 	deps := registry.Deps{
 		HTTP:       discovery.NewHTTPClient(discovery.DefaultUserAgent, 30*time.Second),
 		SearchHTTP: search,
-		Crawler:    c,
+		Crawler:    &c,
 	}
 	if a.cfg.ResolveGoogleNews {
 		// Opt-in: relies on an undocumented Google endpoint (see googlenews.BatchExecuteResolver).
 		deps.GoogleResolvers = []googlenews.Resolver{googlenews.LegacyDecoder{}, googlenews.NewBatchExecuteResolver(search)}
 	}
-	return registry.New(deps), func() { c.Close() }, nil
+	return registry.New(deps), c.close, nil
 }
 
 // discoveryRepo returns the injected repository, PostgreSQL if configured, or

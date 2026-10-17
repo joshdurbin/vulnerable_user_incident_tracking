@@ -9,14 +9,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
 	"github.com/joshdurbin/fuck_cars/internal/domain"
 )
 
 func newFetchCmd(a *app) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fetch <url>",
-		Short: "Fetch and extract an article through the crawler service",
+		Short: "Fetch and extract an article through the crawler worker (needs Temporal and the Python worker)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			render, _ := cmd.Flags().GetString("render")
@@ -30,18 +29,14 @@ func newFetchCmd(a *app) *cobra.Command {
 			default:
 				return fmt.Errorf("invalid --render %q (http_only|auto|always)", render)
 			}
-			f := a.fetcher
-			if f == nil {
-				c, err := crawler.Dial(a.cfg.CrawlerAddr)
-				if err != nil {
-					return err
-				}
-				defer c.Close()
-				f = c
+			f, closeF, err := a.articleFetcher()
+			if err != nil {
+				return err
 			}
+			defer closeF()
 			cid := uuid.NewString()
 			a.log.Debug().Str("correlation_id", cid).Str("url", args[0]).Msg("fetching")
-			art, err := f.FetchArticle(crawler.WithCorrelationID(cmd.Context(), cid), domain.FetchRequest{
+			art, err := f.FetchArticle(cmd.Context(), domain.FetchRequest{
 				URL: args[0], Rendering: policy, Timeout: timeout, CorrelationID: cid, SourceID: "collisionctl",
 			})
 			if err != nil {
@@ -58,10 +53,10 @@ func newFetchCmd(a *app) *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.String("crawler", "localhost:9090", "crawler gRPC address (COLLISION_CRAWLER_ADDR)")
 	f.String("render", "http_only", "rendering policy: http_only|auto|always")
 	f.Duration("timeout", 30*time.Second, "fetch timeout")
 	f.Bool("text", false, "print the full article text in human output")
+	addTemporalFlags(cmd)
 	return cmd
 }
 

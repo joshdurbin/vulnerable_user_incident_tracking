@@ -38,9 +38,6 @@ type (
 		Run(ctx context.Context, rr discovery.RunRequest) (*discovery.Report, error)
 		Source(ctx context.Context, slug string) (discovery.Source, error)
 	}
-	Fetcher interface {
-		FetchArticle(ctx context.Context, req domain.FetchRequest) (*domain.Article, error)
-	}
 	Classifier interface {
 		Classify(ctx context.Context, a *domain.Article) (*domain.ExtractionResult, error)
 		Versions() (model, promptVersion, schemaVersion string)
@@ -70,7 +67,6 @@ func (NoopGeocoder) Geocode(context.Context, domain.IncidentCandidate) (GeoPoint
 type Activities struct {
 	DB         *storage.Store
 	Discovery  Discoverer
-	Fetcher    Fetcher
 	Classifier Classifier
 	Geocoder   Geocoder
 	Resolver   IncidentResolver
@@ -139,25 +135,26 @@ func (a *Activities) DiscoverSource(ctx context.Context, in DiscoverInput) (*Dis
 
 // ---- article ----
 
-// FetchArticle downloads and extracts one URL through the crawler and stores the
-// result. It is idempotent: a URL that already has an article returns it.
-func (a *Activities) FetchArticle(ctx context.Context, ref URLRef) (*FetchResult, error) {
-	q := a.DB.Queries()
-	if existing, err := q.GetArticleByDiscoveredURL(ctx, &ref.ID); err == nil {
-		return &FetchResult{ArticleID: existing.ID, Status: existing.Status, Reused: true}, nil
-	} else if !storage.IsNoRows(err) {
+// FindArticle returns the article already stored for a discovered URL, if any.
+// The workflow calls it before paying for a fetch, which makes fetching
+// idempotent across retries, duplicate discoveries and reprocessing.
+func (a *Activities) FindArticle(ctx context.Context, ref URLRef) (*FetchResult, error) {
+	existing, err := a.DB.Queries().GetArticleByDiscoveredURL(ctx, &ref.ID)
+	if err != nil {
+		if storage.IsNoRows(err) {
+			return &FetchResult{}, nil
+		}
 		return nil, err
 	}
+	return &FetchResult{ArticleID: existing.ID, Status: existing.Status, Reused: true}, nil
+}
+
+// StoreArticle persists what the Python crawler returned, keeping the text for
+// the retention period, and records the fetch attempt. Idempotent per URL.
+func (a *Activities) StoreArticle(ctx context.Context, in StoreInput) (*FetchResult, error) {
+	q := a.DB.Queries()
+	ref, art := in.Ref, in.Response.ToArticle()
 	cid := CorrelationID(ctx)
-	start := a.now()
-	art, err := a.Fetcher.FetchArticle(ctx, domain.FetchRequest{
-		URL: ref.URL, Rendering: domain.RenderHTTPOnly, Timeout: 45 * time.Second, CorrelationID: cid, SourceID: "pipeline",
-	})
-	if err != nil {
-		// Transport-level failure (crawler down): Temporal retries.
-		return nil, fmt.Errorf("crawler: %w", err)
-	}
-	dur := int32(a.now().Sub(start).Milliseconds())
 	status := articleStatus(art.ExtractionStatus)
 
 	retention := a.TextRetention
@@ -165,13 +162,10 @@ func (a *Activities) FetchArticle(ctx context.Context, ref URLRef) (*FetchResult
 		retention = 90 * 24 * time.Hour
 	}
 	p := dbgen.InsertArticleParams{
-		DiscoveredUrlID: &ref.ID, RequestedUrl: art.RequestedURL, FinalUrl: nonEmpty(art.FinalURL, ref.URL),
+		DiscoveredUrlID: &ref.ID, RequestedUrl: nonEmpty(art.RequestedURL, ref.URL), FinalUrl: nonEmpty(art.FinalURL, ref.URL),
 		CanonicalUrl: sp(art.CanonicalURL), Title: sp(art.Title), Publisher: sp(art.Publisher), Author: sp(art.Author),
 		PublishedAt: art.PublishedAt, Language: sp(art.Language), Description: sp(art.Description),
 		Status: status, FetchedAt: nonZero(art.FetchedAt, a.now()),
-	}
-	if p.RequestedUrl == "" {
-		p.RequestedUrl = ref.URL
 	}
 	if status == "fetched" {
 		exp := a.now().Add(retention)
@@ -180,7 +174,7 @@ func (a *Activities) FetchArticle(ctx context.Context, ref URLRef) (*FetchResult
 		p.BodyText, p.TextExpiresAt, p.ContentHash = &art.Text, &exp, &h
 	}
 	var res *FetchResult
-	err = a.DB.InTx(ctx, func(tq *dbgen.Queries) error {
+	err := a.DB.InTx(ctx, func(tq *dbgen.Queries) error {
 		row, err := tq.InsertArticle(ctx, p)
 		if err != nil {
 			return err
@@ -188,7 +182,7 @@ func (a *Activities) FetchArticle(ctx context.Context, ref URLRef) (*FetchResult
 		hs := int32(art.HTTPStatus)
 		if err := tq.InsertFetchAttempt(ctx, dbgen.InsertFetchAttemptParams{
 			DiscoveredUrlID: ref.ID, ArticleID: &row.ID, HttpStatus: &hs, Rendered: art.Rendered,
-			ExtractionStatus: string(art.ExtractionStatus), ErrorDetail: sp(art.ErrorDetail), DurationMs: &dur, CorrelationID: sp(cid),
+			ExtractionStatus: string(art.ExtractionStatus), ErrorDetail: sp(art.ErrorDetail), CorrelationID: sp(cid),
 		}); err != nil {
 			return err
 		}

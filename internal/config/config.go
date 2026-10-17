@@ -36,7 +36,6 @@ type Temporal struct {
 
 type Config struct {
 	Temporal    Temporal
-	CrawlerAddr string
 	DatabaseURL string
 	LogLevel    string
 	LogFormat   string
@@ -52,7 +51,6 @@ func NewViper() *viper.Viper {
 	v.SetEnvPrefix(EnvPrefix)
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	v.AutomaticEnv()
-	v.SetDefault("crawler.addr", "localhost:9090")
 	v.SetDefault("database.url", "")
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
@@ -94,7 +92,6 @@ func Load(v *viper.Viper) (Config, error) {
 		return Config{}, err
 	}
 	return Config{
-		CrawlerAddr:       v.GetString("crawler.addr"),
 		DatabaseURL:       v.GetString("database.url"),
 		LogLevel:          v.GetString("log.level"),
 		LogFormat:         v.GetString("log.format"),

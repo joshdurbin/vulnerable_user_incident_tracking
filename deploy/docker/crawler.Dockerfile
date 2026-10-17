@@ -12,7 +12,6 @@ FROM python:3.13-slim
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin crawler
 WORKDIR /app
 COPY --from=build /app /app
-ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 CRAWLER_LISTEN=0.0.0.0:9090
+ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 
 USER 10001
-EXPOSE 9090
 ENTRYPOINT ["collision-crawler"]

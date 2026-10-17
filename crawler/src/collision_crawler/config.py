@@ -6,7 +6,9 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Config:
-    listen: str = "0.0.0.0:9090"
+    temporal_address: str = "temporal-frontend.temporal.svc.cluster.local:7233"
+    temporal_namespace: str = "collisions"
+    task_queue: str = "collision-crawl"
     user_agent: str = "CollisionTrackerBot/0.1 (+https://github.com/joshdurbin/fuck_cars)"
     max_response_bytes: int = 5 * 1024 * 1024
     default_timeout_s: float = 20.0
@@ -21,7 +23,9 @@ class Config:
     def from_env(cls) -> "Config":
         e = os.environ.get
         return cls(
-            listen=e("CRAWLER_LISTEN", cls.listen),
+            temporal_address=e("CRAWLER_TEMPORAL_ADDRESS", cls.temporal_address),
+            temporal_namespace=e("CRAWLER_TEMPORAL_NAMESPACE", cls.temporal_namespace),
+            task_queue=e("CRAWLER_TASK_QUEUE", cls.task_queue),
             user_agent=e("CRAWLER_USER_AGENT", cls.user_agent),
             max_response_bytes=int(e("CRAWLER_MAX_RESPONSE_BYTES", cls.max_response_bytes)),
             default_timeout_s=float(e("CRAWLER_DEFAULT_TIMEOUT_S", cls.default_timeout_s)),

@@ -10,9 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
+
+	"github.com/joshdurbin/fuck_cars/internal/crawler"
 )
 
 func newEnv(t *testing.T) *testsuite.TestWorkflowEnvironment {
@@ -20,6 +23,10 @@ func newEnv(t *testing.T) *testsuite.TestWorkflowEnvironment {
 	var s testsuite.WorkflowTestSuite
 	env := s.NewTestWorkflowEnvironment()
 	env.RegisterActivity(&Activities{})
+	// The Python worker's activity, registered by name so tests can mock it.
+	env.RegisterActivityWithOptions(func(context.Context, crawler.FetchArticleRequest) (crawler.ArticleResponse, error) {
+		return crawler.ArticleResponse{}, nil
+	}, activity.RegisterOptions{Name: crawler.ActivityFetchArticle})
 	env.RegisterWorkflow(ArticleWorkflow)
 	env.RegisterWorkflow(IncidentWorkflow)
 	env.RegisterWorkflow(ReprocessArticleWorkflow)
@@ -28,10 +35,17 @@ func newEnv(t *testing.T) *testsuite.TestWorkflowEnvironment {
 
 var anyCtx = mock.Anything
 
+// mockFetch stubs the three steps of getting an article: look it up, fetch it (Python), store it.
+func mockFetch(env *testsuite.TestWorkflowEnvironment, aid uuid.UUID, status string) {
+	env.OnActivity(act.FindArticle, anyCtx, anyCtx).Return(&FetchResult{}, nil)
+	env.OnActivity(crawler.ActivityFetchArticle, anyCtx, anyCtx).Return(crawler.ArticleResponse{ExtractionStatus: "OK", Text: "text"}, nil)
+	env.OnActivity(act.StoreArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: aid, Status: status}, nil)
+}
+
 func TestArticleWorkflow_HappyPath(t *testing.T) {
 	env := newEnv(t)
 	aid, eid, iid := uuid.New(), uuid.New(), uuid.New()
-	env.OnActivity(act.FetchArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: aid, Status: "fetched"}, nil)
+	mockFetch(env, aid, "fetched")
 	env.OnActivity(act.Classify, anyCtx, ClassifyInput{ArticleID: aid}).Return(&ClassifyResult{ExtractionID: eid, Verdict: "confirmed", Incidents: 2, Model: "m"}, nil)
 	env.OnActivity(act.Geocode, anyCtx, anyCtx).Return(GeoPoint{}, nil).Twice()
 	env.OnActivity(act.ResolveIncident, anyCtx, anyCtx).Return(&ResolveOutput{IncidentID: iid, Outcome: "created"}, nil).Twice()
@@ -49,7 +63,7 @@ func TestArticleWorkflow_HappyPath(t *testing.T) {
 
 func TestArticleWorkflow_StopsWhenNotFetched(t *testing.T) {
 	env := newEnv(t)
-	env.OnActivity(act.FetchArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: uuid.New(), Status: "blocked"}, nil)
+	mockFetch(env, uuid.New(), "blocked")
 	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})
 	require.NoError(t, env.GetWorkflowError())
 	var r ArticleResult
@@ -60,7 +74,7 @@ func TestArticleWorkflow_StopsWhenNotFetched(t *testing.T) {
 
 func TestArticleWorkflow_NonqualifyingSkipsResolution(t *testing.T) {
 	env := newEnv(t)
-	env.OnActivity(act.FetchArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: uuid.New(), Status: "fetched"}, nil)
+	mockFetch(env, uuid.New(), "fetched")
 	env.OnActivity(act.Classify, anyCtx, anyCtx).Return(&ClassifyResult{ExtractionID: uuid.New(), Verdict: "nonqualifying"}, nil)
 	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})
 	require.NoError(t, env.GetWorkflowError())
@@ -72,7 +86,7 @@ func TestArticleWorkflow_NonqualifyingSkipsResolution(t *testing.T) {
 // A budget stop is a clean outcome, not a failed workflow: it can be reprocessed later.
 func TestArticleWorkflow_BudgetExceededIsNotAFailure(t *testing.T) {
 	env := newEnv(t)
-	env.OnActivity(act.FetchArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: uuid.New(), Status: "fetched"}, nil)
+	mockFetch(env, uuid.New(), "fetched")
 	env.OnActivity(act.Classify, anyCtx, anyCtx).Return(nil, temporal.NewNonRetryableApplicationError("over budget", ErrTypeBudget, nil)).Once()
 	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})
 	require.NoError(t, env.GetWorkflowError())
@@ -84,7 +98,7 @@ func TestArticleWorkflow_BudgetExceededIsNotAFailure(t *testing.T) {
 // A transient LLM failure is retried by Temporal and succeeds without failing the workflow.
 func TestArticleWorkflow_RetriesTransientClassifyFailure(t *testing.T) {
 	env := newEnv(t)
-	env.OnActivity(act.FetchArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: uuid.New(), Status: "fetched"}, nil)
+	mockFetch(env, uuid.New(), "fetched")
 	env.OnActivity(act.Classify, anyCtx, anyCtx).Return(nil, errors.New("gateway 502")).Once()
 	env.OnActivity(act.Classify, anyCtx, anyCtx).Return(&ClassifyResult{ExtractionID: uuid.New(), Verdict: "nonqualifying"}, nil).Once()
 	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})

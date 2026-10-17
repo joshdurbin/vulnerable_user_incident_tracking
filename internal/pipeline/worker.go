@@ -17,6 +17,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/joshdurbin/fuck_cars/internal/discovery"
+	"github.com/joshdurbin/fuck_cars/internal/payloadcodec"
 )
 
 // Dial connects to Temporal with the correlation-ID propagator and zerolog logging.
@@ -28,6 +29,7 @@ func Dial(hostPort, namespace string, log zerolog.Logger) (client.Client, error)
 	return client.Dial(client.Options{
 		HostPort: hostPort, Namespace: namespace, Logger: tlog.NewStructuredLogger(sl),
 		ContextPropagators: []workflow.ContextPropagator{Propagator{}},
+		DataConverter:      payloadcodec.DataConverter(),
 	})
 }
 
@@ -40,7 +42,10 @@ type QueueLimits struct {
 // WorkerConfig sets per-queue limits. Slow, costly queues get tight limits so
 // the LLM and the crawler cannot starve the database queue.
 type WorkerConfig struct {
-	Crawl, LLM, Discovery, DB QueueLimits
+	LLM, Discovery, DB QueueLimits
+	// RegisterCrawl lets a caller serve the crawl queue from Go. Production leaves it nil:
+	// the Python worker serves that queue. Integration tests register a fake here.
+	RegisterCrawl func(worker.Worker)
 	// Queues restricts which queues this process serves (empty = all). Lets the
 	// crawl queue run in its own deployment later without code changes.
 	Queues []string
@@ -48,7 +53,6 @@ type WorkerConfig struct {
 
 func DefaultWorkerConfig() WorkerConfig {
 	return WorkerConfig{
-		Crawl:     QueueLimits{MaxConcurrent: 8, PerSecond: 5},
 		LLM:       QueueLimits{MaxConcurrent: 4, PerSecond: 2},
 		Discovery: QueueLimits{MaxConcurrent: 2},
 		DB:        QueueLimits{MaxConcurrent: 16},
@@ -78,12 +82,14 @@ func NewWorkers(c client.Client, a *Activities, cfg WorkerConfig) []worker.Worke
 		w.RegisterWorkflow(BackfillWorkflow)
 		w.RegisterWorkflow(ReprocessWorkflow)
 		w.RegisterWorkflow(ReprocessArticleWorkflow)
+		w.RegisterWorkflow(CrawlFetchWorkflow)
+		w.RegisterWorkflow(CrawlLinksWorkflow)
 		ws = append(ws, w)
 	}
 	for _, q := range []struct {
 		name string
 		lim  QueueLimits
-	}{{TQCrawl, cfg.Crawl}, {TQLLM, cfg.LLM}, {TQDiscovery, cfg.Discovery}, {TQDB, cfg.DB}} {
+	}{{TQLLM, cfg.LLM}, {TQDiscovery, cfg.Discovery}, {TQDB, cfg.DB}} {
 		if !cfg.serves(q.name) {
 			continue
 		}
@@ -94,6 +100,11 @@ func NewWorkers(c client.Client, a *Activities, cfg WorkerConfig) []worker.Worke
 			DisableWorkflowWorker: true,
 		})
 		w.RegisterActivity(a)
+		ws = append(ws, w)
+	}
+	if cfg.RegisterCrawl != nil && cfg.serves(TQCrawl) {
+		w := worker.New(c, TQCrawl, worker.Options{DisableWorkflowWorker: true})
+		cfg.RegisterCrawl(w)
 		ws = append(ws, w)
 	}
 	return ws

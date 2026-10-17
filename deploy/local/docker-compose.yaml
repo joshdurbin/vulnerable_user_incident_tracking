@@ -1,11 +1,18 @@
-# Local development stack. Grows with each milestone (postgres, temporal, worker, api, mock LLM).
+# Local development stack. Grows with each milestone (postgres, worker, api, mock LLM).
 services:
+  temporal:
+    image: temporalio/temporal:latest
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--headless"]
+    ports: ["7233:7233"]
+
   crawler:
     build:
       context: ../..
       dockerfile: deploy/docker/crawler.Dockerfile
-    ports: ["9090:9090"]
+    depends_on: [temporal]
     environment:
+      CRAWLER_TEMPORAL_ADDRESS: temporal:7233
+      CRAWLER_TEMPORAL_NAMESPACE: default
       CRAWLER_PER_DOMAIN_INTERVAL_S: "2"
     read_only: true
     tmpfs: [/tmp]

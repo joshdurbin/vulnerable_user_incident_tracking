@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/joshdurbin/fuck_cars/internal/classification"
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
 	"github.com/joshdurbin/fuck_cars/internal/domain"
 )
 
@@ -63,9 +62,9 @@ func newClassifyCmd(a *app) *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.String("crawler", "localhost:9090", "crawler gRPC address (URL input)")
 	f.String("file", "", "classify a saved article: JSON from `fetch --json`, or plain text")
 	addLLMFlags(cmd)
+	addTemporalFlags(cmd)
 	return cmd
 }
 
@@ -81,17 +80,13 @@ func (a *app) loadArticle(cmd *cobra.Command, url, file string) (*domain.Article
 		}
 		return &domain.Article{FinalURL: file, Text: string(b)}, nil // plain text
 	}
-	f := a.fetcher
-	if f == nil {
-		c, err := crawler.Dial(a.cfg.CrawlerAddr)
-		if err != nil {
-			return nil, err
-		}
-		defer c.Close()
-		f = c
+	f, closeF, err := a.articleFetcher()
+	if err != nil {
+		return nil, err
 	}
+	defer closeF()
 	cid := uuid.NewString()
-	return f.FetchArticle(crawler.WithCorrelationID(cmd.Context(), cid), domain.FetchRequest{
+	return f.FetchArticle(cmd.Context(), domain.FetchRequest{
 		URL: url, Rendering: domain.RenderHTTPOnly, Timeout: 30 * time.Second, CorrelationID: cid, SourceID: "collisionctl",
 	})
 }

@@ -1,11 +1,10 @@
 [project]
 name = "collision-crawler"
 version = "0.1.0"
-description = "Stateless gRPC crawling and article-extraction service"
+description = "Temporal worker for crawling and article extraction"
 requires-python = ">=3.12"
 dependencies = [
-  "grpcio>=1.70",
-  "protobuf>=5.29",
+  "temporalio>=1.9",
   "httpx>=0.28",
   "trafilatura>=2.0",
   "lxml>=5.3",
@@ -16,10 +15,10 @@ dependencies = [
 browser = ["playwright>=1.49"]
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-asyncio>=0.24", "grpcio-tools>=1.70", "respx>=0.22"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.22"]
 
 [project.scripts]
-collision-crawler = "collision_crawler.server:main"
+collision-crawler = "collision_crawler.worker:main"
 
 [build-system]
 requires = ["hatchling"]

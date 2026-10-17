@@ -9,15 +9,16 @@ Milestones 1-3 in progress: crawler + fetch, LLM classification + eval harness, 
 
 ## Quick start (no Kubernetes)
 ```bash
-make generate                       # needs buf, protoc-gen-go, protoc-gen-go-grpc, uv
 make test                           # Go + Python tests (no network)
-cd crawler && uv run collision-crawler &          # listens on :9090
-go run ./cmd/collisionctl fetch https://example.org/article --crawler localhost:9090 --json
+# The Python crawler is a Temporal worker, so fetching needs a Temporal server and both workers:
+temporal server start-dev --namespace default &
+(cd crawler && CRAWLER_TEMPORAL_ADDRESS=localhost:7233 CRAWLER_TEMPORAL_NAMESPACE=default uv run collision-crawler) &
+go run ./cmd/collisionctl worker --temporal-namespace default ... &   # hosts the workflows
+go run ./cmd/collisionctl fetch https://example.org/article --temporal-address localhost:7233 --temporal-namespace default --json
 ```
-Or `make dev-up` to run the crawler in Docker (requires a Docker daemon).
 
 ## Layout
-`proto/` contracts, `gen/` generated Go, `crawler/` Python service, `internal/` Go packages,
+`crawler/` Python Temporal worker (fetch + extraction), `internal/` Go packages,
 `cmd/` binaries, `deploy/` Dockerfiles and compose.
 
 ## Tests
@@ -27,4 +28,4 @@ make test-integration   # PostGIS integration tests (needs Docker; uses the CNPG
 make eval-replay        # eval harness check only (author-written responses, not model quality)
 ```
 Configuration is viper-based: flags > `COLLISION_*` env vars > `collisionctl.yaml` > defaults
-(e.g. `COLLISION_LLM_MODEL`, `COLLISION_LLM_BASE_URL`, `COLLISION_DATABASE_URL`, `COLLISION_CRAWLER_ADDR`).
+(e.g. `COLLISION_LLM_MODEL`, `COLLISION_LLM_BASE_URL`, `COLLISION_DATABASE_URL`, `COLLISION_TEMPORAL_ADDRESS`).
