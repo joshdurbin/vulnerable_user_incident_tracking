@@ -17,9 +17,8 @@ Companion to `starting_design.md`. Records the cluster findings, the decisions m
 
 - Temporal: `temporal-frontend.temporal:7233`, SQL visibility, 7d default retention. Create a `collisions` namespace.
 - Postgres: connect only via `postgres-pooler-rw.postgres:5432`; shared pods limited to 1Gi. Roles/DBs declared with CNPG `DatabaseRole`/`Database`.
-- Redis: add a `RedisReplication` in `redis` (small, `maxmemory 128mb`); reached via the `-master` Service.
-- OpenSearch: full-text search over articles/incidents.
-- Default-deny egress NetworkPolicy in every namespace; ours needs explicit DNS, Postgres, Temporal, Redis, OpenSearch, Bifrost and public-HTTPS (crawler only) rules.
+- Redis and OpenSearch: not used (see `docs/decisions/0003-no-redis-no-opensearch.md`).
+- Default-deny egress NetworkPolicy in every namespace; ours needs explicit DNS, Postgres, Temporal, Bifrost and public-HTTPS (crawler only) rules.
 - Secrets come from Ansible Vault in the infra repo, not git.
 - Pi 4B = 4GB, Pi 5 = 8GB; nodes are 31-71% used. Pi 5 uses a 16K-page kernel (jemalloc broke ProxySQL). Chromium on Pi 5 is unverified.
 - Infra changes land as a PR to `joshdurbin/home-pi-infrastructure` (AppProject destination, DB, secrets, NetworkPolicies, Argo Applications).
@@ -55,7 +54,7 @@ Companion to `starting_design.md`. Records the cluster findings, the decisions m
 
 ### Phase 0 - decisions and infra prerequisites
 1. ADRs for the §18 investigations (GDELT limits, Google News URL resolution, Scrapy vs httpx, Trafilatura quality, Playwright ARM64, gRPC, workflow granularity, PostGIS resolution, structured-output support, cost accounting, recall measurement, retention/robots).
-2. Infra PR: PostGIS image, `collisions` DB/role, Temporal namespace, Redis replication, OpenSearch index/role, AppProject namespace, NetworkPolicies, vault secrets.
+2. Infra PR: PostGIS image, `collisions` DB/role, Temporal namespace, AppProject namespace, NetworkPolicies, vault secrets.
 3. Add OpenRouter to Bifrost; benchmark candidate models (Qwen3 family, gpt-oss) on a handful of fixtures.
 
 ### Phase 1 - foundation (Milestone 1)
@@ -74,7 +73,7 @@ Companion to `starting_design.md`. Records the cluster findings, the decisions m
 12. All workflows above; Temporal test-env tests; worker-kill chaos test showing no lost work and no duplicate incidents.
 
 ### Phase 4 - API and frontend
-13. REST API (chi/stdlib), OpenAPI, pagination, filters, bbox, auth on admin routes, Redis-cached stats, OpenSearch-backed search.
+13. REST API (chi/stdlib), OpenAPI, pagination, filters, bbox, auth on admin routes.
 14. Frontend pages: Map (clustered incidents + filters), Trends (time series, by user type, by region, heatmap), Incident detail (observations timeline, sources, Temporal deep link), Review queue, Sources/Ops (provider value, LLM spend, workflow status).
 
 ### Phase 5 - production (Milestone 6)
