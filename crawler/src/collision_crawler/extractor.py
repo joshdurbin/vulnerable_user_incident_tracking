@@ -36,6 +36,13 @@ def _parse_date(value: str | None) -> datetime | None:
 _HTML_LANG = re.compile(r'<html[^>]*\slang=["\']([A-Za-z-]{2,10})["\']', re.I)
 
 
+def _clean_author(value: str | None) -> str:
+    """Trafilatura sometimes returns scraped junk (e.g. citation fragments); drop implausible values."""
+    if not value or len(value) > 100 or any(c in value for c in '"<>{}[]'):
+        return ""
+    return value.strip()
+
+
 def extract_article(html: str, url: str) -> Extracted:
     text = trafilatura.extract(
         html,
@@ -50,7 +57,7 @@ def extract_article(html: str, url: str) -> Extracted:
     if meta is not None:
         out.title = meta.title or ""
         out.publisher = meta.sitename or ""
-        out.author = meta.author or ""
+        out.author = _clean_author(meta.author)
         out.description = meta.description or ""
         out.language = meta.language or ""
         out.canonical_url = meta.url or ""

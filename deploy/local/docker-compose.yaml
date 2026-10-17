@@ -1,0 +1,13 @@
+# Local development stack. Grows with each milestone (postgres, temporal, worker, api, mock LLM).
+services:
+  crawler:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/crawler.Dockerfile
+    ports: ["9090:9090"]
+    environment:
+      CRAWLER_PER_DOMAIN_INTERVAL_S: "2"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
