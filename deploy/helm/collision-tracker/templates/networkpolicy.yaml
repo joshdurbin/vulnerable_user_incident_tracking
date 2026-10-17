@@ -1,0 +1,89 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $np := .Values.networkPolicy }}
+# Egress only; ingress stays open, matching the rest of this cluster (Tailscale proxies and
+# vmagent reach pods from their own namespaces).
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ct.fullname" . }}-api
+  labels: {{- include "ct.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "ct.selector" (dict "ctx" . "component" "api") | nindent 6 }}
+  policyTypes: [Egress]
+  egress:
+    {{- include "ct.dns" . | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.postgresNamespace "port" 5432) | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.temporalNamespace "port" 7233) | nindent 4 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ct.fullname" . }}-worker
+  labels: {{- include "ct.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      collision-tracker/role: worker
+  policyTypes: [Egress]
+  egress:
+    {{- include "ct.dns" . | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.postgresNamespace "port" 5432) | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.temporalNamespace "port" 7233) | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.bifrostNamespace "port" 8080) | nindent 4 }}
+    {{- include "ct.toInternet" (dict "ranges" $np.privateRanges) | nindent 4 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ct.fullname" . }}-crawler
+  labels: {{- include "ct.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "ct.selector" (dict "ctx" . "component" "crawler") | nindent 6 }}
+  policyTypes: [Egress]
+  egress:
+    {{- include "ct.dns" . | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.temporalNamespace "port" 7233) | nindent 4 }}
+    {{- include "ct.toInternet" (dict "ranges" $np.privateRanges) | nindent 4 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ct.fullname" . }}-web
+  labels: {{- include "ct.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "ct.selector" (dict "ctx" . "component" "web") | nindent 6 }}
+  policyTypes: [Egress]
+  egress:
+    {{- include "ct.dns" . | nindent 4 }}
+    - to:
+        - podSelector:
+            matchLabels: {{- include "ct.selector" (dict "ctx" . "component" "api") | nindent 14 }}
+      ports:
+        - { protocol: TCP, port: 8080 }
+---
+# Hook Jobs: setup talks to Temporal, migrate and bootstrap to PostgreSQL (bootstrap also Temporal).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ct.fullname" . }}-jobs
+  labels: {{- include "ct.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [temporal-setup, migrate, bootstrap]
+      - key: app.kubernetes.io/instance
+        operator: In
+        values: [{{ .Release.Name }}]
+  policyTypes: [Egress]
+  egress:
+    {{- include "ct.dns" . | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.postgresNamespace "port" 5432) | nindent 4 }}
+    {{- include "ct.toNamespace" (dict "ns" $np.temporalNamespace "port" 7233) | nindent 4 }}
+{{- end }}

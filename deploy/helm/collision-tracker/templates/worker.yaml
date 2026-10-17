@@ -1,0 +1,75 @@
+{{- range $name, $w := .Values.workers }}
+{{- $sel := dict "ctx" $ "component" (printf "worker-%s" $name) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ct.fullname" $ }}-worker-{{ $name }}
+  labels:
+    {{- include "ct.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: worker-{{ $name }}
+spec:
+  replicas: {{ $w.replicas }}
+  # Recreate: a rolling update would briefly run two collision-discovery workers, which
+  # double the request rate to providers that allow one request per few seconds.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ct.selector" $sel | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ct.labels" $ | nindent 8 }}
+        app.kubernetes.io/component: worker-{{ $name }}
+        collision-tracker/role: worker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "ct.podSecurity" $ | nindent 8 }}
+      # Give in-flight activities time to finish after SIGTERM.
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: {{ include "ct.image" (dict "ctx" $ "image" $.Values.image.collisionctl "name" "collisionctl") }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          args:
+            - worker
+            {{- if $w.queues }}
+            - --queues={{ join "," $w.queues }}
+            {{- end }}
+          env:
+            {{- include "ct.env" $ | nindent 12 }}
+            - name: COLLISION_METRICS_LISTEN
+              value: ":9100"
+            - name: COLLISION_LLM_BASE_URL
+              value: {{ $.Values.llm.baseURL | quote }}
+            - name: COLLISION_LLM_MODEL
+              value: {{ required "llm.model is required" $.Values.llm.model | quote }}
+            - name: COLLISION_LLM_FALLBACK_MODEL
+              value: {{ $.Values.llm.fallbackModel | quote }}
+            - name: COLLISION_LLM_STRUCTURED_MODE
+              value: {{ $.Values.llm.structuredMode | quote }}
+            - name: COLLISION_LLM_BUDGET_USD
+              value: {{ $.Values.llm.budgetUSD | quote }}
+            {{- if $.Values.llm.prices }}
+            - name: COLLISION_LLM_PRICES
+              value: {{ $.Values.llm.prices | toJson | quote }}
+            {{- end }}
+            {{- if $.Values.secrets.llmApiKey.name }}
+            - name: COLLISION_LLM_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ $.Values.secrets.llmApiKey.name }}, key: {{ $.Values.secrets.llmApiKey.key }} } }
+            {{- end }}
+            - name: COLLISION_DISCOVERY_RESOLVE_GOOGLE_NEWS
+              value: {{ $.Values.discovery.resolveGoogleNews | quote }}
+          ports:
+            - { name: metrics, containerPort: 9100 }
+          livenessProbe:
+            httpGet: { path: /metrics, port: metrics }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {{- toYaml $w.resources | nindent 12 }}
+          securityContext:
+            {{- include "ct.containerSecurity" $ | nindent 12 }}
+{{- end }}

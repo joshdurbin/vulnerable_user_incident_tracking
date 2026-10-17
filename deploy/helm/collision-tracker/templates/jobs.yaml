@@ -1,0 +1,179 @@
+{{- if .Values.jobs.temporalSetup }}
+---
+# Creates the Temporal namespace (with its retention) and the custom search attributes the
+# workflows use. Idempotent; runs before the rest of the release syncs.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ct.fullname" . }}-temporal-setup
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+    app.kubernetes.io/component: temporal-setup
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-2"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-2"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 20
+  activeDeadlineSeconds: 1200
+  template:
+    metadata:
+      labels:
+        {{- include "ct.labels" . | nindent 8 }}
+        app.kubernetes.io/component: temporal-setup
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "ct.podSecurity" . | nindent 8 }}
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: setup
+          image: {{ .Values.image.temporalAdminTools }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - { name: TEMPORAL_ADDRESS, value: {{ .Values.temporal.address | quote }} }
+            - { name: NS, value: {{ .Values.temporal.namespace | quote }} }
+            - { name: RETENTION, value: {{ .Values.temporal.retention | quote }} }
+            - { name: HOME, value: /tmp }
+          command:
+            - sh
+            - -ec
+            - |
+              if temporal operator namespace describe --namespace "$NS" >/dev/null 2>&1; then
+                echo "namespace $NS exists; setting retention $RETENTION"
+                temporal operator namespace update --namespace "$NS" --retention "$RETENTION"
+              else
+                echo "creating namespace $NS with retention $RETENTION"
+                temporal operator namespace create --namespace "$NS" --retention "$RETENTION"
+              fi
+              # A new namespace takes a moment to become visible to the search-attribute API.
+              for i in $(seq 1 30); do
+                if existing="$(temporal operator search-attribute list --namespace "$NS" 2>/dev/null)"; then break; fi
+                echo "waiting for namespace $NS to be ready ($i)"; sleep 2
+              done
+              existing="$(temporal operator search-attribute list --namespace "$NS")"
+              for name in CollisionURL CollisionSource CollisionVerdict CollisionStage CollisionModel CollisionIncidentID CollisionKind; do
+                if echo "$existing" | grep -qw "$name"; then
+                  echo "search attribute $name exists"
+                else
+                  temporal operator search-attribute create --namespace "$NS" --name "$name" --type Keyword
+                fi
+              done
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            {{- include "ct.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+{{- end }}
+{{- if .Values.jobs.migrate }}
+---
+# Applies database migrations before the new version starts. Extensions (postgis,
+# pg_trgm, ...) must already exist: the cluster operator creates them (a superuser
+# task), and this role only owns its database.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ct.fullname" . }}-migrate
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-1"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 20
+  activeDeadlineSeconds: 1200
+  template:
+    metadata:
+      labels:
+        {{- include "ct.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "ct.podSecurity" . | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "ct.image" (dict "ctx" . "image" .Values.image.collisionctl "name" "collisionctl") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["migrate"]
+          env:
+            - name: COLLISION_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.database.name }}, key: {{ .Values.secrets.database.key }} } }
+            - { name: COLLISION_LOG_FORMAT, value: json }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            {{- include "ct.containerSecurity" . | nindent 12 }}
+{{- end }}
+{{- if .Values.jobs.bootstrap }}
+---
+# After a sync: add any sources and queries that are missing (never overwriting what an
+# operator changed), then make sure every source has a Temporal Schedule (keeping any
+# pause an operator set).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ct.fullname" . }}-bootstrap
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+    app.kubernetes.io/component: bootstrap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 10
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        {{- include "ct.labels" . | nindent 8 }}
+        app.kubernetes.io/component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "ct.podSecurity" . | nindent 8 }}
+      initContainers:
+        - name: sources
+          image: {{ include "ct.image" (dict "ctx" . "image" .Values.image.collisionctl "name" "collisionctl") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["sources", "sync", "--only-new"]
+          env:
+            {{- include "ct.env" . | nindent 12 }}
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            {{- include "ct.containerSecurity" . | nindent 12 }}
+      containers:
+        - name: schedules
+          image: {{ include "ct.image" (dict "ctx" . "image" .Values.image.collisionctl "name" "collisionctl") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["schedules", "sync"]
+          env:
+            {{- include "ct.env" . | nindent 12 }}
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          securityContext:
+            {{- include "ct.containerSecurity" . | nindent 12 }}
+{{- end }}

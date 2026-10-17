@@ -1,0 +1,94 @@
+# Defaults are safe for the home k3s cluster this was written for; see docs/runbooks/deploy.md.
+
+image:
+  registry: ghcr.io/joshdurbin/fuck_cars
+  pullPolicy: IfNotPresent
+  # Pin by digest in the GitOps repo: tag and digest both may be set; the digest wins.
+  collisionctl: { tag: latest, digest: "" }
+  crawler: { tag: latest, digest: "" }
+  web: { tag: latest, digest: "" }
+  # Used only by the one-off Temporal namespace setup Job.
+  temporalAdminTools: temporalio/admin-tools:1.32.1
+
+# Secrets are created outside git (the infra repo's Ansible role) and referenced by name.
+secrets:
+  database: { name: collision-db, key: url }          # postgres://user:pass@host:5432/db?sslmode=require
+  adminToken: { name: collision-api, key: admin-token } # bearer token for POST routes; omit the Secret to disable them
+  llmApiKey: { name: "", key: api-key }                # only if the gateway needs a key (Bifrost in-cluster does not)
+
+temporal:
+  address: temporal-frontend.temporal.svc.cluster.local:7233
+  namespace: collisions
+  retention: 72h        # workflow history is kept this long; PostgreSQL is the system of record
+  searchAttributes: true
+  uiUrl: ""             # e.g. https://temporal.<tailnet>.ts.net ; adds "View in Temporal" links
+
+llm:
+  baseURL: http://bifrost.bifrost.svc.cluster.local:8080/v1
+  model: ""             # required, e.g. an OpenRouter model id configured in Bifrost
+  fallbackModel: ""
+  structuredMode: json_schema
+  budgetUSD: 0          # per worker process; 0 = unlimited
+  prices: {}            # {"model": {"input_per_m": 0.2, "output_per_m": 0.6}} so cost is tracked
+
+discovery:
+  resolveGoogleNews: false   # relies on an undocumented Google endpoint
+
+logLevel: info
+
+api:
+  replicas: 2
+  resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 256Mi } }
+
+# One entry per worker deployment. All queues in one pod is fine at this scale; split queues
+# across entries (e.g. one for collision-llm) to scale or isolate them.
+# collision-discovery must stay a single replica: provider rate limits are per process.
+workers:
+  main:
+    replicas: 1
+    queues: []   # empty = all queues
+    resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+
+crawler:
+  replicas: 1
+  perDomainIntervalSeconds: 2
+  maxConcurrentFetches: 8
+  resources: { requests: { cpu: 50m, memory: 192Mi }, limits: { memory: 768Mi } }
+
+web:
+  replicas: 2
+  resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { memory: 64Mi } }
+  ingress:
+    enabled: true
+    className: tailscale
+    host: collisions            # becomes https://collisions.<tailnet>
+    annotations:
+      tailscale.com/proxy-group: ingress-proxies
+
+# One-time/idempotent Jobs run as Argo CD hooks (PreSync: setup + migrate, PostSync: bootstrap).
+jobs:
+  temporalSetup: true
+  migrate: true
+  bootstrap: true
+
+networkPolicy:
+  enabled: true
+  postgresNamespace: postgres
+  temporalNamespace: temporal
+  bifrostNamespace: bifrost
+  # The worker and crawler fetch arbitrary public sites. Never let them reach private ranges,
+  # as a second layer behind the crawler's own SSRF guard.
+  privateRanges: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10, 127.0.0.0/8]
+
+monitoring:
+  enabled: true                 # VMPodScrape + VMRule (VictoriaMetrics operator CRDs)
+  dashboard:
+    enabled: true
+    namespace: monitoring       # Grafana's sidecar watches ConfigMaps labelled grafana_dashboard=1 here
+  alerts:
+    pendingReviewsOver: 25
+    sourceFailuresOver: 5
+    noNewIncidentsHours: 72
+    llmSpendUSDPerDay: 5
+
+podAntiAffinity: true           # spread replicas across nodes

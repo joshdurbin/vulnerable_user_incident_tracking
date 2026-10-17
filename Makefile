@@ -4,7 +4,7 @@ export PATH := $(PATH):$(GOBIN)
 IMAGE_PREFIX ?= ghcr.io/joshdurbin/fuck_cars
 TAG ?= dev
 
-.PHONY: test-web web-dev generate eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
+.PHONY: helm-check test-web web-dev generate eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
 
 generate: ## regenerate sqlc queries and the API server from api/openapi.yaml
 	sqlc generate
@@ -19,6 +19,10 @@ test: test-go test-py test-web
 
 test-go:
 	go test ./...
+
+helm-check: ## lint the chart, render it, and validate against Kubernetes schemas
+	helm lint deploy/helm/collision-tracker --set llm.model=x
+	helm template ct deploy/helm/collision-tracker --set llm.model=x | go run github.com/yannh/kubeconform/cmd/kubeconform@latest -strict -summary -ignore-missing-schemas -kubernetes-version 1.33.0
 
 test-web:
 	cd web && npm test

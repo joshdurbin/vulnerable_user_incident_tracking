@@ -1,0 +1,136 @@
+{{- if .Values.monitoring.enabled }}
+{{- $a := .Values.monitoring.alerts }}
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: {{ include "ct.fullname" . }}
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "ct.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, crawler{{ range $name, $_ := .Values.workers }}, worker-{{ $name }}{{ end }}]
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: {{ include "ct.fullname" . }}
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: collision-tracker.pipeline
+      rules:
+        - alert: CollisionPipelineStateUnreadable
+          expr: collision_pipeline_collector_up == 0
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: The API cannot read pipeline state from PostgreSQL
+        - alert: CollisionSourceFailing
+          expr: collision_source_consecutive_failures > {{ $a.sourceFailuresOver }} and on (source) collision_source_enabled == 1
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Source {{ "{{ $labels.source }}" }} has failed {{ "{{ $value }}" }} runs in a row"
+            description: See docs/runbooks/source-failing.md
+        - alert: CollisionSourceStale
+          expr: |
+            (time() - collision_source_last_success_timestamp_seconds) > 3 * collision_source_poll_interval_seconds
+            and on (source) collision_source_last_success_timestamp_seconds > 0
+            and on (source) collision_source_enabled == 1
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Source {{ "{{ $labels.source }}" }} has not succeeded for three poll intervals"
+            description: Check that its Temporal Schedule is not paused. See docs/runbooks/source-failing.md
+        - alert: CollisionNoNewIncidents
+          expr: (time() - max(collision_newest_incident_created_timestamp_seconds)) > {{ mul $a.noNewIncidentsHours 3600 }} and max(collision_newest_incident_created_timestamp_seconds) > 0
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: No new incident for {{ $a.noNewIncidentsHours }} hours
+            description: Discovery, fetching or classification may be stuck. See docs/runbooks/pipeline-stalled.md
+        - alert: CollisionReviewQueueLong
+          expr: collision_pending_reviews > {{ $a.pendingReviewsOver }}
+          for: 1h
+          labels: { severity: info }
+          annotations:
+            summary: "{{ "{{ $value }}" }} possible duplicates are waiting for review"
+        - alert: CollisionMostArticlesFailing
+          expr: collision_articles{status="failed"} / ignoring(status) group_left sum(collision_articles) > 0.5
+          for: 1h
+          labels: { severity: warning }
+          annotations:
+            summary: More than half of fetched articles failed
+            description: Publishers may be blocking the crawler. See docs/runbooks/pipeline-stalled.md
+        - alert: CollisionLLMSpendHigh
+          expr: sum(increase(collision_llm_cost_usd_total[24h])) > {{ $a.llmSpendUSDPerDay }}
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: LLM spend over the last 24 hours is ${{ "{{ $value | printf \"%.2f\" }}" }}
+            description: See docs/runbooks/llm-cost.md
+    - name: collision-tracker.workers
+      rules:
+        - alert: CollisionLLMWorkerNotPolling
+          expr: (sum(temporal_num_pollers{task_queue="collision_llm", poller_type="activity_task"}) or vector(0)) == 0
+          for: 10m
+          labels: { severity: critical }
+          annotations:
+            summary: No worker is polling the LLM task queue
+            description: Classification is stopped. See docs/runbooks/pipeline-stalled.md
+        - alert: CollisionCrawlerNotPolling
+          expr: (sum(temporal_num_pollers{task_queue="collision-crawl", poller_type="activity_task"}) or vector(0)) == 0
+          for: 10m
+          labels: { severity: critical }
+          annotations:
+            summary: The Python crawler is not polling its task queue
+            description: Fetching is stopped. See docs/runbooks/pipeline-stalled.md
+        - alert: CollisionActivitiesFailing
+          expr: sum by (activity_type) (rate(temporal_activity_execution_failed_total[30m])) > 0.05
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: "Activity {{ "{{ $labels.activity_type }}" }} keeps failing"
+        - alert: CollisionTaskQueueBacklog
+          expr: histogram_quantile(0.95, sum by (le, task_queue) (rate(temporal_activity_schedule_to_start_latency_seconds_bucket[15m]))) > 600
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "Activities wait over 10 minutes to start on {{ "{{ $labels.task_queue }}" }}"
+    - name: collision-tracker.api
+      rules:
+        - alert: CollisionAPIErrors
+          expr: sum(rate(collision_http_requests_total{status=~"5.."}[10m])) / sum(rate(collision_http_requests_total[10m])) > 0.05
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: More than 5% of API requests fail with a server error
+{{- end }}
+{{- if and .Values.monitoring.enabled .Values.monitoring.dashboard.enabled }}
+---
+# Grafana's sidecar loads ConfigMaps with this label from the monitoring namespace.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ct.fullname" . }}-dashboard
+  namespace: {{ .Values.monitoring.dashboard.namespace }}
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: Collision Tracker
+data:
+  collision-tracker.json: |-
+{{ .Files.Get "files/dashboard.json" | indent 4 }}
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: collision-tracker
+description: Vulnerable road user collision tracker (api, worker, crawler, web)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

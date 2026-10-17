@@ -1,0 +1,48 @@
+{{- $sel := dict "ctx" . "component" "crawler" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ct.fullname" . }}-crawler
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+    app.kubernetes.io/component: crawler
+spec:
+  replicas: {{ .Values.crawler.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ct.selector" $sel | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ct.labels" . | nindent 8 }}
+        app.kubernetes.io/component: crawler
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "ct.podSecurity" . | nindent 8 }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: crawler
+          image: {{ include "ct.image" (dict "ctx" . "image" .Values.image.crawler "name" "crawler") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - { name: CRAWLER_TEMPORAL_ADDRESS, value: {{ .Values.temporal.address | quote }} }
+            - { name: CRAWLER_TEMPORAL_NAMESPACE, value: {{ .Values.temporal.namespace | quote }} }
+            - { name: CRAWLER_METRICS_ADDRESS, value: "0.0.0.0:9100" }
+            - { name: CRAWLER_PER_DOMAIN_INTERVAL_S, value: {{ .Values.crawler.perDomainIntervalSeconds | quote }} }
+            - { name: CRAWLER_MAX_CONCURRENT_FETCHES, value: {{ .Values.crawler.maxConcurrentFetches | quote }} }
+          ports:
+            - { name: metrics, containerPort: 9100 }
+          livenessProbe:
+            tcpSocket: { port: metrics }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.crawler.resources | nindent 12 }}
+          securityContext:
+            {{- include "ct.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 64Mi }

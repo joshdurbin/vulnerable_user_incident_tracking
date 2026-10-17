@@ -14,6 +14,9 @@ jobs:
         with: { go-version-file: go.mod }
       - uses: astral-sh/setup-uv@v5
       - run: go vet ./... && go test ./...
+      - uses: azure/setup-helm@v4
+      - name: helm chart
+        run: make helm-check
       - name: generated code is up to date
         run: |
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
