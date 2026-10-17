@@ -49,3 +49,8 @@ SELECT count(*)::bigint FROM articles WHERE status = $1;
 -- name: ListURLsWithoutArticle :many
 SELECT u.id, u.normalized_url, u.domain FROM discovered_urls u
 WHERE u.id = ANY(@ids::uuid[]) AND NOT EXISTS (SELECT 1 FROM articles a WHERE a.discovered_url_id = u.id);
+
+-- name: ExpireArticleText :execrows
+-- Retention: drop article bodies past their expiry. The content hash, metadata and the
+-- extractions (with their short evidence quotes) are kept.
+UPDATE articles SET body_text = NULL WHERE body_text IS NOT NULL AND text_expires_at IS NOT NULL AND text_expires_at < now();

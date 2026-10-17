@@ -20,7 +20,11 @@ log = logging.getLogger("collision_crawler")
 
 async def run(cfg: Config) -> None:
     # SDK metrics (activity latency, failures, task slots) on /metrics, scraped by VictoriaMetrics.
-    runtime = Runtime(telemetry=TelemetryConfig(metrics=PrometheusConfig(bind_address=cfg.metrics_address)))
+    runtime = Runtime(telemetry=TelemetryConfig(metrics=PrometheusConfig(
+        bind_address=cfg.metrics_address,
+        # Same naming as the Go workers (…_total, …_seconds) so one dashboard and one set of alerts cover both.
+        counters_total_suffix=True, unit_suffix=True, durations_as_seconds=True,
+    )))
     client = await Client.connect(
         cfg.temporal_address, namespace=cfg.temporal_namespace, data_converter=data_converter(), runtime=runtime
     )

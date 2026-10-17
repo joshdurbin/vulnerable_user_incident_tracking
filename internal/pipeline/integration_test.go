@@ -359,3 +359,57 @@ func TestGoCallsPythonCrawlerWorker(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, res.Links)
 }
+
+func TestRetentionRemovesExpiredTextButKeepsTheRecord(t *testing.T) {
+	reset(t)
+	ctx := context.Background()
+	q := store.Queries()
+	past, future := time.Now().Add(-time.Hour), time.Now().Add(24*time.Hour)
+	insert := func(url string, expires *time.Time) uuid.UUID {
+		text, hash, title := "article body", "abc123", "T"
+		a, err := q.InsertArticle(ctx, dbgen.InsertArticleParams{RequestedUrl: url, FinalUrl: url, Title: &title, BodyText: &text,
+			TextExpiresAt: expires, ContentHash: &hash, Status: "fetched", FetchedAt: time.Now()})
+		require.NoError(t, err)
+		return a.ID
+	}
+	expired, fresh, noExpiry := insert("https://x.test/old", &past), insert("https://x.test/new", &future), insert("https://x.test/none", nil)
+
+	acts := newActivities(&fakeClassifier{})
+	n, err := acts.ExpireArticleText(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+
+	body := func(id uuid.UUID) (*string, *string) {
+		a, err := q.GetArticle(ctx, id)
+		require.NoError(t, err)
+		return a.BodyText, a.ContentHash
+	}
+	b, h := body(expired)
+	assert.Nil(t, b, "the expired body is gone")
+	assert.Equal(t, "abc123", *h, "the hash survives so duplicates can still be recognised")
+	b, _ = body(fresh)
+	assert.NotNil(t, b)
+	b, _ = body(noExpiry)
+	assert.NotNil(t, b, "no expiry means keep")
+
+	again, err := acts.ExpireArticleText(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, again, "idempotent")
+}
+
+func TestMaintenanceScheduleIsCreatedOnceAndLeftAlone(t *testing.T) {
+	ctx := context.Background()
+	created, err := SyncMaintenanceSchedules(ctx, tc)
+	require.NoError(t, err)
+	assert.True(t, created)
+	h := tc.ScheduleClient().GetHandle(ctx, MaintenanceScheduleID)
+	defer h.Delete(ctx)
+	require.NoError(t, h.Pause(ctx, client.SchedulePauseOptions{Note: "operator"}))
+
+	created, err = SyncMaintenanceSchedules(ctx, tc)
+	require.NoError(t, err)
+	assert.False(t, created)
+	d, err := h.Describe(ctx)
+	require.NoError(t, err)
+	assert.True(t, d.Schedule.State.Paused, "a pause survives a re-sync")
+}

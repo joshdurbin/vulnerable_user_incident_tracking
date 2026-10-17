@@ -228,3 +228,34 @@ func TestStatsShowWhichSourceIsValuable(t *testing.T) {
 		t.Fatalf("delay %v", g.AvgDelaySeconds)
 	}
 }
+
+func TestSyncNewAddsMissingAndNeverOverwritesOperatorChanges(t *testing.T) {
+	repo, _, _ := setup(t)
+	ctx := context.Background()
+	f, err := seed.Defaults()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := repo.Sync(ctx, f); err != nil {
+		t.Fatal(err)
+	}
+	slug := f.Sources[0].Slug
+	if _, err := store.Pool.Exec(ctx, `UPDATE discovery_sources SET enabled = false, poll_interval_seconds = 99999 WHERE slug = $1`, slug); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Pool.Exec(ctx, `DELETE FROM discovery_sources WHERE slug = $1`, f.Sources[1].Slug); err != nil {
+		t.Fatal(err)
+	}
+	ns, nq, err := repo.SyncNew(ctx, f)
+	if err != nil || ns != 1 || nq != 0 {
+		t.Fatalf("want 1 source added and no queries, got %d, %d, %v", ns, nq, err)
+	}
+	var enabled bool
+	var interval int
+	if err := store.Pool.QueryRow(ctx, `SELECT enabled, poll_interval_seconds FROM discovery_sources WHERE slug = $1`, slug).Scan(&enabled, &interval); err != nil {
+		t.Fatal(err)
+	}
+	if enabled || interval != 99999 {
+		t.Fatalf("operator changes were overwritten: enabled=%v interval=%d", enabled, interval)
+	}
+}

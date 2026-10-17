@@ -145,7 +145,10 @@ func newSchedulesCmd(a *app) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(a.out, "schedules: %d created, %d updated\n", c, u)
+			if _, err := pipeline.SyncMaintenanceSchedules(cmd.Context(), tc); err != nil {
+				return err
+			}
+			fmt.Fprintf(a.out, "schedules: %d created, %d updated (plus the retention schedule)\n", c, u)
 			return nil
 		},
 	}

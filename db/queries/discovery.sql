@@ -71,3 +71,14 @@ LEFT JOIN article_extractions x ON x.article_id = a.id
 LEFT JOIN incident_articles ia ON ia.article_id = a.id
 GROUP BY d.provider, COALESCE(d.source_slug, '')
 ORDER BY discoveries DESC;
+
+-- name: InsertSourceIfMissing :execrows
+-- For first-install bootstrap: never overwrites what an operator changed.
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+ON CONFLICT (slug) DO NOTHING;
+
+-- name: InsertQueryIfMissing :execrows
+INSERT INTO discovery_queries (family, name, query_text, providers, region, enabled)
+VALUES ($1,$2,$3,$4,$5,$6)
+ON CONFLICT (name) DO NOTHING;

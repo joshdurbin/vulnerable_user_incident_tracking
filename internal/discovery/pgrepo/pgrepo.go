@@ -254,3 +254,50 @@ func (r *Repo) Sync(ctx context.Context, f seed.File) (sources, queries int, err
 	})
 	return
 }
+
+// SyncNew adds sources and queries from the seed that do not exist yet and leaves existing
+// rows exactly as they are, so re-running it after an operator disabled a source or edited
+// a query changes nothing. It returns how many rows were added.
+func (r *Repo) SyncNew(ctx context.Context, f seed.File) (sources, queries int, err error) {
+	err = r.store.InTx(ctx, func(q *dbgen.Queries) error {
+		for _, s := range f.Sources {
+			cov, _ := json.Marshal(s.Coverage)
+			crawl, _ := json.Marshal(s.Crawl)
+			var u *string
+			if s.URL != "" {
+				u = &s.URL
+			}
+			rate := int32(s.RateLimitPerMinute)
+			if rate == 0 {
+				rate = 30
+			}
+			n, err := q.InsertSourceIfMissing(ctx, dbgen.InsertSourceIfMissingParams{
+				Slug: s.Slug, Name: s.Name, SourceType: s.Type, Url: u, Coverage: cov,
+				PollIntervalSeconds: int32(s.PollInterval / time.Second), Enabled: s.IsEnabled(), CrawlPolicy: crawl, RateLimitPerMinute: rate,
+			})
+			if err != nil {
+				return fmt.Errorf("source %s: %w", s.Slug, err)
+			}
+			sources += int(n)
+		}
+		for _, qs := range f.Queries {
+			var region *string
+			if qs.Region != "" {
+				region = &qs.Region
+			}
+			provs := qs.Providers
+			if provs == nil {
+				provs = []string{}
+			}
+			n, err := q.InsertQueryIfMissing(ctx, dbgen.InsertQueryIfMissingParams{
+				Family: qs.Family, Name: qs.Name, QueryText: qs.Text, Providers: provs, Region: region, Enabled: qs.IsEnabled(),
+			})
+			if err != nil {
+				return fmt.Errorf("query %s: %w", qs.Name, err)
+			}
+			queries += int(n)
+		}
+		return nil
+	})
+	return
+}

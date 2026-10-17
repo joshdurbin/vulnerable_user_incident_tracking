@@ -40,6 +40,20 @@ func (q *Queries) DeleteObservationsByExtraction(ctx context.Context, extraction
 	return err
 }
 
+const expireArticleText = `-- name: ExpireArticleText :execrows
+UPDATE articles SET body_text = NULL WHERE body_text IS NOT NULL AND text_expires_at IS NOT NULL AND text_expires_at < now()
+`
+
+// Retention: drop article bodies past their expiry. The content hash, metadata and the
+// extractions (with their short evidence quotes) are kept.
+func (q *Queries) ExpireArticleText(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, expireArticleText)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getArticleByDiscoveredURL = `-- name: GetArticleByDiscoveredURL :one
 SELECT id, discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author, published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at, created_at FROM articles WHERE discovered_url_id = $1
 `

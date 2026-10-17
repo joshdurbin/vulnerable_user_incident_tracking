@@ -155,6 +155,73 @@ func (q *Queries) InsertArticleDiscovery(ctx context.Context, arg InsertArticleD
 	return result.RowsAffected(), nil
 }
 
+const insertQueryIfMissing = `-- name: InsertQueryIfMissing :execrows
+INSERT INTO discovery_queries (family, name, query_text, providers, region, enabled)
+VALUES ($1,$2,$3,$4,$5,$6)
+ON CONFLICT (name) DO NOTHING
+`
+
+type InsertQueryIfMissingParams struct {
+	Family    string   `json:"family"`
+	Name      string   `json:"name"`
+	QueryText string   `json:"query_text"`
+	Providers []string `json:"providers"`
+	Region    *string  `json:"region"`
+	Enabled   bool     `json:"enabled"`
+}
+
+func (q *Queries) InsertQueryIfMissing(ctx context.Context, arg InsertQueryIfMissingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertQueryIfMissing,
+		arg.Family,
+		arg.Name,
+		arg.QueryText,
+		arg.Providers,
+		arg.Region,
+		arg.Enabled,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const insertSourceIfMissing = `-- name: InsertSourceIfMissing :execrows
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+ON CONFLICT (slug) DO NOTHING
+`
+
+type InsertSourceIfMissingParams struct {
+	Slug                string  `json:"slug"`
+	Name                string  `json:"name"`
+	SourceType          string  `json:"source_type"`
+	Url                 *string `json:"url"`
+	Coverage            []byte  `json:"coverage"`
+	PollIntervalSeconds int32   `json:"poll_interval_seconds"`
+	Enabled             bool    `json:"enabled"`
+	CrawlPolicy         []byte  `json:"crawl_policy"`
+	RateLimitPerMinute  int32   `json:"rate_limit_per_minute"`
+}
+
+// For first-install bootstrap: never overwrites what an operator changed.
+func (q *Queries) InsertSourceIfMissing(ctx context.Context, arg InsertSourceIfMissingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertSourceIfMissing,
+		arg.Slug,
+		arg.Name,
+		arg.SourceType,
+		arg.Url,
+		arg.Coverage,
+		arg.PollIntervalSeconds,
+		arg.Enabled,
+		arg.CrawlPolicy,
+		arg.RateLimitPerMinute,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listQueriesForProvider = `-- name: ListQueriesForProvider :many
 SELECT id, family, name, query_text, providers, region, enabled, created_at FROM discovery_queries
 WHERE enabled AND (cardinality(providers) = 0 OR $1::text = ANY(providers))

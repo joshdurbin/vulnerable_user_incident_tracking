@@ -176,3 +176,21 @@ func TestEvalReplay(t *testing.T) {
 		t.Fatalf("err=%v rep=%+v", err, rep)
 	}
 }
+
+func TestIncidentsSplitValidatesItsArguments(t *testing.T) {
+	for name, args := range map[string][]string{
+		"bad incident id": {"incidents", "split", "nope", "00000000-0000-0000-0000-000000000001", "--actor", "x"},
+		"bad article id":  {"incidents", "split", "00000000-0000-0000-0000-000000000001", "nope", "--actor", "x"},
+		"no actor":        {"incidents", "split", "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"},
+		"no database":     {"incidents", "split", "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002", "--actor", "x"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var out, errb bytes.Buffer
+			root := newRootCmd(deps{out: &out, err: &errb})
+			root.SetArgs(args)
+			if err := root.Execute(); err == nil {
+				t.Fatalf("expected an error, got output %q", out.String())
+			}
+		})
+	}
+}

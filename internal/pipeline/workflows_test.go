@@ -3,8 +3,10 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -276,4 +278,24 @@ func TestReprocessArticleWorkflow_SupersedesThenResolves(t *testing.T) {
 	assert.True(t, r.Diff.Changed)
 	assert.Equal(t, []uuid.UUID{iid}, r.Superseded)
 	env.AssertExpectations(t)
+}
+
+// A very long URL must not become an oversized search attribute, which would fail the workflow task.
+func TestKeywordSearchAttributeValuesAreTruncated(t *testing.T) {
+	long := "https://example.com/" + strings.Repeat("é", 1000)
+	got := truncateKeyword(long)
+	assert.Equal(t, maxKeyword, len([]rune(got)))
+	assert.True(t, utf8.ValidString(got), "truncation must not split a character")
+	assert.Equal(t, "short", truncateKeyword("short"))
+}
+
+func TestRetentionWorkflowReportsHowManyBodiesWereRemoved(t *testing.T) {
+	env := newEnv(t)
+	env.RegisterWorkflow(RetentionWorkflow)
+	env.OnActivity(act.ExpireArticleText, anyCtx).Return(int64(7), nil)
+	env.ExecuteWorkflow(RetentionWorkflow)
+	require.NoError(t, env.GetWorkflowError())
+	var n int64
+	require.NoError(t, env.GetWorkflowResult(&n))
+	assert.EqualValues(t, 7, n)
 }

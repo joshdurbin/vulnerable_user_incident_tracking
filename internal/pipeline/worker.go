@@ -106,6 +106,7 @@ func NewWorkers(c client.Client, a *Activities, cfg WorkerConfig) []worker.Worke
 		w.RegisterWorkflow(BackfillWorkflow)
 		w.RegisterWorkflow(ReprocessWorkflow)
 		w.RegisterWorkflow(ReprocessArticleWorkflow)
+		w.RegisterWorkflow(RetentionWorkflow)
 		w.RegisterWorkflow(CrawlFetchWorkflow)
 		w.RegisterWorkflow(CrawlLinksWorkflow)
 		ws = append(ws, w)
@@ -194,4 +195,25 @@ func SyncSchedules(ctx context.Context, c client.Client, sources []discovery.Sou
 		}
 	}
 	return created, updated, nil
+}
+
+// MaintenanceScheduleID is the Schedule that enforces article text retention.
+const MaintenanceScheduleID = "maintenance-retention"
+
+// SyncMaintenanceSchedules ensures the daily retention Schedule exists. It leaves an existing
+// one (and any pause on it) alone.
+func SyncMaintenanceSchedules(ctx context.Context, c client.Client) (created bool, err error) {
+	_, err = c.ScheduleClient().Create(ctx, client.ScheduleOptions{
+		ID:   MaintenanceScheduleID,
+		Spec: client.ScheduleSpec{Intervals: []client.ScheduleIntervalSpec{{Every: 24 * time.Hour}}, Jitter: time.Hour},
+		Action: &client.ScheduleWorkflowAction{
+			ID: "retention", Workflow: RetentionWorkflow, TaskQueue: TQWorkflow,
+		},
+		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		Note:    "deletes article text past its retention date; managed by collisionctl",
+	})
+	if errors.Is(err, temporal.ErrScheduleAlreadyRunning) {
+		return false, nil
+	}
+	return err == nil, err
 }

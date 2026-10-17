@@ -72,7 +72,19 @@ func upsertAttrs(ctx workflow.Context, on bool, updates ...temporal.SearchAttrib
 	_ = workflow.UpsertTypedSearchAttributes(ctx, updates...)
 }
 
+// maxKeyword keeps values well under the server's limit for Keyword search attributes; an
+// oversized value would make the workflow task fail.
+const maxKeyword = 255
+
+func truncateKeyword(v string) string {
+	if r := []rune(v); len(r) > maxKeyword {
+		return string(r[:maxKeyword])
+	}
+	return v
+}
+
 func kw(name, v string) temporal.SearchAttributeUpdate {
+	v = truncateKeyword(v)
 	return temporal.NewSearchAttributeKeyKeyword(name).ValueSet(v)
 }
 
@@ -223,6 +235,13 @@ func DiscoveryWorkflow(ctx workflow.Context, in DiscoveryInput) (*DiscoveryResul
 		}
 	}
 	return res, nil
+}
+
+// RetentionWorkflow enforces the article text retention period. A daily Schedule runs it.
+func RetentionWorkflow(ctx workflow.Context) (int64, error) {
+	var n int64
+	err := workflow.ExecuteActivity(dbCtx(ctx), act.ExpireArticleText).Get(ctx, &n)
+	return n, err
 }
 
 // ---- wrappers for callers that are not workflows ----

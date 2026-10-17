@@ -82,6 +82,14 @@ func newSourcesCmd(a *app) *cobra.Command {
 				return err
 			}
 			defer st.Close()
+			if onlyNew, _ := cmd.Flags().GetBool("only-new"); onlyNew {
+				ns, nq, err := pgrepo.New(st).SyncNew(cmd.Context(), f)
+				if err != nil {
+					return err
+				}
+				fmt.Fprintf(a.out, "added %d sources and %d queries (existing rows untouched)\n", ns, nq)
+				return nil
+			}
 			ns, nq, err := pgrepo.New(st).Sync(cmd.Context(), f)
 			if err != nil {
 				return err
@@ -90,6 +98,7 @@ func newSourcesCmd(a *app) *cobra.Command {
 			return nil
 		},
 	}
+	sync.Flags().Bool("only-new", false, "only add what is missing; never overwrite existing rows (safe to run on every deploy)")
 	seedFlag(sync)
 	dbFlag(sync)
 

@@ -452,6 +452,13 @@ func (a *Activities) RefreshIncident(ctx context.Context, incidentID string) err
 	return a.Resolver.Refresh(ctx, id, "system:workflow")
 }
 
+// ---- retention ----
+
+// ExpireArticleText removes article bodies past their retention date and reports how many.
+func (a *Activities) ExpireArticleText(ctx context.Context) (int64, error) {
+	return a.DB.Queries().ExpireArticleText(ctx)
+}
+
 // ---- reprocess ----
 
 // ListReprocessBatch returns the next batch of articles that lack an extraction
