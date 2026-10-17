@@ -1,0 +1,14 @@
+# Discovery query families. Text uses GDELT/Google News syntax: OR groups MUST be parenthesized,
+# phrases in quotes. Wording deliberately avoids requiring "accident" or "crash".
+# providers: [] means every search-style provider.
+queries:
+  - {family: pedestrian, name: pedestrian-struck,        text: '(pedestrian OR "person on foot" OR walker) (struck OR hit OR killed OR "run over")'}
+  - {family: pedestrian, name: pedestrian-fatality,      text: '(pedestrian OR pedestrians) (died OR fatal OR fatality OR dead)'}
+  - {family: cyclist,    name: cyclist-struck,           text: '(cyclist OR bicyclist OR "bike rider" OR bicycle) (struck OR hit OR killed OR injured)'}
+  - {family: cyclist,    name: ebike-rider,              text: '("e-bike" OR ebike) (rider OR cyclist) (struck OR hit OR killed OR injured)'}
+  - {family: scooter,    name: scooter-rider,            text: '(scooter OR "e-scooter") (rider OR riding) (struck OR hit OR killed OR injured)'}
+  - {family: motorcyclist, name: motorcyclist-injured,   text: '(motorcyclist OR "motorcycle rider" OR moped) (killed OR injured OR struck OR collided)'}
+  - {family: hit_and_run, name: hit-and-run,             text: '("hit-and-run" OR "hit and run" OR "fled the scene") (pedestrian OR cyclist OR bicyclist OR motorcyclist)'}
+  - {family: wheelchair, name: wheelchair-struck,        text: '(wheelchair OR "mobility scooter") (struck OR hit OR killed)'}
+  - {family: skateboard, name: skateboarder-struck,      text: '(skateboarder OR skateboarding) (struck OR hit OR killed) (car OR truck OR vehicle)'}
+  - {family: traffic_fatality, name: vru-traffic-fatalities, text: '("traffic fatality" OR "traffic fatalities" OR "fatal collision") (pedestrian OR cyclist OR motorcyclist)'}

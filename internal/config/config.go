@@ -27,12 +27,22 @@ type LLM struct {
 	BudgetUSD      float64
 }
 
+// Temporal locates the workflow service.
+type Temporal struct {
+	Address          string
+	Namespace        string
+	SearchAttributes bool // upsert custom search attributes (register them on the namespace first)
+}
+
 type Config struct {
+	Temporal    Temporal
 	CrawlerAddr string
 	DatabaseURL string
 	LogLevel    string
 	LogFormat   string
 	LLM         LLM
+	// ResolveGoogleNews enables the undocumented batchexecute resolver (default off).
+	ResolveGoogleNews bool
 }
 
 // NewViper returns a viper with defaults and environment binding. Env var names
@@ -46,6 +56,10 @@ func NewViper() *viper.Viper {
 	v.SetDefault("database.url", "")
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
+	v.SetDefault("discovery.resolve_google_news", false)
+	v.SetDefault("temporal.address", "temporal-frontend.temporal.svc.cluster.local:7233")
+	v.SetDefault("temporal.namespace", "collisions")
+	v.SetDefault("temporal.search_attributes", false)
 	v.SetDefault("llm.base_url", "http://bifrost.bifrost.svc.cluster.local:8080/v1")
 	v.SetDefault("llm.structured_mode", "json_schema")
 	v.SetDefault("llm.timeout", 120*time.Second)
@@ -80,10 +94,15 @@ func Load(v *viper.Viper) (Config, error) {
 		return Config{}, err
 	}
 	return Config{
-		CrawlerAddr: v.GetString("crawler.addr"),
-		DatabaseURL: v.GetString("database.url"),
-		LogLevel:    v.GetString("log.level"),
-		LogFormat:   v.GetString("log.format"),
+		CrawlerAddr:       v.GetString("crawler.addr"),
+		DatabaseURL:       v.GetString("database.url"),
+		LogLevel:          v.GetString("log.level"),
+		LogFormat:         v.GetString("log.format"),
+		ResolveGoogleNews: v.GetBool("discovery.resolve_google_news"),
+		Temporal: Temporal{
+			Address: v.GetString("temporal.address"), Namespace: v.GetString("temporal.namespace"),
+			SearchAttributes: v.GetBool("temporal.search_attributes"),
+		},
 		LLM: LLM{
 			BaseURL:        v.GetString("llm.base_url"),
 			APIKey:         v.GetString("llm.api_key"),

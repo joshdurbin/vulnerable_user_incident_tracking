@@ -9,6 +9,7 @@ package gdelt
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,18 +35,23 @@ type Provider struct {
 	limiter   *rate.Limiter
 	minWindow time.Duration // never split below this; avoids unbounded recursion
 	maxSplits int
+	// backoff are the waits before each retry of a 429/5xx. Every retry also passes
+	// through the limiter, so GDELT's one-request-per-5s rule always holds. The
+	// provider's client must NOT retry on its own.
+	backoff []time.Duration
 }
 
 // Option customizes a Provider.
 type Option func(*Provider)
 
-func WithBaseURL(u string) Option          { return func(p *Provider) { p.baseURL = u } }
-func WithLimiter(l *rate.Limiter) Option   { return func(p *Provider) { p.limiter = l } }
-func WithMinWindow(d time.Duration) Option { return func(p *Provider) { p.minWindow = d } }
+func WithBaseURL(u string) Option           { return func(p *Provider) { p.baseURL = u } }
+func WithLimiter(l *rate.Limiter) Option    { return func(p *Provider) { p.limiter = l } }
+func WithMinWindow(d time.Duration) Option  { return func(p *Provider) { p.minWindow = d } }
+func WithBackoff(d ...time.Duration) Option { return func(p *Provider) { p.backoff = d } }
 
 func New(client *http.Client, opts ...Option) *Provider {
 	p := &Provider{baseURL: DefaultBaseURL, client: client, limiter: rate.NewLimiter(rate.Every(5*time.Second), 1),
-		minWindow: 15 * time.Minute, maxSplits: 6}
+		minWindow: 15 * time.Minute, maxSplits: 6, backoff: []time.Duration{15 * time.Second, 45 * time.Second}}
 	for _, o := range opts {
 		o(p)
 	}
@@ -79,6 +85,12 @@ func (p *Provider) Discover(ctx context.Context, req discovery.Request) (*discov
 			res.Warnings = append(res.Warnings, fmt.Sprintf("query %q failed: %v", q.Name, err))
 			if firstErr == nil {
 				firstErr = err
+			}
+			var rl *discovery.RateLimitedError
+			if errors.As(err, &rl) {
+				// Every remaining query would be refused too; stop instead of making it worse.
+				res.Warnings = append(res.Warnings, "rate limited by GDELT: remaining queries skipped this run")
+				break
 			}
 			continue
 		}
@@ -144,28 +156,44 @@ func (p *Provider) fetch(ctx context.Context, res *discovery.Result, text string
 	v.Set("startdatetime", w.Since.UTC().Format(timeLayout))
 	v.Set("enddatetime", w.Until.UTC().Format(timeLayout))
 
-	if err := p.limiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-	hreq, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+"?"+v.Encode(), nil)
-	if err != nil {
-		return nil, err
-	}
-	res.Requests++
-	resp, err := p.client.Do(hreq)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-	if err != nil {
-		return nil, err
-	}
-	switch {
-	case resp.StatusCode == http.StatusTooManyRequests:
-		return nil, &discovery.RateLimitedError{Provider: discovery.TypeGDELT, RetryAfter: 5 * time.Second}
-	case resp.StatusCode != http.StatusOK:
-		return nil, fmt.Errorf("gdelt: http %d: %s", resp.StatusCode, snippet(body))
+	var body []byte
+	for attempt := 0; ; attempt++ {
+		if err := p.limiter.Wait(ctx); err != nil {
+			return nil, err
+		}
+		hreq, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+"?"+v.Encode(), nil)
+		if err != nil {
+			return nil, err
+		}
+		res.Requests++
+		resp, err := p.client.Do(hreq)
+		var status int
+		if err == nil {
+			status = resp.StatusCode
+			body, err = io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+			resp.Body.Close()
+		}
+		retryable := err != nil && ctx.Err() == nil || status == http.StatusTooManyRequests || status >= 500
+		if err == nil && !retryable {
+			if status != http.StatusOK {
+				return nil, fmt.Errorf("gdelt: http %d: %s", status, snippet(body))
+			}
+			break
+		}
+		if attempt >= len(p.backoff) || ctx.Err() != nil {
+			if status == http.StatusTooManyRequests {
+				return nil, &discovery.RateLimitedError{Provider: discovery.TypeGDELT, RetryAfter: 5 * time.Minute}
+			}
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("gdelt: http %d: %s", status, snippet(body))
+		}
+		select {
+		case <-time.After(p.backoff[attempt]):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	// GDELT reports query errors as plain text with HTTP 200; an empty result is "{}".
 	trim := strings.TrimSpace(string(body))

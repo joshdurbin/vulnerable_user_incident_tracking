@@ -132,3 +132,9 @@ var delimiterRE = regexp.MustCompile(`(?i)</?\s*article\s*>`)
 func escapeDelimiters(s string) string {
 	return delimiterRE.ReplaceAllStringFunc(s, func(m string) string { return strings.NewReplacer("<", "[", ">", "]").Replace(m) })
 }
+
+// Versions identifies what a result from this classifier is attributed to, so
+// callers can detect an existing extraction before paying for another LLM call.
+func (c *Classifier) Versions() (model, promptVersion, schemaVersion string) {
+	return c.cfg.PrimaryModel, PromptVersion, SchemaVersion
+}

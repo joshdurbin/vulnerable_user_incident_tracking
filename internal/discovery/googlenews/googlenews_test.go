@@ -197,3 +197,15 @@ func TestPartialFailureAndNoQueries(t *testing.T) {
 		t.Fatal("no queries must be an error")
 	}
 }
+
+func TestRateLimitStopsRemainingQueries(t *testing.T) {
+	var n int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { n++; w.WriteHeader(429) }))
+	defer srv.Close()
+	p := New(srv.Client(), WithBaseURL(srv.URL), WithLimiter(rate.NewLimiter(rate.Inf, 1)))
+	_, err := p.Discover(context.Background(), discovery.Request{Queries: []discovery.Query{{Name: "a", Text: "a"}, {Name: "b", Text: "b"}, {Name: "c", Text: "c"}}, Window: window()})
+	var rl *discovery.RateLimitedError
+	if !errors.As(err, &rl) || n != 1 {
+		t.Fatalf("err=%v requests=%d (should stop after the first 429)", err, n)
+	}
+}

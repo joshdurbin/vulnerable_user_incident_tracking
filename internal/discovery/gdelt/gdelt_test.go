@@ -30,7 +30,7 @@ func fast() Option { return WithLimiter(rate.NewLimiter(rate.Inf, 1)) }
 func serve(t *testing.T, h http.HandlerFunc) *Provider {
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
-	return New(srv.Client(), WithBaseURL(srv.URL), fast())
+	return New(srv.Client(), WithBaseURL(srv.URL), fast(), WithBackoff(5*time.Millisecond, 5*time.Millisecond))
 }
 
 func TestParsesRealResponseFixture(t *testing.T) {
@@ -188,5 +188,59 @@ func TestNoQueriesIsConfigError(t *testing.T) {
 	p := New(http.DefaultClient)
 	if _, err := p.Discover(context.Background(), discovery.Request{Window: win(1)}); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestRetriesTransient429ThenSucceeds(t *testing.T) {
+	var n int
+	p := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		n++
+		if n == 1 {
+			w.WriteHeader(429)
+			w.Write([]byte("Please limit requests to one every 5 seconds."))
+			return
+		}
+		respond(w, 2, "ok")
+	})
+	res, err := p.Discover(context.Background(), discovery.Request{Queries: []discovery.Query{q}, Window: win(1)})
+	if err != nil || len(res.Candidates) != 2 || res.Requests != 2 {
+		t.Fatalf("%+v %v", res, err)
+	}
+}
+
+func TestPersistent429StopsAllRemainingQueries(t *testing.T) {
+	var n int
+	p := serve(t, func(w http.ResponseWriter, r *http.Request) { n++; w.WriteHeader(429) })
+	res, err := p.Discover(context.Background(), discovery.Request{
+		Queries: []discovery.Query{{Name: "a", Text: "aaa bbb"}, {Name: "b", Text: "ccc ddd"}, {Name: "c", Text: "eee fff"}}, Window: win(1)})
+	var rl *discovery.RateLimitedError
+	if !errors.As(err, &rl) {
+		t.Fatalf("want RateLimitedError, got %v", err)
+	}
+	if n != 3 { // 1 try + 2 retries for the FIRST query only; later queries are not attempted
+		t.Fatalf("hammered a rate-limited API: %d requests", n)
+	}
+	if res.Requests != 3 {
+		t.Fatalf("requests=%d", res.Requests)
+	}
+}
+
+func TestRetriesAreSpacedByTheLimiter(t *testing.T) {
+	var times []time.Time
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		times = append(times, time.Now())
+		w.WriteHeader(429)
+	}))
+	defer srv.Close()
+	// Backoff is tiny; the limiter (100ms) must be what spaces the retries.
+	p := New(srv.Client(), WithBaseURL(srv.URL), WithLimiter(rate.NewLimiter(rate.Every(100*time.Millisecond), 1)), WithBackoff(time.Millisecond, time.Millisecond))
+	p.Discover(context.Background(), discovery.Request{Queries: []discovery.Query{q}, Window: win(1)})
+	if len(times) != 3 {
+		t.Fatalf("attempts %d", len(times))
+	}
+	for i := 1; i < len(times); i++ {
+		if gap := times[i].Sub(times[i-1]); gap < 90*time.Millisecond {
+			t.Fatalf("retry %d came %v after the previous request, violating the rate limit", i, gap)
+		}
 	}
 }

@@ -9,6 +9,7 @@ package googlenews
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -75,6 +76,11 @@ func (p *Provider) Discover(ctx context.Context, req discovery.Request) (*discov
 			res.Warnings = append(res.Warnings, fmt.Sprintf("query %q failed: %v", q.Name, err))
 			if firstErr == nil {
 				firstErr = err
+			}
+			var rl *discovery.RateLimitedError
+			if errors.As(err, &rl) {
+				res.Warnings = append(res.Warnings, "rate limited by Google News: remaining queries skipped this run")
+				break
 			}
 			continue
 		}

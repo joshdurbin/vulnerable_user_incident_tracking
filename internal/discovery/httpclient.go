@@ -35,3 +35,13 @@ func (t *uaTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 	return t.next.RoundTrip(r)
 }
+
+// DefaultUserAgent identifies the bot to publishers and APIs.
+const DefaultUserAgent = "CollisionTrackerBot/0.1 (+https://github.com/joshdurbin/fuck_cars)"
+
+// NewPlainHTTPClient returns a client with NO automatic retries. Search-style
+// providers use it because their upstreams enforce strict request spacing, so
+// retries must go back through the provider's own rate limiter.
+func NewPlainHTTPClient(userAgent string, timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, Transport: &uaTransport{ua: userAgent, next: http.DefaultTransport}}
+}

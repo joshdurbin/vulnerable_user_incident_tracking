@@ -34,23 +34,28 @@ type Source struct {
 	PollInterval time.Duration
 	RatePerMin   int // provider-side request budget; 0 = provider default
 	Crawl        CrawlPolicy
+	// Runtime state (read from the database; ignored by providers).
+	Enabled             bool
+	LastSuccessAt       *time.Time
+	ConsecutiveFailures int
+	ErrorState          string
 }
 
 // Coverage says where a source is relevant. It is metadata for targeting and
 // reporting; nothing in the domain model is California-specific.
 type Coverage struct {
-	Country string   `json:"country,omitempty"`
-	States  []string `json:"states,omitempty"`
-	Cities  []string `json:"cities,omitempty"`
+	Country string   `json:"country,omitempty" yaml:"country"`
+	States  []string `json:"states,omitempty" yaml:"states"`
+	Cities  []string `json:"cities,omitempty" yaml:"cities"`
 }
 
 // CrawlPolicy bounds HTML-crawling providers.
 type CrawlPolicy struct {
-	AllowedDomains []string `json:"allowed_domains,omitempty"`
-	URLPatterns    []string `json:"url_patterns,omitempty"`
-	MaxPages       int      `json:"max_pages,omitempty"`
-	MaxDepth       int      `json:"max_depth,omitempty"`
-	Render         string   `json:"render,omitempty"` // http_only|auto|always
+	AllowedDomains []string `json:"allowed_domains,omitempty" yaml:"allowed_domains"`
+	URLPatterns    []string `json:"url_patterns,omitempty" yaml:"url_patterns"`
+	MaxPages       int      `json:"max_pages,omitempty" yaml:"max_pages"`
+	MaxDepth       int      `json:"max_depth,omitempty" yaml:"max_depth"`
+	Render         string   `json:"render,omitempty" yaml:"render"` // http_only|auto|always
 }
 
 // Query is a configurable search expression for search-style providers.

@@ -4,6 +4,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 
@@ -15,6 +16,9 @@ import (
 	"github.com/joshdurbin/fuck_cars/db"
 	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
 )
+
+// IsNoRows reports whether err means a query matched no row.
+func IsNoRows(err error) bool { return errors.Is(err, pgx.ErrNoRows) }
 
 type Store struct {
 	Pool *pgxpool.Pool

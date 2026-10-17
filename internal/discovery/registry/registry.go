@@ -16,8 +16,11 @@ import (
 
 // Deps are the collaborators providers need.
 type Deps struct {
-	HTTP    *http.Client
-	Crawler crawler.LinkDiscoverer // nil disables crawler-backed source types
+	HTTP *http.Client // retrying client for feeds and sitemaps
+	// SearchHTTP is a NON-retrying client for GDELT and Google News, whose strict
+	// rate limits the providers enforce themselves. Defaults to HTTP if nil (tests).
+	SearchHTTP *http.Client
+	Crawler    crawler.LinkDiscoverer // nil disables crawler-backed source types
 	// GoogleResolvers overrides the Google News resolver chain (default: legacy decoder only).
 	GoogleResolvers []googlenews.Resolver
 }
@@ -25,12 +28,16 @@ type Deps struct {
 // New builds a registry with all available providers.
 func New(d Deps) *discovery.Registry {
 	r := discovery.NewRegistry()
-	r.Register(gdelt.New(d.HTTP))
+	search := d.SearchHTTP
+	if search == nil {
+		search = d.HTTP
+	}
+	r.Register(gdelt.New(search))
 	gn := []googlenews.Option{}
 	if d.GoogleResolvers != nil {
 		gn = append(gn, googlenews.WithResolvers(d.GoogleResolvers...))
 	}
-	r.Register(googlenews.New(d.HTTP, gn...))
+	r.Register(googlenews.New(search, gn...))
 	r.Register(feed.New(d.HTTP), discovery.TypeRSS, discovery.TypeAtom)
 	r.Register(sitemap.New(d.HTTP, discovery.TypeSitemap))
 	r.Register(sitemap.New(d.HTTP, discovery.TypeNewsSitemap))

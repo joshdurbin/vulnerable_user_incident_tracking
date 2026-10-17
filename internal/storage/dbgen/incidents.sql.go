@@ -56,7 +56,7 @@ SELECT v.id, v.occurred_on, v.occurred_at, v.occurred_precision, v.timezone, v.c
        similarity(coalesce(v.street_address,''), coalesce($3::text,''))::float4 AS street_sim,
        similarity(coalesce(v.city,''), coalesce($4::text,''))::float4 AS city_sim
 FROM incidents_v v JOIN incidents i ON i.id = v.id
-WHERE v.merged_into IS NULL
+WHERE v.merged_into IS NULL AND v.verification_status <> 'withdrawn'
   AND ($5::text IS NULL OR v.state IS NULL OR v.state = $5::text)
   AND ($6::date IS NULL OR v.occurred_on IS NULL
        OR v.occurred_on BETWEEN $6::date - $7::int AND $6::date + $7::int)

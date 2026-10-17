@@ -441,3 +441,83 @@ func (r *Resolver) SplitArticle(ctx context.Context, incidentID, articleID uuid.
 	})
 	return newID, err
 }
+
+// Refresh recomputes an incident's canonical fields from its observations.
+func (r *Resolver) Refresh(ctx context.Context, id uuid.UUID, actor string) error {
+	return r.store.InTx(ctx, func(q *dbgen.Queries) error {
+		cur, err := q.GetIncident(ctx, id)
+		if err != nil {
+			return err
+		}
+		if err := q.LockKey(ctx, lockKey(deref(cur.State))); err != nil {
+			return err
+		}
+		return r.refresh(ctx, q, id, actor, "updated", nil)
+	})
+}
+
+// SupersedeExtraction removes everything a previous extraction contributed (links
+// and observations), recomputes the incidents it touched, and withdraws any that
+// no longer have supporting articles. Used by reprocessing before a new
+// extraction is resolved. It returns the affected incident IDs.
+func (r *Resolver) SupersedeExtraction(ctx context.Context, extractionID uuid.UUID, actor string) ([]uuid.UUID, error) {
+	var affected []uuid.UUID
+	err := r.store.InTx(ctx, func(q *dbgen.Queries) error {
+		ids, err := q.ListIncidentsByExtraction(ctx, extractionID)
+		if err != nil {
+			return err
+		}
+		// Lock every touched state first, in a stable order, to avoid deadlocks between workers.
+		states := map[string]bool{}
+		for _, id := range ids {
+			inc, err := q.GetIncident(ctx, id)
+			if err != nil {
+				return err
+			}
+			states[lockKey(deref(inc.State))] = true
+		}
+		keys := make([]string, 0, len(states))
+		for k := range states {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if err := q.LockKey(ctx, k); err != nil {
+				return err
+			}
+		}
+		if err := q.DeleteLinksByExtraction(ctx, extractionID); err != nil {
+			return err
+		}
+		if err := q.DeleteObservationsByExtraction(ctx, extractionID); err != nil {
+			return err
+		}
+		for _, id := range ids {
+			n, err := q.CountIncidentArticles(ctx, id)
+			if err != nil {
+				return err
+			}
+			if n == 0 {
+				if err := q.WithdrawIncident(ctx, id); err != nil {
+					return err
+				}
+				if err := q.RejectReviewsForIncident(ctx, id); err != nil {
+					return err
+				}
+				if err := r.event(ctx, q, id, "withdrawn", actor, map[string]any{"reason": "all supporting extractions superseded", "extraction_id": extractionID}); err != nil {
+					return err
+				}
+			} else {
+				if err := r.refresh(ctx, q, id, actor, "updated", nil); err != nil {
+					return err
+				}
+				if err := r.event(ctx, q, id, "superseded", actor, map[string]any{"extraction_id": extractionID}); err != nil {
+					return err
+				}
+			}
+			affected = append(affected, id)
+		}
+		return nil
+	})
+	return affected, err
+}

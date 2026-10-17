@@ -64,7 +64,7 @@ SELECT v.*,
        similarity(coalesce(v.street_address,''), coalesce(sqlc.narg(street)::text,''))::float4 AS street_sim,
        similarity(coalesce(v.city,''), coalesce(sqlc.narg(city)::text,''))::float4 AS city_sim
 FROM incidents_v v JOIN incidents i ON i.id = v.id
-WHERE v.merged_into IS NULL
+WHERE v.merged_into IS NULL AND v.verification_status <> 'withdrawn'
   AND (sqlc.narg(state)::text IS NULL OR v.state IS NULL OR v.state = sqlc.narg(state)::text)
   AND (sqlc.narg(on_date)::date IS NULL OR v.occurred_on IS NULL
        OR v.occurred_on BETWEEN sqlc.narg(on_date)::date - sqlc.arg(window_days)::int AND sqlc.narg(on_date)::date + sqlc.arg(window_days)::int)

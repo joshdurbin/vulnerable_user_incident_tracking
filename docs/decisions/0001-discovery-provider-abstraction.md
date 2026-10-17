@@ -33,3 +33,16 @@ provenance are written once.
 ## Consequences
 Adding a source type means one new package plus one registry line. The cost is a small interface that
 fits search APIs and feeds slightly awkwardly (`Queries` vs `Source.URL`); we accept that over per-type plumbing.
+
+## Lesson: retries must go through the provider's rate limiter (found live, 2026-10-16)
+GDELT answers `429` with "one request every 5 seconds". The first design shared a retrying HTTP client
+(`go-retryablehttp`) that retried 429s after ~2 s, outside the provider's limiter, which broke the rule and got
+the client throttled for several minutes. Search providers now use a **non-retrying** client
+(`NewPlainHTTPClient`) and retry themselves: each retry waits a backoff and then passes through the same
+`rate.Limiter`. A persistent 429 returns `RateLimitedError` and **stops the remaining queries** in that run.
+Feed and sitemap providers keep the retrying client because each hits a different origin.
+
+## Known noise
+GDELT keyword queries match sports and unrelated stories ("struck out", "hit the market"). Discovery is
+recall-oriented; the classification stage filters, but every irrelevant URL costs a fetch and an LLM call.
+A cheap title pre-filter before classification is a cost lever to evaluate with real data.
