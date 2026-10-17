@@ -17,6 +17,11 @@ go run ./cmd/collisionctl worker --temporal-namespace default ... &   # hosts th
 go run ./cmd/collisionctl fetch https://example.org/article --temporal-address localhost:7233 --temporal-namespace default --json
 ```
 
+## API
+`collisionctl api` serves the REST API described in `api/openapi.yaml` (regenerate server code with
+`make generate`). Reads are open (the service is tailnet-only); POST routes need
+`Authorization: Bearer $COLLISION_API_ADMIN_TOKEN` and are disabled when no token is set.
+
 ## Layout
 `crawler/` Python Temporal worker (fetch + extraction), `internal/` Go packages,
 `cmd/` binaries, `deploy/` Dockerfiles and compose.

@@ -1,0 +1,376 @@
+openapi: 3.0.3
+info:
+  title: Collision Intelligence API
+  version: 0.1.0
+  description: >
+    Read access to incidents, statistics and pipeline health, plus a few admin operations
+    (review decisions, schedule control). The service is tailnet-only; admin routes also
+    require a bearer token.
+servers:
+  - url: /v1
+tags: [{name: incidents}, {name: stats}, {name: reviews}, {name: ops}]
+
+paths:
+  /incidents:
+    get:
+      tags: [incidents]
+      operationId: listIncidents
+      summary: List incidents (newest first)
+      parameters:
+        - $ref: '#/components/parameters/Bbox'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/State'
+        - $ref: '#/components/parameters/City'
+        - $ref: '#/components/parameters/Vru'
+        - $ref: '#/components/parameters/Severity'
+        - $ref: '#/components/parameters/Verification'
+        - $ref: '#/components/parameters/HitAndRun'
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}
+        - {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/IncidentList'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /incidents/{id}:
+    get:
+      tags: [incidents]
+      operationId: getIncident
+      summary: One incident with its articles, per-article observations and audit trail
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/IncidentDetail'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /stats/summary:
+    get:
+      tags: [stats]
+      operationId: statsSummary
+      parameters:
+        - $ref: '#/components/parameters/Bbox'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/State'
+        - $ref: '#/components/parameters/City'
+        - $ref: '#/components/parameters/Vru'
+        - $ref: '#/components/parameters/Severity'
+        - $ref: '#/components/parameters/Verification'
+        - $ref: '#/components/parameters/HitAndRun'
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/StatsSummary'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /stats/timeseries:
+    get:
+      tags: [stats]
+      operationId: statsTimeseries
+      parameters:
+        - {name: bucket, in: query, schema: {type: string, enum: [day, week, month, year], default: month}}
+        - $ref: '#/components/parameters/Bbox'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/State'
+        - $ref: '#/components/parameters/City'
+        - $ref: '#/components/parameters/Vru'
+        - $ref: '#/components/parameters/Severity'
+        - $ref: '#/components/parameters/Verification'
+        - $ref: '#/components/parameters/HitAndRun'
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/TimeseriesPoint'}}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /stats/breakdown:
+    get:
+      tags: [stats]
+      operationId: statsBreakdown
+      summary: Group incidents by one dimension
+      parameters:
+        - {name: by, in: query, required: true, schema: {type: string, enum: [state, city, severity, hit_and_run, weekday, month, vru, vehicle]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 25}}
+        - $ref: '#/components/parameters/Bbox'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/State'
+        - $ref: '#/components/parameters/City'
+        - $ref: '#/components/parameters/Vru'
+        - $ref: '#/components/parameters/Severity'
+        - $ref: '#/components/parameters/Verification'
+        - $ref: '#/components/parameters/HitAndRun'
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/BreakdownRow'}}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+
+  /reviews:
+    get:
+      tags: [reviews]
+      operationId: listReviews
+      summary: Possible duplicate matches awaiting a human decision
+      parameters:
+        - {name: status, in: query, schema: {type: string, enum: [pending, approved, rejected], default: pending}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Review'}}}}}
+  /reviews/{id}/decision:
+    post:
+      tags: [reviews]
+      operationId: decideReview
+      summary: Approve (merge) or reject a possible duplicate
+      description: >
+        Delivered to the incident's Temporal workflow as an Update, so the decision is
+        validated, applied once, and recorded in the workflow history.
+      security: [{adminToken: []}]
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ReviewDecision'}}}
+      responses:
+        '200': {description: Applied, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewResult'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: The review was already decided, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+
+  /ops/sources:
+    get:
+      tags: [ops]
+      operationId: listSources
+      summary: Discovery sources with quality metrics and schedule state
+      parameters: [{name: days, in: query, schema: {type: integer, minimum: 1, maximum: 365, default: 30}}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SourceInfo'}}}}}
+  /ops/sources/{slug}/schedule:
+    post:
+      tags: [ops]
+      operationId: controlSchedule
+      security: [{adminToken: []}]
+      parameters: [{name: slug, in: path, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [action], properties: {action: {type: string, enum: [pause, resume, trigger]}}}}}
+      responses:
+        '204': {description: Done}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /ops/pipeline:
+    get:
+      tags: [ops]
+      operationId: pipelineSummary
+      summary: Counters, and LLM spend by day and model
+      parameters: [{name: days, in: query, schema: {type: integer, minimum: 1, maximum: 365, default: 30}}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/PipelineSummary'}}}}
+
+components:
+  securitySchemes:
+    adminToken: {type: http, scheme: bearer}
+  parameters:
+    Bbox:
+      name: bbox
+      in: query
+      description: minLon,minLat,maxLon,maxLat (WGS84). Incidents without coordinates are excluded when set.
+      schema: {type: string, example: "-122.5,37.6,-122.3,37.9"}
+    From: {name: from, in: query, schema: {type: string, format: date}}
+    To: {name: to, in: query, schema: {type: string, format: date}}
+    State: {name: state, in: query, schema: {type: string, example: CA}}
+    City: {name: city, in: query, schema: {type: string}}
+    Vru:
+      name: vru
+      in: query
+      description: Road-user categories; matches incidents involving any of them.
+      style: form
+      explode: false
+      schema: {type: array, items: {type: string}}
+    Severity: {name: severity, in: query, schema: {type: string, enum: [fatal, serious, minor, unknown]}}
+    Verification: {name: verification, in: query, schema: {type: string, enum: [unverified, corroborated, reviewed]}}
+    HitAndRun: {name: hit_and_run, in: query, schema: {type: string, enum: ['yes', 'no', unknown]}}
+  responses:
+    BadRequest: {description: Invalid request, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    NotFound: {description: Not found, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Unauthorized: {description: Missing or wrong admin token, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties: {error: {type: string}}
+    Incident:
+      type: object
+      required: [id, occurred_precision, location_precision, vru_categories, vehicle_categories, severity, hit_and_run, facts_status, verification_status, article_count, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        occurred_on: {type: string, format: date, nullable: true}
+        occurred_at: {type: string, format: date-time, nullable: true}
+        occurred_precision: {type: string, enum: [datetime, date, unknown]}
+        city: {type: string, nullable: true}
+        county: {type: string, nullable: true}
+        state: {type: string, nullable: true}
+        street_address: {type: string, nullable: true}
+        location_precision: {type: string}
+        lat: {type: number, format: double, nullable: true, description: Null unless a geocoder returned a point.}
+        lon: {type: number, format: double, nullable: true}
+        vru_categories: {type: array, items: {type: string}}
+        vehicle_categories: {type: array, items: {type: string}}
+        injured_count: {type: integer, nullable: true}
+        fatality_count: {type: integer, nullable: true}
+        severity: {type: string, enum: [fatal, serious, minor, unknown]}
+        hit_and_run: {type: string, enum: ['yes', 'no', unknown]}
+        facts_status: {type: string, enum: [confirmed, alleged, unclear]}
+        verification_status: {type: string, enum: [unverified, corroborated, reviewed, withdrawn]}
+        article_count: {type: integer}
+        updated_at: {type: string, format: date-time}
+    IncidentList:
+      type: object
+      required: [total, items]
+      properties:
+        total: {type: integer, format: int64, description: Matching incidents ignoring limit/offset.}
+        items: {type: array, items: {$ref: '#/components/schemas/Incident'}}
+    IncidentDetail:
+      type: object
+      required: [incident, articles, observations, events, workflow_id]
+      properties:
+        incident: {$ref: '#/components/schemas/Incident'}
+        circumstances: {type: string, nullable: true}
+        timezone: {type: string, nullable: true}
+        geocode_source: {type: string, nullable: true}
+        geocode_confidence: {type: number, format: double, nullable: true}
+        merged_into: {type: string, format: uuid, nullable: true}
+        workflow_id: {type: string, description: Temporal workflow ID of the incident's lifecycle workflow.}
+        articles: {type: array, items: {$ref: '#/components/schemas/IncidentArticle'}}
+        observations: {type: array, items: {$ref: '#/components/schemas/Observation'}}
+        events: {type: array, items: {$ref: '#/components/schemas/Event'}}
+    IncidentArticle:
+      type: object
+      required: [article_id, url, match_status, matched_by]
+      properties:
+        article_id: {type: string, format: uuid}
+        title: {type: string, nullable: true}
+        publisher: {type: string, nullable: true}
+        url: {type: string}
+        published_at: {type: string, format: date-time, nullable: true}
+        fetched_at: {type: string, format: date-time, nullable: true}
+        match_status: {type: string}
+        match_score: {type: number, format: double, nullable: true}
+        matched_by: {type: string}
+    Observation:
+      type: object
+      required: [article_id, observed_at, data]
+      properties:
+        article_id: {type: string, format: uuid}
+        observed_at: {type: string, format: date-time}
+        data: {type: object, additionalProperties: true, description: The candidate exactly as one article reported it.}
+    Event:
+      type: object
+      required: [id, type, actor, created_at, data]
+      properties:
+        id: {type: integer, format: int64}
+        type: {type: string}
+        actor: {type: string}
+        created_at: {type: string, format: date-time}
+        data: {type: object, additionalProperties: true}
+    StatsSummary:
+      type: object
+      required: [incidents, fatalities, injured, fatal_incidents, hit_and_run, with_coordinates, corroborated, articles]
+      properties:
+        incidents: {type: integer, format: int64}
+        fatalities: {type: integer, format: int64}
+        injured: {type: integer, format: int64}
+        fatal_incidents: {type: integer, format: int64}
+        hit_and_run: {type: integer, format: int64}
+        with_coordinates: {type: integer, format: int64}
+        corroborated: {type: integer, format: int64}
+        articles: {type: integer, format: int64}
+    TimeseriesPoint:
+      type: object
+      required: [bucket, incidents, fatalities, injured]
+      properties:
+        bucket: {type: string, format: date}
+        incidents: {type: integer, format: int64}
+        fatalities: {type: integer, format: int64}
+        injured: {type: integer, format: int64}
+    BreakdownRow:
+      type: object
+      required: [key, incidents, fatalities, injured]
+      properties:
+        key: {type: string}
+        incidents: {type: integer, format: int64}
+        fatalities: {type: integer, format: int64}
+        injured: {type: integer, format: int64}
+    Review:
+      type: object
+      required: [id, status, score, created_at, new_incident, candidate_incident]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [pending, approved, rejected]}
+        score: {type: number, format: double}
+        reasons: {type: object, additionalProperties: true}
+        created_at: {type: string, format: date-time}
+        decided_by: {type: string, nullable: true}
+        decided_at: {type: string, format: date-time, nullable: true}
+        new_incident: {$ref: '#/components/schemas/Incident'}
+        candidate_incident: {$ref: '#/components/schemas/Incident'}
+    ReviewDecision:
+      type: object
+      required: [approve, actor]
+      properties:
+        approve: {type: boolean}
+        actor: {type: string, minLength: 1, description: Who decided; recorded in the audit trail.}
+    ReviewResult:
+      type: object
+      required: [review_id, approved]
+      properties:
+        review_id: {type: string, format: uuid}
+        approved: {type: boolean}
+        target: {type: string, format: uuid, nullable: true, description: The incident the other was merged into.}
+    SourceInfo:
+      type: object
+      required: [slug, name, type, enabled, poll_interval_seconds, consecutive_failures]
+      properties:
+        slug: {type: string}
+        name: {type: string}
+        type: {type: string}
+        enabled: {type: boolean}
+        poll_interval_seconds: {type: integer}
+        last_success_at: {type: string, format: date-time, nullable: true}
+        consecutive_failures: {type: integer}
+        error_state: {type: string, nullable: true}
+        schedule: {$ref: '#/components/schemas/ScheduleState'}
+        discoveries: {type: integer, format: int64}
+        unique_urls: {type: integer, format: int64}
+        exclusive_urls: {type: integer, format: int64}
+        avg_delay_seconds: {type: number, format: double}
+        articles_fetched: {type: integer, format: int64}
+        fetch_success_rate: {type: number, format: double}
+        relevant_rate: {type: number, format: double}
+        incidents: {type: integer, format: int64}
+    ScheduleState:
+      type: object
+      nullable: true
+      description: Null when Temporal is unreachable or the schedule does not exist yet.
+      properties:
+        paused: {type: boolean}
+        next_run: {type: string, format: date-time, nullable: true}
+        last_run: {type: string, format: date-time, nullable: true}
+    PipelineSummary:
+      type: object
+      required: [counts, llm_spend]
+      properties:
+        counts:
+          type: object
+          required: [discovered_urls, articles, failed_articles, extractions, pending_reviews]
+          properties:
+            discovered_urls: {type: integer, format: int64}
+            articles: {type: integer, format: int64}
+            failed_articles: {type: integer, format: int64}
+            extractions: {type: integer, format: int64}
+            pending_reviews: {type: integer, format: int64}
+        llm_spend:
+          type: array
+          items: {$ref: '#/components/schemas/LlmSpendRow'}
+    LlmSpendRow:
+      type: object
+      required: [day, model, extractions, input_tokens, output_tokens, cost_usd]
+      properties:
+        day: {type: string, format: date}
+        model: {type: string}
+        extractions: {type: integer, format: int64}
+        input_tokens: {type: integer, format: int64}
+        output_tokens: {type: integer, format: int64}
+        cost_usd: {type: number, format: double}

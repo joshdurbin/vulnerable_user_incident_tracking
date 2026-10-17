@@ -22,15 +22,29 @@ import (
 
 // Dial connects to Temporal with the correlation-ID propagator and zerolog logging.
 func Dial(hostPort, namespace string, log zerolog.Logger) (client.Client, error) {
+	return dial(hostPort, namespace, log, false)
+}
+
+// DialLazy returns a client that connects on first use, so a process that can serve
+// without Temporal (the API's read routes) starts even when it is unreachable.
+func DialLazy(hostPort, namespace string, log zerolog.Logger) (client.Client, error) {
+	return dial(hostPort, namespace, log, true)
+}
+
+func dial(hostPort, namespace string, log zerolog.Logger, lazy bool) (client.Client, error) {
 	if namespace == "" {
 		namespace = DefaultNamespace
 	}
 	sl := slog.New(slogzerolog.Option{Logger: &log}.NewZerologHandler())
-	return client.Dial(client.Options{
+	opts := client.Options{
 		HostPort: hostPort, Namespace: namespace, Logger: tlog.NewStructuredLogger(sl),
 		ContextPropagators: []workflow.ContextPropagator{Propagator{}},
 		DataConverter:      payloadcodec.DataConverter(),
-	})
+	}
+	if lazy {
+		return client.NewLazyClient(opts)
+	}
+	return client.Dial(opts)
 }
 
 // QueueLimits bound one task queue's worker. Zero values use SDK defaults.

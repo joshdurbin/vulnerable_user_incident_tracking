@@ -29,6 +29,7 @@ const (
 	ErrTypeBudget        = "BudgetExceeded"
 	ErrTypeInvalidOutput = "InvalidOutput"
 	ErrTypeNotFound      = "NotFound"
+	ErrTypeNotPending    = "ReviewNotPending"
 )
 
 // Narrow interfaces keep activities testable without a network, a database

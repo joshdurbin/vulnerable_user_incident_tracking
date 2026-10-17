@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,7 +42,7 @@ func IncidentWorkflow(ctx workflow.Context, in IncidentInput) error {
 
 	st := IncidentStatus{IncidentID: in.IncidentID, ArticlesLinked: in.ArticlesLinked, FollowUpsDone: in.FollowUpsDone, Phase: "waiting"}
 	pending := map[uuid.UUID]bool{}
-	merged := false
+	merged, ready := false, false               // ready: open reviews loaded; an update-with-start can arrive before that
 	wake := workflow.NewBufferedChannel(ctx, 1) // lets a handler interrupt the main loop's wait
 	mu := workflow.NewMutex(ctx)
 
@@ -68,12 +67,15 @@ func IncidentWorkflow(ctx workflow.Context, in IncidentInput) error {
 	// before they are written to history.
 	if err := workflow.SetUpdateHandlerWithOptions(ctx, UpdateDecideReview,
 		func(ctx workflow.Context, d ReviewDecision) (*ReviewOutcome, error) {
+			if err := workflow.Await(ctx, func() bool { return ready }); err != nil {
+				return nil, err
+			}
 			if err := mu.Lock(ctx); err != nil {
 				return nil, err
 			}
 			defer mu.Unlock()
 			if !pending[d.ReviewID] {
-				return nil, temporal.NewNonRetryableApplicationError("review is no longer pending", ErrTypeNotFound, nil)
+				return nil, temporal.NewNonRetryableApplicationError("review is no longer pending", ErrTypeNotPending, nil)
 			}
 			var out ReviewOutcome
 			a := act.RejectReview
@@ -97,9 +99,7 @@ func IncidentWorkflow(ctx workflow.Context, in IncidentInput) error {
 			if d.Actor == "" {
 				return errors.New("actor is required")
 			}
-			if !pending[d.ReviewID] {
-				return fmt.Errorf("review %s is not pending on incident %s", d.ReviewID, in.IncidentID)
-			}
+			// Membership in the pending set is checked in the handler, after the set is loaded.
 			return nil
 		}},
 	); err != nil {
@@ -117,6 +117,7 @@ func IncidentWorkflow(ctx workflow.Context, in IncidentInput) error {
 		}
 	}
 	loadPending() // a Continue-As-New run starts with reviews already open
+	ready = true
 
 	for !merged {
 		if workflow.GetInfo(ctx).GetContinueAsNewSuggested() {

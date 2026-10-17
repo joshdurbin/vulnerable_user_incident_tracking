@@ -163,13 +163,22 @@ func TestIncidentWorkflow_ReviewUpdateValidatedAndApplied(t *testing.T) {
 	env.OnActivity(act.PendingReviews, anyCtx, iid).Return([]uuid.UUID{rid}, nil)
 	env.OnActivity(act.ApproveReview, anyCtx, anyCtx).Return(&ReviewOutcome{ReviewID: rid, Approved: true, Target: target}, nil)
 
-	var rejected, completed bool
+	var unknownRejected, completed bool
 	env.RegisterDelayedCallback(func() {
-		// Unknown review: the validator rejects it before anything runs or is recorded.
-		env.UpdateWorkflow(UpdateDecideReview, "u1", &testsuite.TestUpdateCallback{
-			OnReject:   func(err error) { rejected = true },
-			OnAccept:   func() { t.Error("unknown review must not be accepted") },
+		// Malformed request: the validator rejects it before anything is written to history.
+		env.UpdateWorkflow(UpdateDecideReview, "u0", &testsuite.TestUpdateCallback{
+			OnReject:   func(err error) { unknownRejected = true },
+			OnAccept:   func() { t.Error("a decision without an actor must not be accepted") },
 			OnComplete: func(any, error) {},
+		}, ReviewDecision{ReviewID: rid, Approve: true})
+		// Unknown review: accepted, then fails with a typed error; nothing is applied.
+		env.UpdateWorkflow(UpdateDecideReview, "u1", &testsuite.TestUpdateCallback{
+			OnReject: func(err error) { t.Errorf("unexpected reject: %v", err) },
+			OnAccept: func() {},
+			OnComplete: func(_ any, err error) {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), ErrTypeNotPending)
+			},
 		}, ReviewDecision{ReviewID: uuid.New(), Approve: true, Actor: "josh"})
 		env.UpdateWorkflow(UpdateDecideReview, "u2", &testsuite.TestUpdateCallback{
 			OnReject: func(err error) { t.Errorf("valid decision rejected: %v", err) },
@@ -184,7 +193,7 @@ func TestIncidentWorkflow_ReviewUpdateValidatedAndApplied(t *testing.T) {
 	env.ExecuteWorkflow(IncidentWorkflow, IncidentInput{IncidentID: iid})
 	require.True(t, env.IsWorkflowCompleted())
 	require.NoError(t, env.GetWorkflowError(), "approving a merge ends the incident's workflow")
-	assert.True(t, rejected)
+	assert.True(t, unknownRejected)
 	assert.True(t, completed)
 }
 

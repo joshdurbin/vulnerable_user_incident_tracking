@@ -34,7 +34,14 @@ type Temporal struct {
 	SearchAttributes bool // upsert custom search attributes (register them on the namespace first)
 }
 
+// API configures the HTTP API process.
+type API struct {
+	Listen     string
+	AdminToken string // guards POST routes; empty disables them
+}
+
 type Config struct {
+	API         API
 	Temporal    Temporal
 	DatabaseURL string
 	LogLevel    string
@@ -55,6 +62,8 @@ func NewViper() *viper.Viper {
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
 	v.SetDefault("discovery.resolve_google_news", false)
+	v.SetDefault("api.listen", ":8080")
+	v.SetDefault("api.admin_token", "")
 	v.SetDefault("temporal.address", "temporal-frontend.temporal.svc.cluster.local:7233")
 	v.SetDefault("temporal.namespace", "collisions")
 	v.SetDefault("temporal.search_attributes", false)
@@ -96,6 +105,7 @@ func Load(v *viper.Viper) (Config, error) {
 		LogLevel:          v.GetString("log.level"),
 		LogFormat:         v.GetString("log.format"),
 		ResolveGoogleNews: v.GetBool("discovery.resolve_google_news"),
+		API:               API{Listen: v.GetString("api.listen"), AdminToken: v.GetString("api.admin_token")},
 		Temporal: Temporal{
 			Address: v.GetString("temporal.address"), Namespace: v.GetString("temporal.namespace"),
 			SearchAttributes: v.GetBool("temporal.search_attributes"),

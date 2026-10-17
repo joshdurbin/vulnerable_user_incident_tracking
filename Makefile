@@ -4,7 +4,11 @@ export PATH := $(PATH):$(GOBIN)
 IMAGE_PREFIX ?= ghcr.io/joshdurbin/fuck_cars
 TAG ?= dev
 
-.PHONY: eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
+.PHONY: generate eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
+
+generate: ## regenerate sqlc queries and the API server from api/openapi.yaml
+	sqlc generate
+	cd internal/api && go tool oapi-codegen -config oapi.cfg.yaml ../../api/openapi.yaml
 
 lint:
 	go vet ./...

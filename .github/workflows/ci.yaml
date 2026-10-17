@@ -14,6 +14,11 @@ jobs:
         with: { go-version-file: go.mod }
       - uses: astral-sh/setup-uv@v5
       - run: go vet ./... && go test ./...
+      - name: generated code is up to date
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+          make generate
+          git diff --exit-code
       - run: cd crawler && uv run --python 3.13 pytest -q
 
   images:
