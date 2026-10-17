@@ -1,11 +1,33 @@
 # Vulnerable Road User Collision Intelligence Platform
 
-Go services plus a Python crawler that discover, classify and de-duplicate news reports of motor-vehicle
-collisions involving vulnerable road users. See `starting_design.md` for the spec and
-`docs/implementation-plan.md` for the plan and decisions.
+Finds news reports of motor-vehicle collisions involving vulnerable road users (pedestrians, cyclists, scooter and
+wheelchair users, motorcyclists), extracts structured facts with an LLM, merges reports of the same collision into
+one incident, and shows the result on a map with trends and a review queue.
+
+Go owns the services, Python only crawls, a React app is the UI, and Temporal orchestrates everything in between.
+Design: [`docs/design.md`](docs/design.md). Decisions: [`docs/decisions/`](docs/decisions). Plan and progress:
+[`docs/implementation-plan.md`](docs/implementation-plan.md).
+
+```mermaid
+flowchart LR
+  src[(GDELT, Google News,<br/>feeds, sitemaps)] --> disc
+  subgraph temporal[Temporal workflows]
+    disc[Discover<br/>on a Schedule per source] --> art[Article<br/>fetch, classify, resolve]
+    art --> inc[Incident<br/>follow-ups, human review]
+  end
+  art -- fetch_article --> py[Python crawler<br/>SSRF-guarded]
+  art -- classify --> llm[LLM via Bifrost<br/>OpenRouter]
+  art --> pg[(PostgreSQL + PostGIS)]
+  inc --> pg
+  pg --> api[REST API<br/>OpenAPI] --> web[Web UI<br/>map, trends, reviews, ops]
+  web -- "approve / reject" --> api -- "validated Update" --> inc
+```
 
 ## Status
-Milestones 1-3 in progress: crawler + fetch, LLM classification + eval harness, PostGIS persistence + entity resolution. See docs/implementation-plan.md.
+Built and tested: discovery providers, the Python crawler worker, LLM classification with an evaluation harness,
+PostGIS persistence with entity resolution, the Temporal workflows (discovery, article, incident, backfill,
+reprocess), the REST API, and the web UI. Not built yet: Helm chart, Argo apps, dashboards and runbooks, and the
+infra changes in the cluster repo. See "Not built yet" in the design for the full list.
 
 ## Quick start (no Kubernetes)
 ```bash
@@ -13,9 +35,15 @@ make test                           # Go + Python tests (no network)
 # The Python crawler is a Temporal worker, so fetching needs a Temporal server and both workers:
 temporal server start-dev --namespace default &
 (cd crawler && CRAWLER_TEMPORAL_ADDRESS=localhost:7233 CRAWLER_TEMPORAL_NAMESPACE=default uv run collision-crawler) &
-go run ./cmd/collisionctl worker --temporal-namespace default ... &   # hosts the workflows
-go run ./cmd/collisionctl fetch https://example.org/article --temporal-address localhost:7233 --temporal-namespace default --json
+export COLLISION_TEMPORAL_ADDRESS=localhost:7233 COLLISION_TEMPORAL_NAMESPACE=default
+export COLLISION_DATABASE_URL=postgres://... COLLISION_LLM_MODEL=... COLLISION_LLM_BASE_URL=...
+go run ./cmd/collisionctl migrate
+go run ./cmd/collisionctl worker &                      # hosts the workflows and Go activities
+go run ./cmd/collisionctl sources sync && go run ./cmd/collisionctl schedules sync
+go run ./cmd/collisionctl api &                         # REST API on :8080
+go run ./cmd/collisionctl fetch https://example.org/article --json
 ```
+Backfills and reprocessing: `collisionctl backfill start|status|pause|resume|cancel`, `collisionctl reprocess start|status`.
 
 ## API
 `collisionctl api` serves the REST API described in `api/openapi.yaml` (regenerate server code with
@@ -29,8 +57,25 @@ container is nginx serving the build, proxying `/v1` to `$API_UPSTREAM`, and wri
 link) from `TEMPORAL_UI_URL` at start. The map loads tiles from OpenFreeMap in the browser.
 
 ## Layout
-`crawler/` Python Temporal worker (fetch + extraction), `internal/` Go packages,
-`cmd/` binaries, `deploy/` Dockerfiles and compose.
+```mermaid
+flowchart LR
+  cmd[cmd/collisionctl<br/>CLI, worker, api] --> internal
+  subgraph internal[internal/]
+    discovery --> pipeline
+    classification --> pipeline
+    incidents --> pipeline
+    pipeline --> api
+    crawler[crawler<br/>Go side] --> pipeline
+    storage[storage + dbgen<br/>sqlc] --- incidents
+    llm --> classification
+  end
+  py[crawler/<br/>Python worker] -. Temporal .- crawler
+  db[db/migrations<br/>db/queries] --> storage
+  spec[api/openapi.yaml] --> api
+  spec --> web[web/<br/>React + Vite]
+  deploy[deploy/<br/>Dockerfiles, compose]
+```
+`docs/` design, decisions and plan; `tests/evaluations/` labeled cases for the eval harness.
 
 ## Tests
 ```bash

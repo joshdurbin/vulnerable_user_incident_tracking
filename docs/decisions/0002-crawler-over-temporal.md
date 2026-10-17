@@ -1,9 +1,9 @@
 # 0002: The Python crawler is a Temporal worker, not a gRPC service
 
-Status: accepted (replaces the gRPC contract from `starting_design.md`)
+Status: accepted (replaces the gRPC contract in the original design, which has since been removed)
 
 ## Context
-Milestone 1 followed the design doc: a Python gRPC service with a protobuf contract and a Go client.
+Milestone 1 followed the original design: a Python gRPC service with a protobuf contract and a Go client.
 Temporal now orchestrates the pipeline. A second RPC layer between Go and Python duplicated what
 Temporal already provides: retries, timeouts, backoff, a correlation ID, and per-call visibility.
 It also added a proto toolchain (`buf`, generated stubs in two languages) to maintain.

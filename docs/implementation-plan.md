@@ -1,6 +1,6 @@
 # Implementation plan
 
-Companion to `starting_design.md`. Records the cluster findings, the decisions made with the owner, and the ordered steps.
+Companion to `docs/design.md` (the current design). Records the cluster findings, the decisions made with the owner, and the ordered steps.
 
 ## Decisions (confirmed)
 
