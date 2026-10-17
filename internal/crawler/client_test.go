@@ -17,6 +17,7 @@ import (
 type fakeServer struct {
 	crawlerv1.UnimplementedCrawlerServiceServer
 	lastReq *crawlerv1.FetchArticleRequest
+	links   *crawlerv1.DiscoverLinksRequest
 	cid     string
 }
 
@@ -31,6 +32,14 @@ func (s *fakeServer) FetchArticle(ctx context.Context, r *crawlerv1.FetchArticle
 		RequestedUrl: r.Url, FinalUrl: r.Url, Title: "Hello", Text: "body", HttpStatus: 200,
 		PublishedAt: timestamppb.New(time.Date(2026, 10, 12, 21, 30, 0, 0, time.UTC)),
 		FetchedAt:   timestamppb.Now(), ExtractionStatus: crawlerv1.ExtractionStatus_EXTRACTION_STATUS_OK,
+	}, nil
+}
+
+func (s *fakeServer) DiscoverLinks(_ context.Context, r *crawlerv1.DiscoverLinksRequest) (*crawlerv1.DiscoverLinksResponse, error) {
+	s.links = r
+	return &crawlerv1.DiscoverLinksResponse{
+		Links:        []*crawlerv1.DiscoveredLink{{Url: "https://x/a", Title: "A", FoundOn: r.SeedUrl, Depth: 1}},
+		PagesFetched: 1, Truncated: true,
 	}, nil
 }
 
@@ -70,5 +79,29 @@ func TestUnknownStatusMapsToFetchFailed(t *testing.T) {
 	a := articleFromProto(&crawlerv1.FetchArticleResponse{})
 	if a.ExtractionStatus != domain.ExtractionFetchFailed {
 		t.Fatalf("got %s", a.ExtractionStatus)
+	}
+}
+
+func TestDiscoverLinksRoundTrip(t *testing.T) {
+	lis, _ := net.Listen("tcp", "127.0.0.1:0")
+	srv := grpc.NewServer()
+	fs := &fakeServer{}
+	crawlerv1.RegisterCrawlerServiceServer(srv, fs)
+	go srv.Serve(lis)
+	defer srv.Stop()
+	c, err := Dial(lis.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	res, err := c.DiscoverLinks(context.Background(), domain.DiscoverLinksRequest{
+		SeedURL: "https://pd.example.gov/press", AllowedDomains: []string{"example.gov"}, URLPatterns: []string{"/press/"},
+		MaxPages: 5, MaxDepth: 1, MaxDuration: 20 * time.Second, Rendering: domain.RenderAuto,
+	})
+	if err != nil || len(res.Links) != 1 || !res.Truncated || res.Links[0].URL != "https://x/a" {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if fs.links.MaxPages != 5 || fs.links.MaxDuration.AsDuration() != 20*time.Second || fs.links.AllowedDomains[0] != "example.gov" {
+		t.Fatalf("request not mapped: %+v", fs.links)
 	}
 }

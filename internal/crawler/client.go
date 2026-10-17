@@ -19,7 +19,12 @@ type Fetcher interface {
 	FetchArticle(ctx context.Context, req domain.FetchRequest) (*domain.Article, error)
 }
 
-// Client implements Fetcher over gRPC.
+// LinkDiscoverer is the crawler's bounded link-discovery capability.
+type LinkDiscoverer interface {
+	DiscoverLinks(ctx context.Context, req domain.DiscoverLinksRequest) (*domain.DiscoverLinksResult, error)
+}
+
+// Client implements Fetcher and LinkDiscoverer over gRPC.
 type Client struct {
 	conn *grpc.ClientConn
 	rpc  crawlerv1.CrawlerServiceClient
@@ -106,4 +111,27 @@ func articleFromProto(r *crawlerv1.FetchArticleResponse) *domain.Article {
 		a.FetchedAt = r.GetFetchedAt().AsTime()
 	}
 	return a
+}
+
+func (c *Client) DiscoverLinks(ctx context.Context, req domain.DiscoverLinksRequest) (*domain.DiscoverLinksResult, error) {
+	msg := &crawlerv1.DiscoverLinksRequest{
+		SeedUrl: req.SeedURL, AllowedDomains: req.AllowedDomains, UrlPatterns: req.URLPatterns,
+		MaxPages: int32(req.MaxPages), MaxDepth: int32(req.MaxDepth), RenderingPolicy: renderingToProto(req.Rendering),
+		CorrelationId: req.CorrelationID,
+	}
+	if req.MaxDuration > 0 {
+		msg.MaxDuration = durationpb.New(req.MaxDuration)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, req.MaxDuration+15*time.Second)
+		defer cancel()
+	}
+	resp, err := c.rpc.DiscoverLinks(ctx, msg)
+	if err != nil {
+		return nil, fmt.Errorf("crawler DiscoverLinks: %w", err)
+	}
+	out := &domain.DiscoverLinksResult{PagesFetched: int(resp.GetPagesFetched()), Truncated: resp.GetTruncated(), ErrorDetail: resp.GetErrorDetail()}
+	for _, l := range resp.GetLinks() {
+		out.Links = append(out.Links, domain.DiscoveredLink{URL: l.GetUrl(), Title: l.GetTitle(), FoundOn: l.GetFoundOn(), Depth: int(l.GetDepth())})
+	}
+	return out, nil
 }

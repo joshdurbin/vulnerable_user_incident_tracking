@@ -52,3 +52,29 @@ type FetchRequest struct {
 	Timeout       time.Duration
 	CorrelationID string
 }
+
+// DiscoverLinksRequest asks the crawler for a bounded crawl from a seed page.
+type DiscoverLinksRequest struct {
+	SeedURL        string
+	AllowedDomains []string
+	URLPatterns    []string
+	MaxPages       int
+	MaxDepth       int
+	MaxDuration    time.Duration
+	Rendering      RenderingPolicy
+	CorrelationID  string
+}
+
+type DiscoveredLink struct {
+	URL     string `json:"url"`
+	Title   string `json:"title,omitempty"`
+	FoundOn string `json:"found_on,omitempty"`
+	Depth   int    `json:"depth"`
+}
+
+type DiscoverLinksResult struct {
+	Links        []DiscoveredLink `json:"links"`
+	PagesFetched int              `json:"pages_fetched"`
+	Truncated    bool             `json:"truncated"`
+	ErrorDetail  string           `json:"error_detail,omitempty"`
+}
