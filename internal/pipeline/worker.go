@@ -21,17 +21,24 @@ import (
 )
 
 // Dial connects to Temporal with the correlation-ID propagator and zerolog logging.
-func Dial(hostPort, namespace string, log zerolog.Logger) (client.Client, error) {
-	return dial(hostPort, namespace, log, false)
+func Dial(hostPort, namespace string, log zerolog.Logger, opts ...ClientOption) (client.Client, error) {
+	return dial(hostPort, namespace, log, false, opts...)
 }
 
 // DialLazy returns a client that connects on first use, so a process that can serve
 // without Temporal (the API's read routes) starts even when it is unreachable.
-func DialLazy(hostPort, namespace string, log zerolog.Logger) (client.Client, error) {
-	return dial(hostPort, namespace, log, true)
+func DialLazy(hostPort, namespace string, log zerolog.Logger, opts ...ClientOption) (client.Client, error) {
+	return dial(hostPort, namespace, log, true, opts...)
 }
 
-func dial(hostPort, namespace string, log zerolog.Logger, lazy bool) (client.Client, error) {
+// ClientOption adjusts the Temporal client options (for example to add a metrics handler).
+type ClientOption func(*client.Options)
+
+func WithMetrics(h client.MetricsHandler) ClientOption {
+	return func(o *client.Options) { o.MetricsHandler = h }
+}
+
+func dial(hostPort, namespace string, log zerolog.Logger, lazy bool, extra ...ClientOption) (client.Client, error) {
 	if namespace == "" {
 		namespace = DefaultNamespace
 	}
@@ -40,6 +47,9 @@ func dial(hostPort, namespace string, log zerolog.Logger, lazy bool) (client.Cli
 		HostPort: hostPort, Namespace: namespace, Logger: tlog.NewStructuredLogger(sl),
 		ContextPropagators: []workflow.ContextPropagator{Propagator{}},
 		DataConverter:      payloadcodec.DataConverter(),
+	}
+	for _, o := range extra {
+		o(&opts)
 	}
 	if lazy {
 		return client.NewLazyClient(opts)

@@ -18,6 +18,7 @@ import (
 	"github.com/joshdurbin/fuck_cars/internal/discovery"
 	"github.com/joshdurbin/fuck_cars/internal/discovery/pgrepo"
 	"github.com/joshdurbin/fuck_cars/internal/incidents"
+	"github.com/joshdurbin/fuck_cars/internal/metrics"
 	"github.com/joshdurbin/fuck_cars/internal/pipeline"
 	"github.com/joshdurbin/fuck_cars/internal/storage"
 )
@@ -77,11 +78,19 @@ func newWorkerCmd(a *app) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			tc, err := a.temporal()
+			promReg := metrics.NewRegistry()
+			mh, closeMetrics := metrics.TemporalHandler(promReg)
+			defer closeMetrics()
+			tc, err := pipeline.Dial(a.cfg.Temporal.Address, a.cfg.Temporal.Namespace, a.log, pipeline.WithMetrics(mh))
 			if err != nil {
-				return err
+				return fmt.Errorf("connect to temporal at %s: %w", a.cfg.Temporal.Address, err)
 			}
 			defer tc.Close()
+			go func() {
+				if err := metrics.Serve(ctx, a.cfg.MetricsListen, promReg); err != nil {
+					a.log.Error().Err(err).Msg("metrics server stopped")
+				}
+			}()
 
 			acts := &pipeline.Activities{
 				DB: st, Discovery: discovery.NewService(reg, pgrepo.New(st)), Classifier: cl,
@@ -97,6 +106,7 @@ func newWorkerCmd(a *app) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringSlice("queues", nil, "serve only these task queues (default all)")
+	cmd.Flags().String("metrics-listen", "", "address for /metrics (COLLISION_METRICS_LISTEN, default :9100)")
 	addTemporalFlags(cmd)
 	addLLMFlags(cmd)
 	cmd.Flags().String("database-url", "", "PostgreSQL DSN (COLLISION_DATABASE_URL)")

@@ -123,3 +123,22 @@ SELECT (SELECT count(*) FROM discovered_urls)::bigint AS discovered_urls,
 
 -- name: GetReviewNoLock :one
 SELECT * FROM match_reviews WHERE id = $1;
+
+-- name: MetricsArticleStatus :many
+SELECT status, count(*)::bigint AS n FROM articles GROUP BY status;
+
+-- name: MetricsIncidentTotals :one
+SELECT count(*) FILTER (WHERE merged_into IS NULL AND verification_status <> 'withdrawn')::bigint AS active,
+       count(*) FILTER (WHERE verification_status = 'withdrawn')::bigint AS withdrawn,
+       COALESCE(max(created_at), 'epoch'::timestamptz)::timestamptz AS newest_created_at
+FROM incidents;
+
+-- name: MetricsLLMTotals :many
+SELECT model, count(*)::bigint AS extractions,
+       COALESCE(sum(input_tokens), 0)::bigint AS input_tokens,
+       COALESCE(sum(output_tokens), 0)::bigint AS output_tokens,
+       COALESCE(sum(cost_usd), 0)::float8 AS cost_usd
+FROM article_extractions GROUP BY model;
+
+-- name: MetricsSourceHealth :many
+SELECT slug, enabled, consecutive_failures, last_success_at, poll_interval_seconds FROM discovery_sources ORDER BY slug;

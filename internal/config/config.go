@@ -41,12 +41,13 @@ type API struct {
 }
 
 type Config struct {
-	API         API
-	Temporal    Temporal
-	DatabaseURL string
-	LogLevel    string
-	LogFormat   string
-	LLM         LLM
+	MetricsListen string // address for /metrics, separate from any public listener
+	API           API
+	Temporal      Temporal
+	DatabaseURL   string
+	LogLevel      string
+	LogFormat     string
+	LLM           LLM
 	// ResolveGoogleNews enables the undocumented batchexecute resolver (default off).
 	ResolveGoogleNews bool
 }
@@ -62,6 +63,7 @@ func NewViper() *viper.Viper {
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
 	v.SetDefault("discovery.resolve_google_news", false)
+	v.SetDefault("metrics.listen", ":9100")
 	v.SetDefault("api.listen", ":8080")
 	v.SetDefault("api.admin_token", "")
 	v.SetDefault("temporal.address", "temporal-frontend.temporal.svc.cluster.local:7233")
@@ -105,6 +107,7 @@ func Load(v *viper.Viper) (Config, error) {
 		LogLevel:          v.GetString("log.level"),
 		LogFormat:         v.GetString("log.format"),
 		ResolveGoogleNews: v.GetBool("discovery.resolve_google_news"),
+		MetricsListen:     v.GetString("metrics.listen"),
 		API:               API{Listen: v.GetString("api.listen"), AdminToken: v.GetString("api.admin_token")},
 		Temporal: Temporal{
 			Address: v.GetString("temporal.address"), Namespace: v.GetString("temporal.namespace"),

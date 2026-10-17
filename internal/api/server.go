@@ -32,6 +32,8 @@ type Config struct {
 	// AdminToken guards the POST routes. Empty disables them (401), the safe default.
 	AdminToken string
 	Log        zerolog.Logger
+	// Metrics, if set, records request counts and latency.
+	Metrics *HTTPMetrics
 }
 
 type Server struct {
@@ -54,6 +56,9 @@ func (s *Server) Handler() (http.Handler, error) {
 		return nil, err
 	}
 	r := chi.NewRouter()
+	if s.cfg.Metrics != nil {
+		r.Use(s.cfg.Metrics.Middleware)
+	}
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Get("/readyz", func(w http.ResponseWriter, req *http.Request) {
 		if err := s.store.Pool.Ping(req.Context()); err != nil {

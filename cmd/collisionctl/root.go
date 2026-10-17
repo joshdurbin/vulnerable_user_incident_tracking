@@ -77,7 +77,7 @@ func newRootCmd(d deps) *cobra.Command {
 // flagKeys maps config keys to the flag that overrides each. A flag is bound
 // only if the executing command defines it.
 var flagKeys = map[string]string{
-	"log.level": "log-level", "api.listen": "listen", "api.admin_token": "admin-token", "database.url": "database-url", "discovery.resolve_google_news": "resolve-google-news", "log.format": "log-format", "temporal.address": "temporal-address", "temporal.namespace": "temporal-namespace", "temporal.search_attributes": "search-attributes",
+	"log.level": "log-level", "api.listen": "listen", "metrics.listen": "metrics-listen", "api.admin_token": "admin-token", "database.url": "database-url", "discovery.resolve_google_news": "resolve-google-news", "log.format": "log-format", "temporal.address": "temporal-address", "temporal.namespace": "temporal-namespace", "temporal.search_attributes": "search-attributes",
 	"llm.base_url": "llm-url", "llm.model": "model", "llm.fallback_model": "fallback-model",
 	"llm.structured_mode": "structured-mode", "llm.timeout": "llm-timeout", "llm.prices": "prices", "llm.budget_usd": "budget-usd",
 }

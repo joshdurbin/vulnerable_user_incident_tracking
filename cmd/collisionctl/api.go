@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/joshdurbin/fuck_cars/internal/api"
+	"github.com/joshdurbin/fuck_cars/internal/metrics"
 	"github.com/joshdurbin/fuck_cars/internal/pipeline"
 	"github.com/joshdurbin/fuck_cars/internal/storage"
 )
@@ -34,14 +35,18 @@ configured they are disabled. Read routes work even if Temporal is unreachable.`
 				return err
 			}
 			defer st.Close()
-			tc, err := pipeline.DialLazy(a.cfg.Temporal.Address, a.cfg.Temporal.Namespace, a.log)
+			reg := metrics.NewRegistry()
+			mh, closeMetrics := metrics.TemporalHandler(reg)
+			defer closeMetrics()
+			reg.MustRegister(api.NewPipelineCollector(st))
+			tc, err := pipeline.DialLazy(a.cfg.Temporal.Address, a.cfg.Temporal.Namespace, a.log, pipeline.WithMetrics(mh))
 			if err != nil {
 				return err
 			}
 			defer tc.Close()
 
 			h, err := api.NewServer(st, api.TemporalWorkflows{C: tc, Options: a.pipelineOptions()},
-				api.Config{AdminToken: a.cfg.API.AdminToken, Log: a.log}).Handler()
+				api.Config{AdminToken: a.cfg.API.AdminToken, Log: a.log, Metrics: api.NewHTTPMetrics(reg)}).Handler()
 			if err != nil {
 				return err
 			}
@@ -49,8 +54,9 @@ configured they are disabled. Read routes work even if Temporal is unreachable.`
 				Addr: a.cfg.API.Listen, Handler: h,
 				ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 2 * time.Minute,
 			}
-			errc := make(chan error, 1)
+			errc := make(chan error, 2)
 			go func() { errc <- srv.ListenAndServe() }()
+			go func() { errc <- metrics.Serve(ctx, a.cfg.MetricsListen, reg) }()
 			a.log.Info().Str("listen", a.cfg.API.Listen).Bool("admin_enabled", a.cfg.API.AdminToken != "").Msg("api listening")
 			select {
 			case err := <-errc:
@@ -64,6 +70,7 @@ configured they are disabled. Read routes work even if Temporal is unreachable.`
 	}
 	cmd.Flags().String("database-url", "", "PostgreSQL DSN (COLLISION_DATABASE_URL)")
 	cmd.Flags().String("listen", "", "listen address (COLLISION_API_LISTEN, default :8080)")
+	cmd.Flags().String("metrics-listen", "", "address for /metrics (COLLISION_METRICS_LISTEN, default :9100)")
 	cmd.Flags().String("admin-token", "", "bearer token for admin routes (prefer COLLISION_API_ADMIN_TOKEN)")
 	addTemporalFlags(cmd)
 	return cmd

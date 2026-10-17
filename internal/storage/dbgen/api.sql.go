@@ -370,6 +370,135 @@ func (q *Queries) ListReviewsAPI(ctx context.Context, arg ListReviewsAPIParams) 
 	return items, nil
 }
 
+const metricsArticleStatus = `-- name: MetricsArticleStatus :many
+SELECT status, count(*)::bigint AS n FROM articles GROUP BY status
+`
+
+type MetricsArticleStatusRow struct {
+	Status string `json:"status"`
+	N      int64  `json:"n"`
+}
+
+func (q *Queries) MetricsArticleStatus(ctx context.Context) ([]MetricsArticleStatusRow, error) {
+	rows, err := q.db.Query(ctx, metricsArticleStatus)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MetricsArticleStatusRow
+	for rows.Next() {
+		var i MetricsArticleStatusRow
+		if err := rows.Scan(&i.Status, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const metricsIncidentTotals = `-- name: MetricsIncidentTotals :one
+SELECT count(*) FILTER (WHERE merged_into IS NULL AND verification_status <> 'withdrawn')::bigint AS active,
+       count(*) FILTER (WHERE verification_status = 'withdrawn')::bigint AS withdrawn,
+       COALESCE(max(created_at), 'epoch'::timestamptz)::timestamptz AS newest_created_at
+FROM incidents
+`
+
+type MetricsIncidentTotalsRow struct {
+	Active          int64     `json:"active"`
+	Withdrawn       int64     `json:"withdrawn"`
+	NewestCreatedAt time.Time `json:"newest_created_at"`
+}
+
+func (q *Queries) MetricsIncidentTotals(ctx context.Context) (MetricsIncidentTotalsRow, error) {
+	row := q.db.QueryRow(ctx, metricsIncidentTotals)
+	var i MetricsIncidentTotalsRow
+	err := row.Scan(&i.Active, &i.Withdrawn, &i.NewestCreatedAt)
+	return i, err
+}
+
+const metricsLLMTotals = `-- name: MetricsLLMTotals :many
+SELECT model, count(*)::bigint AS extractions,
+       COALESCE(sum(input_tokens), 0)::bigint AS input_tokens,
+       COALESCE(sum(output_tokens), 0)::bigint AS output_tokens,
+       COALESCE(sum(cost_usd), 0)::float8 AS cost_usd
+FROM article_extractions GROUP BY model
+`
+
+type MetricsLLMTotalsRow struct {
+	Model        string  `json:"model"`
+	Extractions  int64   `json:"extractions"`
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+	CostUsd      float64 `json:"cost_usd"`
+}
+
+func (q *Queries) MetricsLLMTotals(ctx context.Context) ([]MetricsLLMTotalsRow, error) {
+	rows, err := q.db.Query(ctx, metricsLLMTotals)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MetricsLLMTotalsRow
+	for rows.Next() {
+		var i MetricsLLMTotalsRow
+		if err := rows.Scan(
+			&i.Model,
+			&i.Extractions,
+			&i.InputTokens,
+			&i.OutputTokens,
+			&i.CostUsd,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const metricsSourceHealth = `-- name: MetricsSourceHealth :many
+SELECT slug, enabled, consecutive_failures, last_success_at, poll_interval_seconds FROM discovery_sources ORDER BY slug
+`
+
+type MetricsSourceHealthRow struct {
+	Slug                string     `json:"slug"`
+	Enabled             bool       `json:"enabled"`
+	ConsecutiveFailures int32      `json:"consecutive_failures"`
+	LastSuccessAt       *time.Time `json:"last_success_at"`
+	PollIntervalSeconds int32      `json:"poll_interval_seconds"`
+}
+
+func (q *Queries) MetricsSourceHealth(ctx context.Context) ([]MetricsSourceHealthRow, error) {
+	rows, err := q.db.Query(ctx, metricsSourceHealth)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MetricsSourceHealthRow
+	for rows.Next() {
+		var i MetricsSourceHealthRow
+		if err := rows.Scan(
+			&i.Slug,
+			&i.Enabled,
+			&i.ConsecutiveFailures,
+			&i.LastSuccessAt,
+			&i.PollIntervalSeconds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pipelineCounts = `-- name: PipelineCounts :one
 SELECT (SELECT count(*) FROM discovered_urls)::bigint AS discovered_urls,
        (SELECT count(*) FROM articles)::bigint AS articles,

@@ -7,6 +7,7 @@ import logging
 import sys
 
 from temporalio.client import Client
+from temporalio.runtime import PrometheusConfig, Runtime, TelemetryConfig
 from temporalio.worker import Worker
 
 from .activities import CrawlerActivities
@@ -18,7 +19,11 @@ log = logging.getLogger("collision_crawler")
 
 
 async def run(cfg: Config) -> None:
-    client = await Client.connect(cfg.temporal_address, namespace=cfg.temporal_namespace, data_converter=data_converter())
+    # SDK metrics (activity latency, failures, task slots) on /metrics, scraped by VictoriaMetrics.
+    runtime = Runtime(telemetry=TelemetryConfig(metrics=PrometheusConfig(bind_address=cfg.metrics_address)))
+    client = await Client.connect(
+        cfg.temporal_address, namespace=cfg.temporal_namespace, data_converter=data_converter(), runtime=runtime
+    )
     fetcher = Fetcher(cfg)
     acts = CrawlerActivities(fetcher)
     worker = Worker(
@@ -26,8 +31,8 @@ async def run(cfg: Config) -> None:
         activities=[acts.fetch_article, acts.discover_links],
         max_concurrent_activities=cfg.max_concurrent_fetches,
     )
-    log.info("crawler worker ready address=%s namespace=%s queue=%s browser=%s",
-             cfg.temporal_address, cfg.temporal_namespace, cfg.task_queue, cfg.browser_enabled)
+    log.info("crawler worker ready address=%s namespace=%s queue=%s browser=%s metrics=%s",
+             cfg.temporal_address, cfg.temporal_namespace, cfg.task_queue, cfg.browser_enabled, cfg.metrics_address)
     try:
         await worker.run()  # returns on SIGINT/SIGTERM-driven cancellation
     finally:

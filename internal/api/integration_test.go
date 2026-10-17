@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -422,4 +423,50 @@ func TestApprovingAReviewMergesThroughTemporal(t *testing.T) {
 	var n int
 	require.NoError(t, store.Pool.QueryRow(context.Background(), `SELECT count(*) FROM incident_events WHERE event_type = 'review_approved'`).Scan(&n))
 	assert.Equal(t, 1, n)
+}
+
+func TestMetricsReflectRequestsAndPipelineState(t *testing.T) {
+	pg.Reset(t, store)
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(NewPipelineCollector(store))
+	h, err := NewServer(store, &fakeWF{}, Config{AdminToken: token, Log: zerolog.Nop(), Metrics: NewHTTPMetrics(reg)}).Handler()
+	require.NoError(t, err)
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+	r := incidents.NewResolver(store, incidents.DefaultConfig(), zerolog.Nop())
+	seedMany(t, r)
+	_, err = store.Queries().UpsertSource(context.Background(), dbgen.UpsertSourceParams{Slug: "s1", Name: "S1", SourceType: "rss", Url: sp("https://x/feed"),
+		Coverage: []byte(`{}`), PollIntervalSeconds: 1800, Enabled: true, CrawlPolicy: []byte(`{}`), RateLimitPerMinute: 30})
+	require.NoError(t, err)
+
+	get(t, ts, "/v1/incidents", nil)
+	get(t, ts, "/v1/incidents/"+uuid.NewString(), nil) // 404
+	get(t, ts, "/v1/incidents?severity=bogus", nil)    // rejected by validation
+
+	mf, err := reg.Gather()
+	require.NoError(t, err)
+	vals := map[string]float64{}
+	for _, f := range mf {
+		for _, m := range f.GetMetric() {
+			key := f.GetName()
+			for _, l := range m.GetLabel() {
+				key += "|" + l.GetName() + "=" + l.GetValue()
+			}
+			switch {
+			case m.GetGauge() != nil:
+				vals[key] = m.GetGauge().GetValue()
+			case m.GetCounter() != nil:
+				vals[key] = m.GetCounter().GetValue()
+			}
+		}
+	}
+	assert.Equal(t, 1.0, vals["collision_pipeline_collector_up"])
+	assert.Equal(t, 4.0, vals["collision_incidents"])
+	assert.Equal(t, 4.0, vals["collision_articles|status=fetched"])
+	assert.InDelta(t, 0.008, vals["collision_llm_cost_usd_total|model=m"], 1e-9)
+	assert.Equal(t, 0.0, vals["collision_source_last_success_timestamp_seconds|source=s1"], "never succeeded")
+	assert.Equal(t, 1800.0, vals["collision_source_poll_interval_seconds|source=s1"])
+	assert.Equal(t, 1.0, vals["collision_http_requests_total|method=GET|route=/v1/incidents|status=200"])
+	assert.Equal(t, 1.0, vals["collision_http_requests_total|method=GET|route=/v1/incidents/{id}|status=404"])
+	assert.Equal(t, 1.0, vals["collision_http_requests_total|method=GET|route=/v1/*|status=400"], "requests the validator rejects never reach a route")
 }
