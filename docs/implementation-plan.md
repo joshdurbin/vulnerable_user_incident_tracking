@@ -2,6 +2,17 @@
 
 Companion to `docs/design.md` (the current design). Records the cluster findings, the decisions made with the owner, and the ordered steps.
 
+## Status
+
+| Phase | State |
+|---|---|
+| 0. Decisions and infra prerequisites | Infra change set written and validated on a local branch of the infra repo, not merged. Still needed: Vault secrets, OpenRouter in Bifrost, a model benchmark on real articles. |
+| 1. Foundation | Done (the gRPC crawler was later replaced by a Temporal worker, ADR 0002) |
+| 2. LLM and data model | Done |
+| 3. Discovery and durable pipeline | Done |
+| 4. API and frontend | Done (Redis and OpenSearch dropped, ADR 0003) |
+| 5. Production | Chart, dashboard, alerts and runbooks done and validated offline. Not yet applied to the cluster. |
+
 ## Decisions (confirmed)
 
 | Topic | Decision |

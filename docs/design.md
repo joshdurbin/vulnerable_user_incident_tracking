@@ -37,6 +37,7 @@ flowchart LR
     temporal[(Temporal<br/>namespace: collisions)]
     pg[(PostgreSQL + PostGIS<br/>CloudNativePG)]
     bifrost[Bifrost<br/>LLM gateway]
+    vm[VictoriaMetrics<br/>+ Grafana + alerts]
   end
 
   web -- "/v1" --> api
@@ -49,6 +50,9 @@ flowchart LR
   bifrost --> or[OpenRouter]
   crawler -- "HTTPS, SSRF-guarded" --> web_pages[(News sites,<br/>feeds, APIs)]
   worker -- "discovery HTTPS" --> web_pages
+  vm -. "scrape :9100/metrics" .-> api
+  vm -.-> worker
+  vm -.-> crawler
 ```
 
 Go and Python never call each other directly. The Python worker serves two activities (`fetch_article`,
@@ -120,6 +124,7 @@ classDiagram
 ```mermaid
 flowchart TB
   sched[Temporal Schedule<br/>per source, overlap: skip] --> dw[DiscoveryWorkflow]
+  daily[Daily Schedule] --> ret[RetentionWorkflow<br/>deletes article text past 90 days]
   bf[BackfillWorkflow<br/>date windows x sources] --> dw
   dw -- "child per URL<br/>workflow ID = hash of URL<br/>abandon on parent close" --> aw[ArticleWorkflow]
   fu[IncidentWorkflow<br/>follow-up search] --> aw
@@ -329,6 +334,37 @@ An incident's canonical fields are always recomputed from its observations, so m
 safe operations. Reprocessing can remove all support for an incident, which is then withdrawn (hidden, kept for
 audit) rather than deleted.
 
+## Deployment and operations
+
+The Helm chart in `deploy/helm/collision-tracker` is synced by Argo CD from the infra repository, which holds only the
+Application and its values. Hooks make a release self-contained: it creates what it needs and refuses to roll out if a
+prerequisite fails, leaving the running version in place.
+
+```mermaid
+flowchart LR
+  subgraph pre[PreSync hooks]
+    t[temporal-setup<br/>namespace, retention,<br/>search attributes] --> m[migrate<br/>database migrations]
+  end
+  pre --> roll[Rollout<br/>api x2, web x2,<br/>worker x1, crawler x1]
+  roll --> post[PostSync: bootstrap<br/>add missing sources,<br/>create Schedules]
+  post --> run([running])
+  m -. fails .-> stop([nothing rolls out;<br/>old version keeps serving])
+```
+
+- **Not a superuser.** The database role owns its database only. The operator creates the extensions (PostGIS is not a
+  trusted extension), and the first migration's `CREATE EXTENSION IF NOT EXISTS` then does nothing. This was verified as a
+  non-superuser both ways.
+- **Operator changes survive deploys.** Bootstrap adds missing sources and Schedules but never overwrites a disabled source,
+  an edited interval or a paused Schedule.
+- **Network.** Egress-only policies per component. The worker and crawler may reach public HTTP(S) but not private ranges,
+  as a second layer behind the crawler's own SSRF guard.
+- **Metrics.** Each process serves `/metrics` on a separate port. Temporal SDK metrics (Go through tally, Python natively)
+  use the same names. The API also exports pipeline state read from PostgreSQL at scrape time (articles by status, pending
+  reviews, spend, per-source failures and last success), which stays correct across restarts and retries.
+- **Alerts and dashboard.** A `VMRule` covers stalled pipelines, failing or stale sources, queue backlog, spend, the review
+  queue and API errors; a Grafana dashboard ships as a labelled ConfigMap. Each alert points to a runbook in
+  `docs/runbooks/`.
+
 ## API and web
 
 The REST API is defined first in `api/openapi.yaml`. Server code and the web client's types are generated from it,
@@ -367,10 +403,10 @@ flowchart LR
 
 ## Not built yet
 
-- Helm chart, Argo applications, Grafana dashboard and runbooks (Phase 5), and the metrics endpoints that
-  VictoriaMetrics would scrape.
-- The infra changes in the cluster repo: PostGIS image, `collisions` database and Temporal namespace, network
-  policies, secrets.
+- Running it on the cluster. The chart, the dashboard, the alerts and the infra changes exist and were validated
+  (schema checks, a server-side dry run of the VictoriaMetrics resources, the Temporal setup script on a dev server),
+  but nothing has been applied: the infra change set is an unmerged local branch, the container images have not been built
+  by CI yet, the Vault secrets have not been created, and the OpenRouter provider has not been added to Bifrost.
 - A geocoder (incidents currently match on street, city and county text), a monthly LLM budget stored in the
   database, a Temporal codec server, a browser-rendering fallback for script-heavy pages, and saga-style
   compensation for merge and split (they are single database transactions today).

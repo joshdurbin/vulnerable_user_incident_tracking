@@ -26,8 +26,9 @@ flowchart LR
 ## Status
 Built and tested: discovery providers, the Python crawler worker, LLM classification with an evaluation harness,
 PostGIS persistence with entity resolution, the Temporal workflows (discovery, article, incident, backfill,
-reprocess), the REST API, and the web UI. Not built yet: Helm chart, Argo apps, dashboards and runbooks, and the
-infra changes in the cluster repo. See "Not built yet" in the design for the full list.
+reprocess), the REST API, the web UI, a Helm chart with a Grafana dashboard and alerts, and runbooks
+(`docs/runbooks/`). Not yet run on the cluster: the infra changes are an unmerged branch and the images are not built.
+See "Not built yet" in the design for the full list.
 
 ## Quick start (no Kubernetes)
 ```bash
