@@ -489,5 +489,7 @@ See [ADR 0004](decisions/0004-rendering-on-its-own-queue.md).
 
 ## Not built yet
 
+Unscheduled ideas, with reasons and first steps, are in [backlog.md](backlog.md).
+
 - A geocoder (incidents currently match on street, city and county text), a Temporal codec server, and saga-style
   compensation for merge and split (they are single database transactions today).
