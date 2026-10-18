@@ -176,7 +176,7 @@ func post(t *testing.T, ts *httptest.Server, path, tok string, body any) (int, m
 
 func seedMany(t *testing.T, r *incidents.Resolver) {
 	seed(t, r, "a.example", cand("2026-10-10", "Oakland", "CA", "100 Broadway", "fatal", []string{"pedestrian"}, nil, ip(1)), f64(37.80), f64(-122.27))
-	seed(t, r, "b.example", cand("2026-09-02", "Oakland", "CA", "900 Telegraph Ave", "serious", []string{"cyclist"}, ip(1), nil), f64(37.81), f64(-122.26))
+	seed(t, r, "b.example", cand("2026-09-02", "Oakland", "CA", "900 Telegraph Ave", "serious", []string{"bicyclist"}, ip(1), nil), f64(37.81), f64(-122.26))
 	seed(t, r, "c.example", cand("2026-09-20", "Los Angeles", "CA", "1 Sunset Blvd", "minor", []string{"pedestrian"}, ip(2), nil), f64(34.06), f64(-118.24))
 	seed(t, r, "d.example", cand("2026-08-15", "Portland", "OR", "55 Burnside St", "fatal", []string{"scooter_rider"}, nil, ip(1)), nil, nil) // no coordinates
 }
@@ -274,7 +274,7 @@ func TestStats(t *testing.T) {
 	for _, row := range by {
 		got[row.Key] = row.Incidents
 	}
-	assert.Equal(t, map[string]int64{"pedestrian": 2, "cyclist": 1, "scooter_rider": 1}, got)
+	assert.Equal(t, map[string]int64{"pedestrian": 2, "bicyclist": 1, "scooter_rider": 1}, got)
 
 	require.Equal(t, 200, get(t, ts, "/v1/stats/breakdown?by=state&limit=1", &by))
 	require.Len(t, by, 1)

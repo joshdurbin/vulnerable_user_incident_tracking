@@ -1,20 +1,25 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import type { paths } from "./api/schema";
 
 export interface Filters {
   from?: string;
   to?: string;
   state?: string;
-  vru: string[];
+  vru: VruCategory[];
   severity?: string;
   hit_and_run?: string;
 }
 
-export const VRU_OPTIONS = ["pedestrian", "cyclist", "wheelchair_user", "scooter_rider", "motorcyclist", "other"];
+// Typed against the API spec (itself checked against the classifier schema by a Go test), so a
+// category the classifier never produces fails to compile instead of silently matching nothing.
+export type VruCategory = NonNullable<NonNullable<paths["/incidents"]["get"]["parameters"]["query"]>["vru"]>[number];
+export const VRU_OPTIONS: VruCategory[] = ["pedestrian", "bicyclist", "e_bike_rider", "scooter_rider", "motorcyclist", "moped_rider", "wheelchair_user", "skateboarder", "other"];
 export const SEVERITIES = ["fatal", "serious", "minor", "unknown"];
 
 export function parseFilters(p: URLSearchParams): Filters {
-  const vru = (p.get("vru") ?? "").split(",").filter(Boolean);
+  // Unknown values (an old bookmark, a hand-edited URL) are dropped: the API would reject them.
+  const vru = (p.get("vru") ?? "").split(",").filter((v): v is VruCategory => (VRU_OPTIONS as string[]).includes(v));
   return {
     from: p.get("from") || undefined,
     to: p.get("to") || undefined,

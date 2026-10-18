@@ -449,7 +449,7 @@ export interface components {
         State: string;
         City: string;
         /** @description Road-user categories; matches incidents involving any of them. */
-        Vru: string[];
+        Vru: ("pedestrian" | "bicyclist" | "e_bike_rider" | "scooter_rider" | "motorcyclist" | "moped_rider" | "wheelchair_user" | "skateboarder" | "other")[];
         Severity: "fatal" | "serious" | "minor" | "unknown";
         Verification: "unverified" | "corroborated" | "reviewed";
         HitAndRun: "yes" | "no" | "unknown";

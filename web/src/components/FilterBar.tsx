@@ -1,9 +1,9 @@
-import { SEVERITIES, VRU_OPTIONS, useFilters } from "../filters";
+import { SEVERITIES, VRU_OPTIONS, useFilters, type VruCategory } from "../filters";
 import { label } from "../format";
 
 export function FilterBar() {
   const [f, set] = useFilters();
-  const toggleVru = (v: string) => set({ vru: f.vru.includes(v) ? f.vru.filter((x) => x !== v) : [...f.vru, v] });
+  const toggleVru = (v: VruCategory) => set({ vru: f.vru.includes(v) ? f.vru.filter((x) => x !== v) : [...f.vru, v] });
   return (
     <div className="filters" role="search" aria-label="Filters">
       <label>

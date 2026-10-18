@@ -221,6 +221,45 @@ func (e Verification) Valid() bool {
 	}
 }
 
+// Defines values for ListIncidentsParamsVru.
+const (
+	ListIncidentsParamsVruBicyclist      ListIncidentsParamsVru = "bicyclist"
+	ListIncidentsParamsVruEBikeRider     ListIncidentsParamsVru = "e_bike_rider"
+	ListIncidentsParamsVruMopedRider     ListIncidentsParamsVru = "moped_rider"
+	ListIncidentsParamsVruMotorcyclist   ListIncidentsParamsVru = "motorcyclist"
+	ListIncidentsParamsVruOther          ListIncidentsParamsVru = "other"
+	ListIncidentsParamsVruPedestrian     ListIncidentsParamsVru = "pedestrian"
+	ListIncidentsParamsVruScooterRider   ListIncidentsParamsVru = "scooter_rider"
+	ListIncidentsParamsVruSkateboarder   ListIncidentsParamsVru = "skateboarder"
+	ListIncidentsParamsVruWheelchairUser ListIncidentsParamsVru = "wheelchair_user"
+)
+
+// Valid indicates whether the value is a known member of the ListIncidentsParamsVru enum.
+func (e ListIncidentsParamsVru) Valid() bool {
+	switch e {
+	case ListIncidentsParamsVruBicyclist:
+		return true
+	case ListIncidentsParamsVruEBikeRider:
+		return true
+	case ListIncidentsParamsVruMopedRider:
+		return true
+	case ListIncidentsParamsVruMotorcyclist:
+		return true
+	case ListIncidentsParamsVruOther:
+		return true
+	case ListIncidentsParamsVruPedestrian:
+		return true
+	case ListIncidentsParamsVruScooterRider:
+		return true
+	case ListIncidentsParamsVruSkateboarder:
+		return true
+	case ListIncidentsParamsVruWheelchairUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListIncidentsParamsSeverity.
 const (
 	ListIncidentsParamsSeverityFatal   ListIncidentsParamsSeverity = "fatal"
@@ -365,6 +404,45 @@ func (e StatsBreakdownParamsBy) Valid() bool {
 	}
 }
 
+// Defines values for StatsBreakdownParamsVru.
+const (
+	StatsBreakdownParamsVruBicyclist      StatsBreakdownParamsVru = "bicyclist"
+	StatsBreakdownParamsVruEBikeRider     StatsBreakdownParamsVru = "e_bike_rider"
+	StatsBreakdownParamsVruMopedRider     StatsBreakdownParamsVru = "moped_rider"
+	StatsBreakdownParamsVruMotorcyclist   StatsBreakdownParamsVru = "motorcyclist"
+	StatsBreakdownParamsVruOther          StatsBreakdownParamsVru = "other"
+	StatsBreakdownParamsVruPedestrian     StatsBreakdownParamsVru = "pedestrian"
+	StatsBreakdownParamsVruScooterRider   StatsBreakdownParamsVru = "scooter_rider"
+	StatsBreakdownParamsVruSkateboarder   StatsBreakdownParamsVru = "skateboarder"
+	StatsBreakdownParamsVruWheelchairUser StatsBreakdownParamsVru = "wheelchair_user"
+)
+
+// Valid indicates whether the value is a known member of the StatsBreakdownParamsVru enum.
+func (e StatsBreakdownParamsVru) Valid() bool {
+	switch e {
+	case StatsBreakdownParamsVruBicyclist:
+		return true
+	case StatsBreakdownParamsVruEBikeRider:
+		return true
+	case StatsBreakdownParamsVruMopedRider:
+		return true
+	case StatsBreakdownParamsVruMotorcyclist:
+		return true
+	case StatsBreakdownParamsVruOther:
+		return true
+	case StatsBreakdownParamsVruPedestrian:
+		return true
+	case StatsBreakdownParamsVruScooterRider:
+		return true
+	case StatsBreakdownParamsVruSkateboarder:
+		return true
+	case StatsBreakdownParamsVruWheelchairUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StatsBreakdownParamsSeverity.
 const (
 	StatsBreakdownParamsSeverityFatal   StatsBreakdownParamsSeverity = "fatal"
@@ -425,6 +503,45 @@ func (e StatsBreakdownParamsHitAndRun) Valid() bool {
 	case StatsBreakdownParamsHitAndRunUnknown:
 		return true
 	case StatsBreakdownParamsHitAndRunYes:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StatsSummaryParamsVru.
+const (
+	StatsSummaryParamsVruBicyclist      StatsSummaryParamsVru = "bicyclist"
+	StatsSummaryParamsVruEBikeRider     StatsSummaryParamsVru = "e_bike_rider"
+	StatsSummaryParamsVruMopedRider     StatsSummaryParamsVru = "moped_rider"
+	StatsSummaryParamsVruMotorcyclist   StatsSummaryParamsVru = "motorcyclist"
+	StatsSummaryParamsVruOther          StatsSummaryParamsVru = "other"
+	StatsSummaryParamsVruPedestrian     StatsSummaryParamsVru = "pedestrian"
+	StatsSummaryParamsVruScooterRider   StatsSummaryParamsVru = "scooter_rider"
+	StatsSummaryParamsVruSkateboarder   StatsSummaryParamsVru = "skateboarder"
+	StatsSummaryParamsVruWheelchairUser StatsSummaryParamsVru = "wheelchair_user"
+)
+
+// Valid indicates whether the value is a known member of the StatsSummaryParamsVru enum.
+func (e StatsSummaryParamsVru) Valid() bool {
+	switch e {
+	case StatsSummaryParamsVruBicyclist:
+		return true
+	case StatsSummaryParamsVruEBikeRider:
+		return true
+	case StatsSummaryParamsVruMopedRider:
+		return true
+	case StatsSummaryParamsVruMotorcyclist:
+		return true
+	case StatsSummaryParamsVruOther:
+		return true
+	case StatsSummaryParamsVruPedestrian:
+		return true
+	case StatsSummaryParamsVruScooterRider:
+		return true
+	case StatsSummaryParamsVruSkateboarder:
+		return true
+	case StatsSummaryParamsVruWheelchairUser:
 		return true
 	default:
 		return false
@@ -515,6 +632,45 @@ func (e StatsTimeseriesParamsBucket) Valid() bool {
 	case StatsTimeseriesParamsBucketWeek:
 		return true
 	case StatsTimeseriesParamsBucketYear:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StatsTimeseriesParamsVru.
+const (
+	StatsTimeseriesParamsVruBicyclist      StatsTimeseriesParamsVru = "bicyclist"
+	StatsTimeseriesParamsVruEBikeRider     StatsTimeseriesParamsVru = "e_bike_rider"
+	StatsTimeseriesParamsVruMopedRider     StatsTimeseriesParamsVru = "moped_rider"
+	StatsTimeseriesParamsVruMotorcyclist   StatsTimeseriesParamsVru = "motorcyclist"
+	StatsTimeseriesParamsVruOther          StatsTimeseriesParamsVru = "other"
+	StatsTimeseriesParamsVruPedestrian     StatsTimeseriesParamsVru = "pedestrian"
+	StatsTimeseriesParamsVruScooterRider   StatsTimeseriesParamsVru = "scooter_rider"
+	StatsTimeseriesParamsVruSkateboarder   StatsTimeseriesParamsVru = "skateboarder"
+	StatsTimeseriesParamsVruWheelchairUser StatsTimeseriesParamsVru = "wheelchair_user"
+)
+
+// Valid indicates whether the value is a known member of the StatsTimeseriesParamsVru enum.
+func (e StatsTimeseriesParamsVru) Valid() bool {
+	switch e {
+	case StatsTimeseriesParamsVruBicyclist:
+		return true
+	case StatsTimeseriesParamsVruEBikeRider:
+		return true
+	case StatsTimeseriesParamsVruMopedRider:
+		return true
+	case StatsTimeseriesParamsVruMotorcyclist:
+		return true
+	case StatsTimeseriesParamsVruOther:
+		return true
+	case StatsTimeseriesParamsVruPedestrian:
+		return true
+	case StatsTimeseriesParamsVruScooterRider:
+		return true
+	case StatsTimeseriesParamsVruSkateboarder:
+		return true
+	case StatsTimeseriesParamsVruWheelchairUser:
 		return true
 	default:
 		return false
@@ -855,6 +1011,9 @@ type ListIncidentsParams struct {
 	Offset       *int                             `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// ListIncidentsParamsVru defines parameters for ListIncidents.
+type ListIncidentsParamsVru string
+
 // ListIncidentsParamsSeverity defines parameters for ListIncidents.
 type ListIncidentsParamsSeverity string
 
@@ -914,6 +1073,9 @@ type StatsBreakdownParams struct {
 // StatsBreakdownParamsBy defines parameters for StatsBreakdown.
 type StatsBreakdownParamsBy string
 
+// StatsBreakdownParamsVru defines parameters for StatsBreakdown.
+type StatsBreakdownParamsVru string
+
 // StatsBreakdownParamsSeverity defines parameters for StatsBreakdown.
 type StatsBreakdownParamsSeverity string
 
@@ -938,6 +1100,9 @@ type StatsSummaryParams struct {
 	Verification *StatsSummaryParamsVerification `form:"verification,omitempty" json:"verification,omitempty"`
 	HitAndRun    *StatsSummaryParamsHitAndRun    `form:"hit_and_run,omitempty" json:"hit_and_run,omitempty"`
 }
+
+// StatsSummaryParamsVru defines parameters for StatsSummary.
+type StatsSummaryParamsVru string
 
 // StatsSummaryParamsSeverity defines parameters for StatsSummary.
 type StatsSummaryParamsSeverity string
@@ -968,6 +1133,9 @@ type StatsTimeseriesParams struct {
 
 // StatsTimeseriesParamsBucket defines parameters for StatsTimeseries.
 type StatsTimeseriesParamsBucket string
+
+// StatsTimeseriesParamsVru defines parameters for StatsTimeseries.
+type StatsTimeseriesParamsVru string
 
 // StatsTimeseriesParamsSeverity defines parameters for StatsTimeseries.
 type StatsTimeseriesParamsSeverity string
@@ -2793,58 +2961,59 @@ func (sh *strictHandler) StatsTimeseries(w http.ResponseWriter, r *http.Request,
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"7Btpk9u29a9g2M7UnqFXuz7SZvPJsZt0p5vEs3aSD66HAxFPErIgQOOQlvHov3dwkOIBSpTWdpOOP+1S",
+	"BN4D3n3xQ5KLohQcuFbJ5YekxBIXoEG6p2/n4s7+JaBySUtNBU8uk4Lya8FT+wfrtMB37gnfXWONHvz6",
+	"/et/PH14hq54TomFijZUr4TRKBdCEsqxBoWwBAR3OTMECNqsgCMF+ixJE2oRvDcgqyRNOC4guUzm9hRp",
+	"ovIVFNgeB+5wUTL76tHF48dnz9Infz/7KnX/P7H/f52kia5Ku0BpSfky2W7T5AXVld0dQ5Hbd20Uw+3f",
+	"SVGMbV/Yd+3tCyELrJPLhGAN0dP8i+rnnNwYPgZzRXWGOcmk4d3Lc1Mkl2+TCpRdLJI0MfyWiw1P3sUQ",
+	"vYY1yD1XV/X7GJIF1pjZNyCpMBZhQbmQB3Fqe+0xhNrTJMbPF8+jxHojxoBpcSTdfwFJFzTHXpbjQNft",
+	"NTGyGO6XAEnSJBdSirmQWLtHCWsKGyBxyvwizVChbgQmj4wCiXKsYSkkBfUNKrDOV6AQbTSJ8rVga8qX",
+	"CPMKiQXSKyis1sBdyQSB5HKBmYK4Fq2l6dyFaihU+1IlELAnxfbOc5pXOaNKW+jZnN5CJikB6UAIoUE2",
+	"z4XQQu5WF6IE0rzcrABYvsJUZkb57bdYw1xg6RcIvQIZoVXzA5YSV/ZZ6crJiOWxo6UEVQquwJsqTG7g",
+	"vQGl7VMuuAbu/sVlyQIvZ78pz/QdFf4qYZFcJn+Z7czgzL9Vs39KKWSytai6/Lria8woQTIg3KbJj0J/",
+	"Jwwnnx75j0KjhUO1TZOfOTZ6JST9HT4D6h+oUlb6hEQbKawYkoJypMUtcMeRAMHxQwK+JWLDb8TGPpdS",
+	"lCA19dxydoU2T7XWUq6/erpTW8o1LEHaizZKMHn9b0YCmbj6Fqq40bccpg7OW7eofZC0fYsdxp0oi/lv",
+	"kDvp8BQdUAHqn/cj9suicNeB2V24ONdRuGmSS7BmKsN6YC0faVpETGZqXzqRwYRQKwiYvWph09JA5GR0",
+	"Kun9L4dIQEm9OQ2369wlHDJGojoOiVBJapozyHJh/Ovh4fLgN7lhDM8Z9K7boquFMW3pAudaZdYJmo75",
+	"zQVfUFk4H4IZg6X7z/CcAY4byCB+1e4GI8hbN2pHFccGEwOuGrPjS2eZV4VjzsW8RPZMnWEMGc5AKYTR",
+	"EkQuCEgkQRvJgSCMSkG5ixt3oiyMRZSO4eSmmAeUwlvHrJSQUxXigcFlmP/9BAQiz42U+7XtoLg0QASP",
+	"BTjT93duWfPdQgknCQD3sV+1Qsn7RIhpiAGnqIvSEkBnmBAJSk3aYkpytJFbw8obgyYA68RIB4OTdsgY",
+	"Ue5JAWOa2FSJSDxCtLU0J54vZk0jghHViQHeKLHSdh7RTV06Bi9OqbRnjDs83GfVn/tt48Z9osVagI21",
+	"76epLl7PVC4knGgwAoRGeuIogGTzKvq6NHNG1X3vUUORk5RNU82mabKR7LCjb/HN7+hRpUODfZLxEjSm",
+	"bFQwuuqzLxrui1pE+XMqc1MojXkO00wUrOtYdtIZfJwXwRx8YuaCBwI8P1X0akBKGJlP4ydtRVZTCOgE",
+	"GOQSSEa5FjG9POzN5grk2tmO6dT7abcpRkOrF78LPu3SGyFvF0xsgmHpxitvoCiFxAzVq9DVy5CmN1n8",
+	"3xRidAE2X4Zm3VmSHtCLevvOVKqkR45Gqrqn3Kck11RFAuOGqEfpR5S0wgYHAzr9YFXYJpKt0saSC3tx",
+	"xGhB9UwsFqEgeDCF6BHKo0zD2WOXv2bF6xI4iSamuVA6M4rE1WigNgRXE8pOtkCjJc4bsZ2UwJZGZy61",
+	"nrqlEARY1DEIo4+E1qOqvWeNoHub3kn7uNIdRWO8aKvmfX34lDy1p68rQDnmhFq2IbjDuWYVwgoJDihg",
+	"RxJKITUQRPVZErmC18Gjws19Pq8Nbk9a+4qWwCiH16YosKxigmzqkv6o/5sgU4SqXKzBxolGsqm7jhf3",
+	"BabMXvq401k1pnyZ+RD6NMnuXbBjX/un6ot+H3+MU4wVmbILJ1vUtoE6FMoHNrfRxA5x4w4YkZJa+rNT",
+	"vPlJ1SSw++8XodYw5tMqLhPtB4fNSVSQgFUQ9KNKZHsyhYGfGWaUQfSsvJalFOuQSlrgY72HQQrYxNT+",
+	"KL2SWoceaUxUxiXtZavWMFKb7JriX1cCBbZ+gyTkQtrOoC0urwBhQ6hGWmLKznyB4Rr4Uq+Sy4sIHwM9",
+	"Wo5wLgQDzIeGN6ysa4rj97kBZVishljTPoKszuyn+i+N5RIiVbA3rejRkcO1TNAGK+TDaUS5Fp1YaVo4",
+	"3aPG7rQtmYqR5LXNvwyDpssXqdq5nm4TD1OFDJeA85U9ju0f2HuoAAcRAQpxoRHcUaVR5SO//um7lGdY",
+	"6bqKeZoV4XB3TwglNirO+22MbC61uuILMe6Vs1CImOj/8HqZEWC4yhTkghM10ZzkgivIjaZryKyPMxJU",
+	"vAJeu8fpnRrglmYjGuFaGdn06p+bEVD2mEdEH46GmTJ5DkplMuCaQJZjm0xOBms893FovkUbq+gIxmy2",
+	"bINk1mby8DASGKwx18dcuNbAQ+6uq/F2IzPLPXXHyAvD6XtzBBt7xskhDIRqOkG1qI3RaUTQozZNY61G",
+	"g+kjw9JOgXdq/Ksxy44VwKPbqL32z/+88WoL3llrMOgU0TjYkR1St1+iHhxjUKRvJCAmPG9oAcrZyFeC",
+	"xlqNc5Pfgp5UKfhDdcZ7lA7XOKkJ7tpHuZFUV9aaFEGxSEH5Gzc/UI8nOI8BWILcHWildekHEmhwn70B",
+	"GsAEYWeHkRa7slKKrKuhStNcIcwJKkPajFaAmV6lqGTG9hYXsAnDDJZtvqCGHviICJEQzFpwdciSC66l",
+	"YA/PkA3PbMpOc7Bxjq06c9CPBGfVNwGmFMYNvTElUKAnwshf0k9PnP2HJ00tPXkhGHMY0RXXwBhdAs8B",
+	"PX915fsnyt/6/Ozi7NyVIErguKTJZfLk7PzsSWIjE71yBJ51xCPEl80dr0hymdgi4FWLoe0RwLdxv7Bb",
+	"MnMjgtv04Do3Pjdh3RsxZVXtiA4udEN/E9bZuawpeOsm1xSQ7SmyCet3E4F2cWyEy9VGO0NcBBbYJSYX",
+	"5+dpUuA7Wtj08OLcPVIeHmOaHUfhC69xHG2Q5xGQ73ojWY/Pzz/aTFKnYh0ZTfrp31YRnp6fjwFqTjZr",
+	"TYo5q1Q7facIrZL0Aw4bUBotqFT6YZImGi9V1+G8swB2Kjb7QMl2VM++h0bNhlrmeGG1dscK6jP62vz6",
+	"0DEy6hjPJz8LN0KTbQ8/nh7mRzM61+XGT7yV9loHjahWdVVWpagE+Sg8oXYfxNn5VsVgD+NEqWa1Rxhl",
+	"W7/SGmddT40IrlRciZ609fTJV88OqOmn5GL/ZiNs7HDlha03glSpI/P19Q/IFR3RvEIEV+7HuktQU12U",
+	"bXr7BuN+b/Q6rPlzkXpSbbdVBBiWdg+T/2VIxysU6Og1471xg2CoAC3rUKcJVep56738mH2wGdZ21s4I",
+	"S6EiDHrhI586JZxkykL2Nm7MosbL2ehvBamOYsOg3NgbeXJFG3cYZXwyKelyGZ1B7pcLPaxIbLvt3207",
+	"kKWnw6j1peBwkteyWy4Ob+kMB59mjUPE7vjajtXfvtu+i0lUqxEzqt03Yc0k7W6VqAf63aqBn14VPzrS",
+	"eta2Ko//jHHWJEPluXSSkXollKK2zkuMPwY03zLgDabafcCAVqbAvMmtWvapaaa1JcqFVjPSbisE69TT",
+	"KWDUdfNsHtibuxiOZ2BrKtHPbtYsRcrvqJHYbM7N+WMNJEWOpkCQ4Dl479dvUzRgV1RpISuf1HUV4KXr",
+	"cQTifq4o8DRDelg6mi7PJAt4/pGxh55MRCKfe1b9gW2r3fD1p/9gw9YmQhHDtoswk4BJVTfappj4nVY/",
+	"9wYVPXBNp4e2ieMNqxvD7mv8qD5bg65m8/rrkFFP4QqyzUck05zFvNqrK7WTqAOi+qO/scHVDcBtPfjC",
+	"nU76b6jC+OvHcSePnx3rTr4UZD5/QeazuNzOJ1MTHe99ax7fS2HKVtFjXrnhJ0IL4D2/7DS3o8Vq1y8Z",
+	"1+HRvPmLHP/55Hhvatvm9kcV13EJ1E3nZb8Q7jo0Ez1J3emIpR21N9h9RFMFb9FyFVX8q60vBvz/2ID3",
+	"+4Cf1IYPlMIFc3Jdi7X73CKZrS+SVqr+oUkrmlLoNm1+9KBaP9ShW+snm+tv323/OwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

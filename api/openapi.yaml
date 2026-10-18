@@ -178,7 +178,9 @@ components:
       description: Road-user categories; matches incidents involving any of them.
       style: form
       explode: false
-      schema: {type: array, items: {type: string}}
+      schema:
+        type: array
+        items: {type: string, enum: [pedestrian, bicyclist, e_bike_rider, scooter_rider, motorcyclist, moped_rider, wheelchair_user, skateboarder, other]}
     Severity: {name: severity, in: query, schema: {type: string, enum: [fatal, serious, minor, unknown]}}
     Verification: {name: verification, in: query, schema: {type: string, enum: [unverified, corroborated, reviewed]}}
     HitAndRun: {name: hit_and_run, in: query, schema: {type: string, enum: ['yes', 'no', unknown]}}
