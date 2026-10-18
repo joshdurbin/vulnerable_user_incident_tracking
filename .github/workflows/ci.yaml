@@ -17,9 +17,12 @@ jobs:
       - uses: azure/setup-helm@v4
       - name: helm chart
         run: make helm-check
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
       - name: generated code is up to date
         run: |
-          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+          (cd web && npm ci)
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
           make generate
           git diff --exit-code
       - name: crawler (including the real-browser renderer tests)
@@ -27,13 +30,9 @@ jobs:
           cd crawler
           uv run --python 3.13 playwright install --with-deps --only-shell chromium
           uv run --python 3.13 pytest -q
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
       - name: web
         run: |
           cd web
-          npm ci
-          npm run gen:api && git diff --exit-code src/api/schema.d.ts
           npm run build
           npm test
 
