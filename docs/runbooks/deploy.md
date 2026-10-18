@@ -23,7 +23,9 @@ If a PreSync Job fails, nothing rolls out and the running version keeps serving.
 - [ ] In Bifrost: an OpenRouter provider and key, and the model you will use. Set `llm.model` in the Application values.
 - [ ] Images exist in ghcr.io (built by CI on `main`) and the cluster can pull them. If the packages are private, Zot and
       the nodes need credentials; the simplest fix is to make the packages public.
-- [ ] Sync the Application. Check the Operations page: sources are listed and their schedules show a next run time.
+- [ ] Sync the Application. Nothing is collected yet: no sources are built in. Open `/admin`, enter the admin token and add
+      sources (or `collisionctl sources import --file docs/examples/sources.yaml` for a starter set, then "Sync schedules").
+- [ ] Check the Admin page: sources are listed, each shows a next run time, and "Test" on a source returns articles.
 - [ ] Start small. Leave most sources disabled, run one with "Run now", and watch an article go through before enabling
       the rest.
 

@@ -51,11 +51,20 @@ Backfills and reprocessing: `collisionctl backfill start|status|pause|resume|can
 
 ## API
 `collisionctl api` serves the REST API described in `api/openapi.yaml` (regenerate server code with
-`make generate`). Reads are open (the service is tailnet-only); POST routes need
+`make generate`). Incident and statistics reads are open (the service is tailnet-only). Review decisions and every
+`/admin` route, source configuration and health reads included, need
 `Authorization: Bearer $COLLISION_API_ADMIN_TOKEN` and are disabled when no token is set.
 
+## Sources
+Discovery sources and search queries are configured in the database, in the `/admin` UI (type, URL, interval, coverage,
+crawl limits, a Test button that runs a configuration once without saving it, per-source health and run history).
+No sources are built in, so a new install collects nothing until some are added. `collisionctl sources import --file
+docs/examples/sources.yaml` loads a starter set; `sources export`, `validate` and `list` are there for scripting. A new
+source type is one provider package that describes its own fields (`Provider.Describe`); see
+`docs/decisions/0005-sources-are-configuration.md`.
+
 ## Web UI
-`web/` is a React + Vite + TypeScript app (map, trends, incident detail, review queue, operations). Types come from
+`web/` is a React + Vite + TypeScript app (map, trends, incident detail, review queue, and an admin area for sources and queries). Types come from
 `api/openapi.yaml`. `cd web && npm run dev` serves on :5173 and proxies `/v1` to `collisionctl api` on :8080. The
 container is nginx serving the build, proxying `/v1` to `$API_UPSTREAM`, and writing `config.json` (Temporal UI
 link) from `TEMPORAL_UI_URL` at start. The map loads tiles from OpenFreeMap in the browser.

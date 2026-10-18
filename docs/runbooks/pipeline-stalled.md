@@ -25,7 +25,7 @@ Work flows: Schedule, discovery, fetch (crawler), classify (LLM), resolve, incid
 5. **Articles failing en masse** (`CollisionMostArticlesFailing`): publishers are blocking or the crawler's network is
    broken. Look at `article_fetch_attempts.error_detail` for the common reason.
 6. **Nothing is wrong but no incidents:** discovery may simply be finding nothing relevant. Check the sources' "relevant"
-   rate on the Operations page and the discovery workflow results in the Temporal UI.
+   rate on the Admin page and the discovery workflow results in the Temporal UI.
 7. **Stuck workflows.** In the Temporal UI, filter `CollisionKind = "article"` and `ExecutionStatus = "Running"` and open the
    oldest. Its pending activity shows what it is waiting for. Safe to terminate: re-discovery re-lists any URL without an
    article, and stored extractions mean no model call is repeated.

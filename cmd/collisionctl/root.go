@@ -20,7 +20,7 @@ type deps struct {
 	fetcher   crawler.Fetcher      // nil = the Python crawler worker, via Temporal
 	completer llm.Completer        // nil = build the gateway client from config
 	registry  *discovery.Registry  // nil = all real providers
-	repo      discovery.Repository // nil = PostgreSQL from config (or seed files for --dry-run)
+	repo      discovery.Repository // nil = PostgreSQL from config (or --sources-file for --dry-run)
 }
 
 // app is resolved once per invocation, after flags and config are bound.

@@ -68,9 +68,9 @@ func TestSourcesValidateCatchesBadFile(t *testing.T) {
 	}
 }
 
-func TestDiscoverDryRunUsesSeedsAndNoDatabase(t *testing.T) {
+func TestDiscoverDryRunUsesASourceFileAndNoDatabase(t *testing.T) {
 	reg, rss, _ := testRegistry()
-	out, _, err := run(t, deps{registry: reg}, "discover", "--source", "oaklandside", "--dry-run", "--lookback", "6h", "--seed-file", example)
+	out, _, err := run(t, deps{registry: reg}, "discover", "--source", "oaklandside", "--dry-run", "--lookback", "6h", "--sources-file", example)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestDiscoverDryRunUsesSeedsAndNoDatabase(t *testing.T) {
 
 func TestDiscoverSearchProviderGetsSeededQueries(t *testing.T) {
 	reg, _, gd := testRegistry()
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "gdelt", "--dry-run", "--seed-file", example); err != nil {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "gdelt", "--dry-run", "--sources-file", example); err != nil {
 		t.Fatal(err)
 	}
 	if len(gd.last.Queries) < 10 || gd.last.Source.Slug != "gdelt-us" {
@@ -96,13 +96,13 @@ func TestDiscoverSearchProviderGetsSeededQueries(t *testing.T) {
 
 func TestDiscoverProviderAmbiguousAndMissing(t *testing.T) {
 	reg, _, _ := testRegistry()
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "rss", "--dry-run", "--seed-file", example); err == nil || !strings.Contains(err.Error(), "choose one with --source") {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "rss", "--dry-run", "--sources-file", example); err == nil || !strings.Contains(err.Error(), "choose one with --source") {
 		t.Fatalf("got %v", err)
 	}
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "sitemap", "--dry-run", "--seed-file", example); err == nil || !strings.Contains(err.Error(), "no enabled source") {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "sitemap", "--dry-run", "--sources-file", example); err == nil || !strings.Contains(err.Error(), "no enabled source") {
 		t.Fatalf("got %v", err)
 	}
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--dry-run", "--seed-file", example); err == nil {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--dry-run", "--sources-file", example); err == nil {
 		t.Fatal("needs --source or --provider")
 	}
 }

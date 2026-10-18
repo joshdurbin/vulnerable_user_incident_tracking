@@ -87,14 +87,16 @@ flowchart TB
 
 ## Discovery
 
-Discovery sits behind one interface with an implementation per source type. A provider only finds candidate URLs;
-persistence, normalization and deduplication are shared.
+Discovery sits behind one interface with an implementation per source type. A provider describes the source types it
+serves and finds candidate URLs; persistence, normalization, deduplication and run history are shared. Which sources
+exist is data, not code: see [Managing sources](#managing-sources).
 
 ```mermaid
 classDiagram
   class Provider {
     <<interface>>
     Type() string
+    Describe(sourceType) Descriptor
     Discover(ctx, Request) Result
   }
   Provider <|.. GDELT : gdelt
@@ -103,10 +105,16 @@ classDiagram
   Provider <|.. Sitemap : sitemap, news_sitemap
   Provider <|.. CrawlLinks : index_page, police_press
 
+  class Descriptor {
+    URL none or required
+    UsesQueries
+    Crawl fields used
+  }
+  Provider --> Descriptor
   class Registry { maps source type to Provider }
   class Service {
     Run(source, window)
-    provider -> normalize -> dedupe -> persist
+    provider -> normalize -> dedupe -> persist -> record run
   }
   Registry --> Provider
   Service --> Registry
@@ -122,6 +130,57 @@ classDiagram
 - **Feed**, **Sitemap** and **CrawlLinks** read a specific source's URL.
 - Every sighting is recorded (`article_discoveries`), so source quality can be measured: duplicates, exclusive finds,
   delay, fetch success and relevance.
+
+### Managing sources
+
+Sources (`discovery_sources`) and search queries (`discovery_queries`) are rows in the database, managed in the `/admin`
+UI. Nothing is built in and nothing is seeded on deploy: an empty database collects nothing until a source is added
+(or `collisionctl sources import --file docs/examples/sources.yaml` loads a starter set).
+
+- **The provider is the contract for what a source needs.** `Descriptor` says whether a type takes a URL, runs
+  queries, and which crawl limits it reads. Validation (`ValidateSource`, `ValidateQuery`) and the admin form are driven
+  by descriptors, so a new source type is one provider package plus one registry line, with no migration (the database
+  does not enumerate types) and no UI change.
+- **Every run is recorded** in `discovery_runs`: window, status (`success`, `partial`, `failed`), counts found, unique,
+  new, known and pending, upstream requests, warnings and the error. Recording and the source's health fields change in
+  one transaction. A partial run (the provider failed part way but returned usable candidates) counts as working and keeps
+  its error on the run. History is trimmed after 90 days by the retention workflow.
+- **Health** is derived, not stored: `disabled`, `paused` (its schedule is paused), `waiting` (no run yet), `failing`
+  (three or more runs in a row failed), `stale` (no success for three poll intervals and at least an hour), `degraded`
+  (the latest run failed) or `healthy`. Alongside it the admin shows run statistics (success rate, average and p95 time,
+  new URLs, requests) and the quality metrics above.
+- **Saving a source changes its Temporal Schedule.** Create and update apply the interval and action; the pause state
+  follows `enabled` only when that flag changed, so an operator's pause survives an unrelated edit. If Temporal is
+  unreachable the save still succeeds and says the schedule was not updated; `Sync schedules` (or the next deploy)
+  fixes it, and also removes the schedules of deleted sources. Delete removes the schedule first, so a failure never
+  leaves a schedule running for a source that no longer exists.
+- **Test** runs a configuration once, unsaved, through a `SourceTestWorkflow` on the discovery worker (the API makes no
+  outbound requests). It records nothing, uses at most two queries for search sources, and fails fast with a clear error
+  when no discovery worker is polling.
+
+```mermaid
+sequenceDiagram
+  participant UI as Admin UI
+  participant API
+  participant DB as PostgreSQL
+  participant T as Temporal
+  participant W as Discovery worker
+  UI->>API: PUT /admin/sources/{slug}
+  API->>API: validate against the provider's descriptor
+  API->>DB: update source
+  API->>T: update the source's Schedule
+  Note over API,T: failure here is reported on the saved source
+  loop every poll interval
+    T->>W: DiscoveryWorkflow
+    W->>DB: record sightings, run row, source health
+  end
+  UI->>API: POST /admin/source-tests
+  API->>T: SourceTestWorkflow
+  T->>W: TestSource (dry run)
+  W-->>UI: found, samples, warnings (nothing saved)
+```
+
+See [ADR 0005](decisions/0005-sources-are-configuration.md).
 
 ## Durable pipeline
 
@@ -279,6 +338,7 @@ and schema, compares old and new results, withdraws what the old extraction cont
 erDiagram
   discovery_sources ||--o{ article_discoveries : found_by
   discovery_queries ||--o{ article_discoveries : found_by
+  discovery_sources ||--o{ discovery_runs : ran
   discovered_urls ||--o{ article_discoveries : sighted
   discovered_urls ||--o| articles : becomes
   discovered_urls ||--o{ article_fetch_attempts : tried
@@ -349,7 +409,7 @@ flowchart LR
     t[temporal-setup<br/>namespace, retention,<br/>search attributes] --> m[migrate<br/>database migrations]
   end
   pre --> roll[Rollout<br/>api x2, web x2,<br/>worker x1, crawler x1]
-  roll --> post[PostSync: bootstrap<br/>add missing sources,<br/>create Schedules]
+  roll --> post[PostSync: bootstrap<br/>sync Schedules<br/>to the configured sources]
   post --> run([running])
   m -. fails .-> stop([nothing rolls out;<br/>old version keeps serving])
 ```
@@ -357,8 +417,9 @@ flowchart LR
 - **Not a superuser.** The database role owns its database only. The operator creates the extensions (PostGIS is not a
   trusted extension), and the first migration's `CREATE EXTENSION IF NOT EXISTS` then does nothing. This was verified as a
   non-superuser both ways.
-- **Operator changes survive deploys.** Bootstrap adds missing sources and Schedules but never overwrites a disabled source,
-  an edited interval or a paused Schedule.
+- **Operator changes survive deploys.** Sources live in the database and bootstrap never writes them. It only makes each
+  source's Schedule match (interval and action), keeping a pause an operator set, and removes schedules whose source was
+  deleted.
 - **Network.** Egress-only policies per component. The worker and crawler may reach public HTTP(S) but not private ranges,
   as a second layer behind the crawler's own SSRF guard.
 - **Metrics.** Each process serves `/metrics` on a separate port. Temporal SDK metrics (Go through tally, Python natively)
@@ -390,7 +451,7 @@ flowchart LR
 | Trends | summary, time series, breakdowns | none |
 | Incident detail | sources, per-article observations, audit trail | link to the incident's workflow |
 | Review queue | side-by-side pairs with differences highlighted | decision as a validated Update |
-| Operations | source quality, counters | schedule pause, resume, run now |
+| Admin (token) | pipeline counters; per-source health, run history, quality; queries | schedule pause, resume, run now, sync; test run through a workflow |
 
 ## Security
 
@@ -400,8 +461,9 @@ flowchart LR
 - **LLM:** article text is data, wrapped in delimiters and escaped. Output is schema-validated and each evidence
   quote must be found in the source text; "verified" is set by our code, never the model.
 - **Privacy:** no names or ages are stored for people involved in a collision.
-- **Admin:** shared bearer token compared in constant time, kept in `sessionStorage` in the browser. Reviewer identity
-  is a typed name recorded in the audit trail, not an authenticated identity.
+- **Admin:** shared bearer token compared in constant time, kept in `sessionStorage` in the browser. Every `/admin` API
+  route needs it, reads included, because source configuration and health are not public (pipeline counters and the
+  incident read API are). Reviewer identity is a typed name recorded in the audit trail, not an authenticated identity.
 - **Network:** tailnet-only exposure; in-cluster egress is default-deny with explicit allows (infra repo).
 
 ## Rendering JavaScript-built pages
@@ -427,9 +489,5 @@ See [ADR 0004](decisions/0004-rendering-on-its-own-queue.md).
 
 ## Not built yet
 
-- Running it on the cluster. The chart, the dashboard, the alerts and the infra changes exist and were validated
-  (schema checks, a server-side dry run of the VictoriaMetrics resources, the Temporal setup script on a dev server),
-  but nothing has been applied: the infra change set is an unmerged local branch, the container images have not been built
-  by CI yet, the Vault secrets have not been created, and the OpenRouter provider has not been added to Bifrost.
 - A geocoder (incidents currently match on street, city and county text), a Temporal codec server, and saga-style
   compensation for merge and split (they are single database transactions today).

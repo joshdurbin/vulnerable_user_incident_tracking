@@ -1,6 +1,6 @@
 # ADR 0001: Discovery providers behind one interface
 
-Status: accepted
+Status: accepted. Extended by [ADR 0005](0005-sources-are-configuration.md): providers also describe the source types they serve, and sources are configured in the database.
 
 ## Context
 Discovery must pull candidate article URLs from very different sources: search APIs (GDELT), search

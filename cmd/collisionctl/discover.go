@@ -75,7 +75,7 @@ func newDiscoverCmd(a *app) *cobra.Command {
 		Use:   "discover",
 		Short: "Run discovery for a source and record newly found article URLs",
 		Long: `Runs one source (by --source slug, or --provider type when exactly one enabled source has it).
-With --dry-run nothing is written and no database is needed: sources and queries come from the seed files.`,
+With --dry-run nothing is written and no database is needed: sources and queries come from --sources-file.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			f := cmd.Flags()
@@ -86,7 +86,7 @@ With --dry-run nothing is written and no database is needed: sources and queries
 			lookback, _ := f.GetDuration("lookback")
 			fromS, _ := f.GetString("from")
 			toS, _ := f.GetString("to")
-			seedFile, _ := f.GetString("seed-file")
+			sourceFile, _ := f.GetString("sources-file")
 			limit, _ := f.GetInt("show")
 			queryNames, _ := f.GetStringSlice("query")
 
@@ -99,7 +99,7 @@ With --dry-run nothing is written and no database is needed: sources and queries
 				return err
 			}
 			defer closeReg()
-			repo, closeRepo, err := a.discoveryRepo(cmd.Context(), seedFile, dry)
+			repo, closeRepo, err := a.discoveryRepo(cmd.Context(), sourceFile, dry)
 			if err != nil {
 				return err
 			}
@@ -132,7 +132,7 @@ With --dry-run nothing is written and no database is needed: sources and queries
 	f.Duration("lookback", 0, "window length ending now (default: 2x the source poll interval, at least 2h)")
 	f.String("from", "", "window start (RFC3339), for backfills")
 	f.String("to", "", "window end (RFC3339), default now")
-	f.String("seed-file", "", "sources/queries YAML to use instead of a database (dry-run only)")
+	f.String("sources-file", "", "sources/queries YAML to use instead of a database (dry-run only)")
 	f.Bool("resolve-google-news", false, "resolve Google News links to publisher URLs via an UNDOCUMENTED Google endpoint (COLLISION_DISCOVERY_RESOLVE_GOOGLE_NEWS)")
 	f.StringSlice("query", nil, "only run these configured queries (search providers; repeatable)")
 	f.Int("show", 10, "candidates to print in human output")
