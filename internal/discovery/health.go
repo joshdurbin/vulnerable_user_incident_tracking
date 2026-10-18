@@ -95,9 +95,25 @@ func AssessHealth(s Source, schedulePaused bool, now time.Time) Health {
 	case s.LastSuccessAt == nil:
 		return Health{HealthStale, "has never succeeded"}
 	case now.Sub(*s.LastSuccessAt) > limit:
-		return Health{HealthStale, fmt.Sprintf("last success %s ago", now.Sub(*s.LastSuccessAt).Round(time.Minute))}
+		return Health{HealthStale, fmt.Sprintf("last success %s ago", humanDuration(now.Sub(*s.LastSuccessAt)))}
 	case s.ConsecutiveFailures > 0:
 		return Health{HealthDegraded, fmt.Sprintf("last run failed: %s", s.ErrorState)}
 	}
 	return Health{HealthHealthy, "running normally"}
+}
+
+// humanDuration writes a duration the way a person would say it: "40 min", "5 h", "2 d 3 h".
+func humanDuration(d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf("%d min", int(d.Round(time.Minute)/time.Minute))
+	case d < 48*time.Hour:
+		h := int(d.Round(time.Hour) / time.Hour)
+		return fmt.Sprintf("%d h", h)
+	}
+	days := int(d / (24 * time.Hour))
+	if h := int((d % (24 * time.Hour)) / time.Hour); h > 0 {
+		return fmt.Sprintf("%d d %d h", days, h)
+	}
+	return fmt.Sprintf("%d d", days)
 }

@@ -132,6 +132,37 @@ func (a *Activities) DiscoverSource(ctx context.Context, in DiscoverInput) (*Dis
 	return out, nil
 }
 
+// testSourceTimeout bounds one test run; the workflow's activity timeout is a little longer.
+const testSourceTimeout = 40 * time.Second
+
+// testSourceMaxQueries is how many configured queries a test run of a search source uses.
+const testSourceMaxQueries = 2
+
+// TestSource runs a source once without saving it or recording anything, and reports what it found.
+func (a *Activities) TestSource(ctx context.Context, in SourceTestInput) (*SourceTestResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, testSourceTimeout)
+	defer cancel()
+	rep, err := a.Discovery.Run(ctx, discovery.RunRequest{Source: in.Source, DryRun: true, MaxQueries: testSourceMaxQueries})
+	out := &SourceTestResult{OK: err == nil, Warnings: []string{}, Samples: []TestSample{}}
+	if rep != nil {
+		out.Found, out.Unique, out.Unresolved, out.Requests, out.Truncated = rep.Found, rep.Unique, rep.Unresolved, rep.Requests, rep.Truncated
+		out.DurationMS = rep.Duration.Milliseconds()
+		if rep.Warnings != nil {
+			out.Warnings = rep.Warnings
+		}
+		for i, c := range rep.Candidates {
+			if i >= MaxTestSamples {
+				break
+			}
+			out.Samples = append(out.Samples, TestSample{URL: c.Normalized, Title: c.Primary.Title, PublishedAt: c.Primary.PublishedAt})
+		}
+	}
+	if err != nil {
+		out.Error = err.Error()
+	}
+	return out, nil
+}
+
 // ---- article ----
 
 // FindArticle returns the article already stored for a discovered URL, if any.

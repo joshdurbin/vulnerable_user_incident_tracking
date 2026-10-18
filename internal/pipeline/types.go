@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
 // Options toggle cluster-dependent features. They travel in workflow inputs so
@@ -34,6 +35,36 @@ type DiscoverInput struct {
 	Until  time.Time `json:"until,omitempty"`
 	MaxURL int       `json:"max_urls,omitempty"` // cap on URLs returned to the workflow
 }
+
+// SourceTestInput is a source configuration to try once. It need not be saved.
+type SourceTestInput struct {
+	Source discovery.Source `json:"source"`
+}
+
+// SourceTestResult is what one dry run of a source found. A provider failure is part of the
+// result (OK false, Error set), not a failed activity, so the admin UI can show it.
+type SourceTestResult struct {
+	OK         bool         `json:"ok"`
+	Error      string       `json:"error,omitempty"`
+	Found      int          `json:"found"`
+	Unique     int          `json:"unique"`
+	Unresolved int          `json:"unresolved"`
+	Requests   int          `json:"requests"`
+	Truncated  bool         `json:"truncated"`
+	DurationMS int64        `json:"duration_ms"`
+	Warnings   []string     `json:"warnings"`
+	Samples    []TestSample `json:"samples"`
+}
+
+// TestSample is one URL a test run found.
+type TestSample struct {
+	URL         string     `json:"url"`
+	Title       string     `json:"title,omitempty"`
+	PublishedAt *time.Time `json:"published_at,omitempty"`
+}
+
+// MaxTestSamples bounds how many URLs a test run returns.
+const MaxTestSamples = 20
 
 type DiscoverOutput struct {
 	ToProcess []URLRef `json:"to_process"` // new URLs plus known URLs that never became articles

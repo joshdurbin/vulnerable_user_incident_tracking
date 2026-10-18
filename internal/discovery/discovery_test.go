@@ -144,3 +144,20 @@ func TestValidateSourceUsesDescriptors(t *testing.T) {
 		}
 	}
 }
+
+func TestHumanDuration(t *testing.T) {
+	for in, want := range map[time.Duration]string{
+		40 * time.Minute: "40 min", 5 * time.Hour: "5 h", 47 * time.Hour: "47 h",
+		50 * time.Hour: "2 d 2 h", 72 * time.Hour: "3 d",
+	} {
+		if got := humanDuration(in); got != want {
+			t.Errorf("%v: got %q want %q", in, got, want)
+		}
+	}
+	now := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	old := now.Add(-5 * time.Hour)
+	h := AssessHealth(Source{Enabled: true, PollInterval: time.Hour, LastAttemptAt: &old, LastSuccessAt: &old}, false, now)
+	if h.State != HealthStale || h.Reason != "last success 5 h ago" {
+		t.Fatalf("%+v", h)
+	}
+}

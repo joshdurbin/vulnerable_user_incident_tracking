@@ -122,7 +122,7 @@ func newSchedulesCmd(a *app) *cobra.Command {
 
 	sync := &cobra.Command{
 		Use:   "sync",
-		Short: "Create or update one Schedule per source (keeps pauses set in the Temporal UI)",
+		Short: "Make the Schedules match the configured sources (keeps pauses set in the Temporal UI; removes those of deleted sources)",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if a.cfg.DatabaseURL == "" {
 				return errors.New("a database is required: --database-url or COLLISION_DATABASE_URL")
@@ -145,10 +145,21 @@ func newSchedulesCmd(a *app) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			keep := make(map[string]bool, len(srcs))
+			for _, s := range srcs {
+				keep[s.Slug] = true
+			}
+			removed, err := pipeline.PruneSchedules(cmd.Context(), tc, keep)
+			if err != nil {
+				return err
+			}
 			if _, err := pipeline.SyncMaintenanceSchedules(cmd.Context(), tc); err != nil {
 				return err
 			}
-			fmt.Fprintf(a.out, "schedules: %d created, %d updated (plus the retention schedule)\n", c, u)
+			if len(srcs) == 0 {
+				fmt.Fprintln(a.out, "no sources are configured: add some in the admin UI or with `collisionctl sources import`")
+			}
+			fmt.Fprintf(a.out, "schedules: %d created, %d updated, %d removed (plus the retention schedule)\n", c, u, removed)
 			return nil
 		},
 	}

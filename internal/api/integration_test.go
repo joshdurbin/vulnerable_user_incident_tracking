@@ -21,6 +21,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.temporal.io/sdk/client"
 
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
@@ -82,6 +83,22 @@ type fakeWF struct {
 	err       error
 	schedule  *ScheduleState
 	actions   []string
+
+	// admin operations
+	applied    []applyCall
+	applyErr   error
+	deleted    []string
+	deleteErr  error
+	synced     []string // slugs passed to SyncSchedules
+	syncRes    [3]int
+	testRes    *pipeline.SourceTestResult
+	testErr    error
+	testedWith []discovery.Source
+}
+
+type applyCall struct {
+	Slug           string
+	EnabledChanged bool
 }
 
 func (f *fakeWF) DecideReview(_ context.Context, inc uuid.UUID, d pipeline.ReviewDecision) (*pipeline.ReviewOutcome, error) {
@@ -100,6 +117,27 @@ func (f *fakeWF) Schedule(context.Context, string) (*ScheduleState, error) {
 func (f *fakeWF) ControlSchedule(_ context.Context, slug, action string) error {
 	f.actions = append(f.actions, slug+":"+action)
 	return nil
+}
+func (f *fakeWF) ApplySource(_ context.Context, src discovery.Source, changed bool) error {
+	f.applied = append(f.applied, applyCall{src.Slug, changed})
+	return f.applyErr
+}
+func (f *fakeWF) DeleteSchedule(_ context.Context, slug string) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	f.deleted = append(f.deleted, slug)
+	return nil
+}
+func (f *fakeWF) SyncSchedules(_ context.Context, srcs []discovery.Source) (int, int, int, error) {
+	for _, s := range srcs {
+		f.synced = append(f.synced, s.Slug)
+	}
+	return f.syncRes[0], f.syncRes[1], f.syncRes[2], nil
+}
+func (f *fakeWF) TestSource(_ context.Context, src discovery.Source) (*pipeline.SourceTestResult, error) {
+	f.testedWith = append(f.testedWith, src)
+	return f.testRes, f.testErr
 }
 
 const token = "s3cret"
@@ -339,35 +377,6 @@ func TestAdminRoutesAreDisabledWithoutAConfiguredToken(t *testing.T) {
 	assert.Equal(t, 401, code)
 	code, _ = post(t, ts, "/v1/reviews/"+rid.String()+"/decision", "anything", map[string]any{"approve": true, "actor": "x"})
 	assert.Equal(t, 401, code)
-}
-
-func TestSourcesAndSchedules(t *testing.T) {
-	next := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
-	paused := true
-	wf := &fakeWF{schedule: &ScheduleState{Paused: &paused, NextRun: &next}}
-	ts, _ := newTestServer(t, wf, token)
-	_, err := store.Queries().UpsertSource(context.Background(), dbgen.UpsertSourceParams{
-		Slug: "oaklandside", Name: "Oaklandside", SourceType: "rss", Url: sp("https://oaklandside.org/feed/"),
-		Coverage: []byte(`{}`), PollIntervalSeconds: 1800, Enabled: true, CrawlPolicy: []byte(`{}`),
-	})
-	require.NoError(t, err)
-
-	var srcs []SourceInfo
-	require.Equal(t, 200, get(t, ts, "/v1/ops/sources", &srcs))
-	require.Len(t, srcs, 1)
-	assert.Equal(t, "oaklandside", srcs[0].Slug)
-	require.NotNil(t, srcs[0].Schedule)
-	assert.True(t, *srcs[0].Schedule.Paused)
-
-	code, _ := post(t, ts, "/v1/ops/sources/oaklandside/schedule", "", map[string]any{"action": "pause"})
-	assert.Equal(t, 401, code)
-	code, _ = post(t, ts, "/v1/ops/sources/oaklandside/schedule", token, map[string]any{"action": "explode"})
-	assert.Equal(t, 400, code)
-	code, _ = post(t, ts, "/v1/ops/sources/nope/schedule", token, map[string]any{"action": "pause"})
-	assert.Equal(t, 404, code)
-	code, _ = post(t, ts, "/v1/ops/sources/oaklandside/schedule", token, map[string]any{"action": "trigger"})
-	assert.Equal(t, 204, code)
-	assert.Equal(t, []string{"oaklandside:trigger"}, wf.actions)
 }
 
 func sp(s string) *string { return &s }

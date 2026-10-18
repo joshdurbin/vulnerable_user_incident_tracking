@@ -443,3 +443,115 @@ func TestMaintenanceScheduleIsCreatedOnceAndLeftAlone(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, d.Schedule.State.Paused, "a pause survives a re-sync")
 }
+
+// ---- schedules driven from the admin API ----
+
+func pausedNow(t *testing.T, slug string) bool {
+	t.Helper()
+	d, err := tc.ScheduleClient().GetHandle(context.Background(), DiscoveryScheduleID(slug)).Describe(context.Background())
+	require.NoError(t, err)
+	return d.Schedule.State.Paused
+}
+
+func TestApplySourceFollowsEnabledOnlyWhenItChanges(t *testing.T) {
+	ctx := context.Background()
+	src := discovery.Source{Slug: "apply-it", Type: "rss", PollInterval: 30 * time.Minute, Enabled: true}
+	require.NoError(t, ApplySource(ctx, tc, src, Options{}, false))
+	h := tc.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID("apply-it"))
+	defer h.Delete(ctx)
+	assert.False(t, pausedNow(t, "apply-it"), "an enabled source starts running")
+
+	// An operator pauses it; editing something else must not resume it.
+	require.NoError(t, h.Pause(ctx, client.SchedulePauseOptions{Note: "operator"}))
+	src.PollInterval = time.Hour
+	require.NoError(t, ApplySource(ctx, tc, src, Options{}, false))
+	d, err := h.Describe(ctx)
+	require.NoError(t, err)
+	assert.True(t, d.Schedule.State.Paused, "an edit that leaves enabled alone keeps the operator's pause")
+	assert.Equal(t, time.Hour, d.Schedule.Spec.Intervals[0].Every, "but the new interval is applied")
+
+	// Disabling pauses; enabling resumes.
+	src.Enabled = false
+	require.NoError(t, ApplySource(ctx, tc, src, Options{}, true))
+	assert.True(t, pausedNow(t, "apply-it"))
+	src.Enabled = true
+	require.NoError(t, ApplySource(ctx, tc, src, Options{}, true))
+	assert.False(t, pausedNow(t, "apply-it"), "enabling a source resumes its schedule")
+
+	// A source created disabled never runs until it is enabled.
+	off := discovery.Source{Slug: "apply-off", Type: "rss", PollInterval: time.Hour, Enabled: false}
+	require.NoError(t, ApplySource(ctx, tc, off, Options{}, false))
+	defer tc.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID("apply-off")).Delete(ctx)
+	assert.True(t, pausedNow(t, "apply-off"))
+}
+
+func TestDeletingAndPruningSchedules(t *testing.T) {
+	ctx := context.Background()
+	require.NoError(t, DeleteSourceSchedule(ctx, tc, "never-existed"), "a missing schedule is not an error")
+
+	for _, slug := range []string{"prune-keep", "prune-gone"} {
+		require.NoError(t, ApplySource(ctx, tc, discovery.Source{Slug: slug, Type: "rss", PollInterval: time.Hour, Enabled: true}, Options{}, false))
+	}
+	_, err := SyncMaintenanceSchedules(ctx, tc)
+	require.NoError(t, err)
+	defer tc.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID("prune-keep")).Delete(ctx)
+	defer tc.ScheduleClient().GetHandle(ctx, MaintenanceScheduleID).Delete(ctx)
+
+	// Listing goes through Temporal's visibility store, which lags a moment behind creation.
+	gone := func() bool {
+		_, err := tc.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID("prune-gone")).Describe(ctx)
+		return err != nil
+	}
+	require.Eventually(t, func() bool {
+		_, err := PruneSchedules(ctx, tc, map[string]bool{"prune-keep": true})
+		require.NoError(t, err)
+		return gone()
+	}, 30*time.Second, 500*time.Millisecond, "the orphaned schedule is removed")
+
+	_, err = tc.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID("prune-keep")).Describe(ctx)
+	assert.NoError(t, err, "a schedule whose source exists is kept")
+	_, err = tc.ScheduleClient().GetHandle(ctx, MaintenanceScheduleID).Describe(ctx)
+	assert.NoError(t, err, "only discovery schedules are ever pruned")
+}
+
+func TestSourceTestRunsThroughTheDiscoveryWorkerAndFailsFastWithoutOne(t *testing.T) {
+	// With no worker polling the discovery queue, the test run fails quickly with a timeout
+	// the API can recognise, rather than hanging until the person gives up.
+	started := time.Now()
+	run, err := tc.ExecuteWorkflow(context.Background(), client.StartWorkflowOptions{
+		ID: "source-test-" + uuid.NewString(), TaskQueue: TQWorkflow,
+	}, SourceTestWorkflow, SourceTestInput{Source: discovery.Source{Slug: "t", Type: "rss"}})
+	require.NoError(t, err)
+	// The workflow itself needs a worker, so start one that serves only workflows.
+	cfg := DefaultWorkerConfig()
+	cfg.Queues = []string{TQWorkflow}
+	wfOnly := NewWorkers(tc, newActivities(&fakeClassifier{}), cfg)
+	for _, w := range wfOnly {
+		require.NoError(t, w.Start())
+	}
+	var res SourceTestResult
+	err = run.Get(context.Background(), &res)
+	stop(wfOnly)
+	require.Error(t, err)
+	assert.True(t, IsScheduleToStartTimeout(err), "got %v", err)
+	assert.Less(t, time.Since(started), 40*time.Second)
+
+	// With the discovery worker up, the same workflow returns the activity's result.
+	acts := newActivities(&fakeClassifier{})
+	pub := time.Date(2026, 10, 18, 9, 0, 0, 0, time.UTC)
+	acts.Discovery = &fakeDiscoverer{rep: &discovery.Report{Found: 3, Unique: 2, Requests: 1, Candidates: []discovery.Deduped{
+		{Normalized: "https://x.test/a", Primary: discovery.Candidate{Title: "A", PublishedAt: &pub}},
+	}}}
+	ws := startWorkers(t, acts, nil)
+	defer stop(ws)
+	run, err = tc.ExecuteWorkflow(context.Background(), client.StartWorkflowOptions{
+		ID: "source-test-" + uuid.NewString(), TaskQueue: TQWorkflow,
+	}, SourceTestWorkflow, SourceTestInput{Source: discovery.Source{Slug: "t", Type: "rss", URL: "https://x.test/feed"}})
+	require.NoError(t, err)
+	require.NoError(t, run.Get(context.Background(), &res))
+	assert.True(t, res.OK)
+	assert.Equal(t, 3, res.Found)
+	require.Len(t, res.Samples, 1)
+	assert.Equal(t, "A", res.Samples[0].Title)
+	assert.Equal(t, pub, res.Samples[0].PublishedAt.UTC())
+}

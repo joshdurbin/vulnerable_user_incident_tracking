@@ -3,12 +3,13 @@ info:
   title: Collision Intelligence API
   version: 0.1.0
   description: >
-    Read access to incidents, statistics and pipeline health, plus a few admin operations
-    (review decisions, schedule control). The service is tailnet-only; admin routes also
-    require a bearer token.
+    Read access to incidents, statistics and pipeline counters, review decisions, and the
+    admin operations for discovery sources (configuration, health, schedules, test runs).
+    The service is tailnet-only; every route that decides, changes or exposes source
+    configuration and health also requires a bearer token.
 servers:
   - url: /v1
-tags: [{name: incidents}, {name: stats}, {name: reviews}, {name: ops}]
+tags: [{name: incidents}, {name: stats}, {name: reviews}, {name: ops}, {name: admin}]
 
 paths:
   /incidents:
@@ -128,17 +129,82 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {description: The review was already decided, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
 
-  /ops/sources:
+  /admin/source-types:
     get:
-      tags: [ops]
-      operationId: listSources
-      summary: Discovery sources with quality metrics and schedule state
+      tags: [admin]
+      operationId: listSourceTypes
+      summary: The source types the running providers support, and which fields each uses
+      security: [{adminToken: []}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SourceType'}}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /admin/sources:
+    get:
+      tags: [admin]
+      operationId: listAdminSources
+      summary: Sources with configuration, health, run statistics, quality metrics and schedule state
+      security: [{adminToken: []}]
       parameters: [{name: days, in: query, schema: {type: integer, minimum: 1, maximum: 365, default: 30}}]
       responses:
-        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SourceInfo'}}}}}
-  /ops/sources/{slug}/schedule:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SourceDetail'}}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
     post:
-      tags: [ops]
+      tags: [admin]
+      operationId: createSource
+      summary: Add a source and create its schedule
+      description: >
+        The source is validated against its type's provider. It is stored first; if Temporal
+        is unreachable the response still succeeds and carries schedule_error, and
+        `POST /admin/schedules/sync` (or the next deploy) creates the schedule.
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/SourceInput'}}}
+      responses:
+        '201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/SourceDetail'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {description: A source with this slug exists, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  /admin/sources/{slug}:
+    parameters: [{name: slug, in: path, required: true, schema: {type: string}}]
+    get:
+      tags: [admin]
+      operationId: getAdminSource
+      security: [{adminToken: []}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/SourceDetail'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [admin]
+      operationId: updateSource
+      summary: Replace a source's configuration
+      description: >
+        The slug identifies the source (it names its Temporal Schedule) and cannot change; the
+        slug in the body must match the path. Disabling a source pauses its schedule and
+        enabling it resumes the schedule; other edits leave a manual pause alone.
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/SourceInput'}}}
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/SourceDetail'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      tags: [admin]
+      operationId: deleteSource
+      summary: Delete a source, its schedule and its run history
+      description: Articles and sightings it found are kept, no longer attributed to a source.
+      security: [{adminToken: []}]
+      responses:
+        '204': {description: Deleted}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/sources/{slug}/schedule:
+    post:
+      tags: [admin]
       operationId: controlSchedule
       security: [{adminToken: []}]
       parameters: [{name: slug, in: path, required: true, schema: {type: string}}]
@@ -148,6 +214,89 @@ paths:
       responses:
         '204': {description: Done}
         '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/sources/{slug}/runs:
+    get:
+      tags: [admin]
+      operationId: listSourceRuns
+      summary: A source's recent discovery runs, newest first
+      security: [{adminToken: []}]
+      parameters:
+        - {name: slug, in: path, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/SourceRun'}}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/source-tests:
+    post:
+      tags: [admin]
+      operationId: testSource
+      summary: Try a source configuration without saving it or recording anything
+      description: >
+        Runs the provider once, through the discovery worker (the API itself makes no outbound
+        requests), and returns what it found. Search-type sources use the saved queries.
+        A provider failure is reported in the result, not as an HTTP error.
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/SourceInput'}}}
+      responses:
+        '200': {description: Finished, content: {application/json: {schema: {$ref: '#/components/schemas/SourceTestResult'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {description: The discovery worker did not answer in time, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  /admin/schedules/sync:
+    post:
+      tags: [admin]
+      operationId: syncSchedules
+      summary: Make every source's Temporal Schedule match its configuration, and remove schedules of deleted sources
+      security: [{adminToken: []}]
+      responses:
+        '200': {description: Done, content: {application/json: {schema: {type: object, required: [created, updated, removed], properties: {created: {type: integer}, updated: {type: integer}, removed: {type: integer}}}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /admin/queries:
+    get:
+      tags: [admin]
+      operationId: listQueries
+      summary: Search queries used by search-style sources
+      security: [{adminToken: []}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Query'}}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    post:
+      tags: [admin]
+      operationId: createQuery
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/Query'}}}
+      responses:
+        '201': {description: Created, content: {application/json: {schema: {$ref: '#/components/schemas/Query'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409': {description: A query with this name exists, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  /admin/queries/{name}:
+    parameters: [{name: name, in: path, required: true, schema: {type: string}}]
+    put:
+      tags: [admin]
+      operationId: updateQuery
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/Query'}}}
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/Query'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      tags: [admin]
+      operationId: deleteQuery
+      security: [{adminToken: []}]
+      responses:
+        '204': {description: Deleted}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
   /ops/pipeline:
@@ -191,7 +340,9 @@ components:
     Error:
       type: object
       required: [error]
-      properties: {error: {type: string}}
+      properties:
+        error: {type: string}
+        problems: {type: array, items: {type: string}, description: Every validation problem, when there is more than one.}
     Incident:
       type: object
       required: [id, occurred_precision, location_precision, vru_categories, vehicle_categories, severity, hit_and_run, facts_status, verification_status, article_count, updated_at]
@@ -320,27 +471,154 @@ components:
         review_id: {type: string, format: uuid}
         approved: {type: boolean}
         target: {type: string, format: uuid, nullable: true, description: The incident the other was merged into.}
-    SourceInfo:
+    SourceType:
       type: object
-      required: [slug, name, type, enabled, poll_interval_seconds, consecutive_failures]
+      description: What a source type is and which fields it reads, as declared by its provider.
+      required: [type, label, description, url, uses_queries, uses_coverage, crawl]
       properties:
-        slug: {type: string}
+        type: {type: string}
+        label: {type: string}
+        description: {type: string}
+        url: {type: string, enum: [none, required]}
+        url_hint: {type: string}
+        uses_queries: {type: boolean}
+        uses_coverage: {type: boolean}
+        crawl:
+          type: object
+          required: [allowed_domains, require_domains, url_patterns, max_pages, max_depth, render]
+          properties:
+            allowed_domains: {type: boolean}
+            require_domains: {type: boolean}
+            url_patterns: {type: boolean}
+            max_pages: {type: boolean}
+            max_depth: {type: boolean}
+            render: {type: boolean}
+    Coverage:
+      type: object
+      properties:
+        country: {type: string}
+        states: {type: array, items: {type: string}}
+        cities: {type: array, items: {type: string}}
+    CrawlPolicy:
+      type: object
+      properties:
+        allowed_domains: {type: array, items: {type: string}}
+        url_patterns: {type: array, items: {type: string}}
+        max_pages: {type: integer, minimum: 0}
+        max_depth: {type: integer, minimum: 0}
+        render: {type: string, enum: [http_only, auto, always]}
+    SourceInput:
+      type: object
+      required: [slug, name, type, poll_interval_seconds, enabled]
+      properties:
+        slug: {type: string, description: "2-63 characters: lowercase letters, digits and dashes."}
         name: {type: string}
         type: {type: string}
+        url: {type: string, nullable: true}
+        coverage: {$ref: '#/components/schemas/Coverage'}
+        poll_interval_seconds: {type: integer, minimum: 60}
         enabled: {type: boolean}
-        poll_interval_seconds: {type: integer}
-        last_success_at: {type: string, format: date-time, nullable: true}
-        consecutive_failures: {type: integer}
-        error_state: {type: string, nullable: true}
-        schedule: {$ref: '#/components/schemas/ScheduleState'}
+        crawl: {$ref: '#/components/schemas/CrawlPolicy'}
+    Health:
+      type: object
+      required: [state, reason]
+      properties:
+        state: {type: string, enum: [healthy, degraded, failing, stale, paused, waiting, disabled]}
+        reason: {type: string}
+    RunStats:
+      type: object
+      description: Discovery runs over the requested window.
+      required: [runs, successes, partials, failures, success_rate, avg_seconds, p95_seconds, new_urls, requests]
+      properties:
+        runs: {type: integer, format: int64}
+        successes: {type: integer, format: int64}
+        partials: {type: integer, format: int64}
+        failures: {type: integer, format: int64}
+        success_rate: {type: number, format: double}
+        avg_seconds: {type: number, format: double}
+        p95_seconds: {type: number, format: double}
+        new_urls: {type: integer, format: int64}
+        requests: {type: integer, format: int64}
+    SourceQuality:
+      type: object
+      description: How useful the source's finds turned out to be over the requested window.
+      required: [discoveries, unique_urls, exclusive_urls, articles_fetched, fetch_success_rate, relevant_rate, incidents, avg_delay_seconds]
+      properties:
         discoveries: {type: integer, format: int64}
         unique_urls: {type: integer, format: int64}
         exclusive_urls: {type: integer, format: int64}
-        avg_delay_seconds: {type: number, format: double}
         articles_fetched: {type: integer, format: int64}
         fetch_success_rate: {type: number, format: double}
         relevant_rate: {type: number, format: double}
         incidents: {type: integer, format: int64}
+        avg_delay_seconds: {type: number, format: double}
+    SourceDetail:
+      allOf:
+        - $ref: '#/components/schemas/SourceInput'
+        - type: object
+          required: [health, consecutive_failures, run_stats, quality]
+          properties:
+            health: {$ref: '#/components/schemas/Health'}
+            last_success_at: {type: string, format: date-time, nullable: true}
+            last_attempt_at: {type: string, format: date-time, nullable: true}
+            consecutive_failures: {type: integer}
+            error_state: {type: string, nullable: true}
+            schedule: {$ref: '#/components/schemas/ScheduleState'}
+            schedule_error: {type: string, nullable: true, description: Set when the source was saved but its schedule could not be updated.}
+            run_stats: {$ref: '#/components/schemas/RunStats'}
+            quality: {$ref: '#/components/schemas/SourceQuality'}
+    SourceRun:
+      type: object
+      required: [started_at, finished_at, status, found, unique_urls, new_urls, known_urls, pending_urls, unresolved, requests, truncated, warnings]
+      properties:
+        started_at: {type: string, format: date-time}
+        finished_at: {type: string, format: date-time}
+        window_since: {type: string, format: date-time, nullable: true}
+        window_until: {type: string, format: date-time, nullable: true}
+        status: {type: string, enum: [success, partial, failed]}
+        found: {type: integer}
+        unique_urls: {type: integer}
+        new_urls: {type: integer}
+        known_urls: {type: integer}
+        pending_urls: {type: integer}
+        unresolved: {type: integer}
+        requests: {type: integer}
+        truncated: {type: boolean}
+        warnings: {type: array, items: {type: string}}
+        error: {type: string, nullable: true}
+    SourceTestResult:
+      type: object
+      required: [ok, found, unique_urls, unresolved, requests, truncated, duration_ms, warnings, samples]
+      properties:
+        ok: {type: boolean}
+        error: {type: string, nullable: true}
+        found: {type: integer}
+        unique_urls: {type: integer}
+        unresolved: {type: integer}
+        requests: {type: integer}
+        truncated: {type: boolean}
+        duration_ms: {type: integer, format: int64}
+        warnings: {type: array, items: {type: string}}
+        samples:
+          type: array
+          description: Up to 20 of the URLs found, with the title and time the source gave them.
+          items:
+            type: object
+            required: [url]
+            properties:
+              url: {type: string}
+              title: {type: string}
+              published_at: {type: string, format: date-time, nullable: true}
+    Query:
+      type: object
+      required: [family, name, text, enabled]
+      properties:
+        family: {type: string, example: pedestrian}
+        name: {type: string, description: "2-63 characters: lowercase letters, digits and dashes. Identifies the query."}
+        text: {type: string, description: "GDELT/Google News syntax: OR groups must be parenthesized."}
+        providers: {type: array, items: {type: string}, description: Source types that run it; empty means every search-style type.}
+        region: {type: string}
+        enabled: {type: boolean}
     ScheduleState:
       type: object
       nullable: true

@@ -1,9 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { api, unwrap } from "./api/client";
 import IncidentPage from "./pages/IncidentPage";
 import MapPage from "./pages/MapPage";
-import OpsPage from "./pages/OpsPage";
+import AdminLayout from "./pages/admin/AdminLayout";
+import OverviewPage from "./pages/admin/OverviewPage";
+import QueriesPage from "./pages/admin/QueriesPage";
+import SourceDetailPage from "./pages/admin/SourceDetailPage";
+import SourceFormPage from "./pages/admin/SourceFormPage";
+import SourcesPage from "./pages/admin/SourcesPage";
 import ReviewsPage from "./pages/ReviewsPage";
 import TrendsPage from "./pages/TrendsPage";
 
@@ -29,7 +34,7 @@ export default function App() {
           <NavLink to={keep("/")} end>Map</NavLink>
           <NavLink to={keep("/trends")}>Trends</NavLink>
           <NavLink to="/reviews">Reviews <PendingBadge /></NavLink>
-          <NavLink to="/ops">Operations</NavLink>
+          <NavLink to="/admin">Admin</NavLink>
         </nav>
       </header>
       <main>
@@ -38,7 +43,15 @@ export default function App() {
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/incidents/:id" element={<IncidentPage />} />
           <Route path="/reviews" element={<ReviewsPage />} />
-          <Route path="/ops" element={<OpsPage />} />
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<OverviewPage />} />
+            <Route path="sources" element={<SourcesPage />} />
+            <Route path="sources/new" element={<SourceFormPage />} />
+            <Route path="sources/:slug" element={<SourceDetailPage />} />
+            <Route path="sources/:slug/edit" element={<SourceFormPage />} />
+            <Route path="queries" element={<QueriesPage />} />
+          </Route>
+          <Route path="/ops" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<p>Page not found.</p>} />
         </Routes>
       </main>

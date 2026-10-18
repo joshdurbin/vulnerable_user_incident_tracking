@@ -175,3 +175,27 @@ func TestQueryNamesFilterAndUnknownIsError(t *testing.T) {
 		t.Fatal("unknown query name must be an error")
 	}
 }
+
+func TestMaxQueriesLimitsASearchRunAndSaysSo(t *testing.T) {
+	p := &stubProvider{typ: TypeGDELT, res: &Result{}}
+	repo := &fakeRepo{queries: []Query{{Name: "q1", Text: "(a OR b)"}, {Name: "q2", Text: "(c OR d)"}, {Name: "q3", Text: "(e OR f)"}}}
+	rep, err := svc(p, repo).Run(context.Background(), RunRequest{Source: Source{Slug: "g", Type: TypeGDELT}, DryRun: true, MaxQueries: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.last.Queries) != 2 || p.last.Queries[0].Name != "q1" {
+		t.Fatalf("queries %+v", p.last.Queries)
+	}
+	found := false
+	for _, w := range rep.Warnings {
+		found = found || w == "only the first 2 of 3 queries were run"
+	}
+	if !found {
+		t.Fatalf("a limited run must say so: %v", rep.Warnings)
+	}
+	// No limit, or a limit above the count, changes nothing and adds no warning.
+	rep, _ = svc(p, repo).Run(context.Background(), RunRequest{Source: Source{Slug: "g", Type: TypeGDELT}, DryRun: true, MaxQueries: 5})
+	if len(p.last.Queries) != 3 || len(rep.Warnings) != 0 {
+		t.Fatalf("%d queries, warnings %v", len(p.last.Queries), rep.Warnings)
+	}
+}

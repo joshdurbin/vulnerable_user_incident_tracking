@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ApiError } from "../api/client";
 import { SEVERITY_COLOR, label } from "../format";
 
 export function SeverityBadge({ severity }: { severity: string }) {
@@ -24,5 +25,11 @@ export function Loading({ what }: { what: string }) {
 }
 
 export function ErrorNote({ error }: { error: unknown }) {
-  return <p className="error" role="alert">{error instanceof Error ? error.message : String(error)}</p>;
+  const problems = error instanceof ApiError && error.problems.length > 1 ? error.problems : [];
+  return (
+    <div className="error" role="alert">
+      <p>{error instanceof Error ? error.message : String(error)}</p>
+      {problems.length > 0 && <ul>{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
+    </div>
+  );
 }

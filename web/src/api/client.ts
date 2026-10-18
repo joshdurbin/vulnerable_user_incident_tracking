@@ -13,15 +13,37 @@ export const api = createClient<paths>({
 export type Incident = components["schemas"]["Incident"];
 export type IncidentDetail = components["schemas"]["IncidentDetail"];
 export type Review = components["schemas"]["Review"];
-export type SourceInfo = components["schemas"]["SourceInfo"];
+export type SourceDetail = components["schemas"]["SourceDetail"];
+export type SourceInput = components["schemas"]["SourceInput"];
+export type SourceType = components["schemas"]["SourceType"];
+export type SourceRun = components["schemas"]["SourceRun"];
+export type SourceTestResult = components["schemas"]["SourceTestResult"];
+export type Query = components["schemas"]["Query"];
+export type HealthState = components["schemas"]["Health"]["state"];
 
-/** Turn an openapi-fetch result into data or a thrown Error with the API's message. */
+/** An API failure: the message the server gave, the HTTP status, and every validation problem when it listed them. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly problems: string[] = []) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+/** Turn an openapi-fetch result into data or a thrown ApiError with the API's message. */
 export function unwrap<T>(r: { data?: T; error?: unknown; response: Response }): T {
   if (r.error !== undefined || r.data === undefined) {
-    const msg = (r.error as { error?: string } | undefined)?.error;
-    throw new Error(msg ?? `request failed (${r.response.status})`);
+    const e = r.error as { error?: string; problems?: string[] } | undefined;
+    throw new ApiError(e?.error ?? `request failed (${r.response.status})`, r.response.status, e?.problems ?? []);
   }
   return r.data;
+}
+
+/** For calls that return no body (204): throw on failure, otherwise nothing. */
+export function unwrapEmpty(r: { error?: unknown; response: Response }): void {
+  if (r.error !== undefined || !r.response.ok) {
+    const e = r.error as { error?: string; problems?: string[] } | undefined;
+    throw new ApiError(e?.error ?? `request failed (${r.response.status})`, r.response.status, e?.problems ?? []);
+  }
 }
 
 /** Admin token lives in sessionStorage only: it is cleared when the tab closes. */

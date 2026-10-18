@@ -124,15 +124,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ops/sources": {
+    "/admin/source-types": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Discovery sources with quality metrics and schedule state */
-        get: operations["listSources"];
+        /** The source types the running providers support, and which fields each uses */
+        get: operations["listSourceTypes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -141,7 +141,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ops/sources/{slug}/schedule": {
+    "/admin/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sources with configuration, health, run statistics, quality metrics and schedule state */
+        get: operations["listAdminSources"];
+        put?: never;
+        /**
+         * Add a source and create its schedule
+         * @description The source is validated against its type's provider. It is stored first; if Temporal is unreachable the response still succeeds and carries schedule_error, and `POST /admin/schedules/sync` (or the next deploy) creates the schedule.
+         */
+        post: operations["createSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sources/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminSource"];
+        /**
+         * Replace a source's configuration
+         * @description The slug identifies the source (it names its Temporal Schedule) and cannot change; the slug in the body must match the path. Disabling a source pauses its schedule and enabling it resumes the schedule; other edits leave a manual pause alone.
+         */
+        put: operations["updateSource"];
+        post?: never;
+        /**
+         * Delete a source, its schedule and its run history
+         * @description Articles and sightings it found are kept, no longer attributed to a source.
+         */
+        delete: operations["deleteSource"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sources/{slug}/schedule": {
         parameters: {
             query?: never;
             header?: never;
@@ -152,6 +199,95 @@ export interface paths {
         put?: never;
         post: operations["controlSchedule"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sources/{slug}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A source's recent discovery runs, newest first */
+        get: operations["listSourceRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/source-tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Try a source configuration without saving it or recording anything
+         * @description Runs the provider once, through the discovery worker (the API itself makes no outbound requests), and returns what it found. Search-type sources use the saved queries. A provider failure is reported in the result, not as an HTTP error.
+         */
+        post: operations["testSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/schedules/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make every source's Temporal Schedule match its configuration, and remove schedules of deleted sources */
+        post: operations["syncSchedules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search queries used by search-style sources */
+        get: operations["listQueries"];
+        put?: never;
+        post: operations["createQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/queries/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateQuery"];
+        post?: never;
+        delete: operations["deleteQuery"];
         options?: never;
         head?: never;
         patch?: never;
@@ -180,6 +316,8 @@ export interface components {
     schemas: {
         Error: {
             error: string;
+            /** @description Every validation problem */
+            problems?: string[];
         };
         Incident: {
             /** Format: uuid */
@@ -347,33 +485,160 @@ export interface components {
              */
             target?: string | null;
         };
-        SourceInfo: {
+        /** @description What a source type is and which fields it reads, as declared by its provider. */
+        SourceType: {
+            type: string;
+            label: string;
+            description: string;
+            /** @enum {string} */
+            url: "none" | "required";
+            url_hint?: string;
+            uses_queries: boolean;
+            uses_coverage: boolean;
+            crawl: {
+                allowed_domains: boolean;
+                require_domains: boolean;
+                url_patterns: boolean;
+                max_pages: boolean;
+                max_depth: boolean;
+                render: boolean;
+            };
+        };
+        Coverage: {
+            country?: string;
+            states?: string[];
+            cities?: string[];
+        };
+        CrawlPolicy: {
+            allowed_domains?: string[];
+            url_patterns?: string[];
+            max_pages?: number;
+            max_depth?: number;
+            /** @enum {string} */
+            render?: "http_only" | "auto" | "always";
+        };
+        SourceInput: {
+            /** @description 2-63 characters: lowercase letters, digits and dashes. */
             slug: string;
             name: string;
             type: string;
-            enabled: boolean;
+            url?: string | null;
+            coverage?: components["schemas"]["Coverage"];
             poll_interval_seconds: number;
+            enabled: boolean;
+            crawl?: components["schemas"]["CrawlPolicy"];
+        };
+        Health: {
+            /** @enum {string} */
+            state: "healthy" | "degraded" | "failing" | "stale" | "paused" | "waiting" | "disabled";
+            reason: string;
+        };
+        /** @description Discovery runs over the requested window. */
+        RunStats: {
+            /** Format: int64 */
+            runs: number;
+            /** Format: int64 */
+            successes: number;
+            /** Format: int64 */
+            partials: number;
+            /** Format: int64 */
+            failures: number;
+            /** Format: double */
+            success_rate: number;
+            /** Format: double */
+            avg_seconds: number;
+            /** Format: double */
+            p95_seconds: number;
+            /** Format: int64 */
+            new_urls: number;
+            /** Format: int64 */
+            requests: number;
+        };
+        /** @description How useful the source's finds turned out to be over the requested window. */
+        SourceQuality: {
+            /** Format: int64 */
+            discoveries: number;
+            /** Format: int64 */
+            unique_urls: number;
+            /** Format: int64 */
+            exclusive_urls: number;
+            /** Format: int64 */
+            articles_fetched: number;
+            /** Format: double */
+            fetch_success_rate: number;
+            /** Format: double */
+            relevant_rate: number;
+            /** Format: int64 */
+            incidents: number;
+            /** Format: double */
+            avg_delay_seconds: number;
+        };
+        SourceDetail: components["schemas"]["SourceInput"] & {
+            health: components["schemas"]["Health"];
             /** Format: date-time */
             last_success_at?: string | null;
+            /** Format: date-time */
+            last_attempt_at?: string | null;
             consecutive_failures: number;
             error_state?: string | null;
             schedule?: components["schemas"]["ScheduleState"];
+            /** @description Set when the source was saved but its schedule could not be updated. */
+            schedule_error?: string | null;
+            run_stats: components["schemas"]["RunStats"];
+            quality: components["schemas"]["SourceQuality"];
+        };
+        SourceRun: {
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at: string;
+            /** Format: date-time */
+            window_since?: string | null;
+            /** Format: date-time */
+            window_until?: string | null;
+            /** @enum {string} */
+            status: "success" | "partial" | "failed";
+            found: number;
+            unique_urls: number;
+            new_urls: number;
+            known_urls: number;
+            pending_urls: number;
+            unresolved: number;
+            requests: number;
+            truncated: boolean;
+            warnings: string[];
+            error?: string | null;
+        };
+        SourceTestResult: {
+            ok: boolean;
+            error?: string | null;
+            found: number;
+            unique_urls: number;
+            unresolved: number;
+            requests: number;
+            truncated: boolean;
             /** Format: int64 */
-            discoveries?: number;
-            /** Format: int64 */
-            unique_urls?: number;
-            /** Format: int64 */
-            exclusive_urls?: number;
-            /** Format: double */
-            avg_delay_seconds?: number;
-            /** Format: int64 */
-            articles_fetched?: number;
-            /** Format: double */
-            fetch_success_rate?: number;
-            /** Format: double */
-            relevant_rate?: number;
-            /** Format: int64 */
-            incidents?: number;
+            duration_ms: number;
+            warnings: string[];
+            /** @description Up to 20 of the URLs found, with the title and time the source gave them. */
+            samples: {
+                url: string;
+                title?: string;
+                /** Format: date-time */
+                published_at?: string | null;
+            }[];
+        };
+        Query: {
+            /** @example pedestrian */
+            family: string;
+            /** @description 2-63 characters: lowercase letters, digits and dashes. Identifies the query. */
+            name: string;
+            /** @description GDELT/Google News syntax: OR groups must be parenthesized. */
+            text: string;
+            /** @description Source types that run it; empty means every search-style type. */
+            providers?: string[];
+            region?: string;
+            enabled: boolean;
         };
         /** @description Null when Temporal is unreachable or the schedule does not exist yet. */
         ScheduleState: {
@@ -668,7 +933,28 @@ export interface operations {
             };
         };
     };
-    listSources: {
+    listSourceTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceType"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listAdminSources: {
         parameters: {
             query?: {
                 days?: number;
@@ -685,9 +971,120 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SourceInfo"][];
+                    "application/json": components["schemas"]["SourceDetail"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description A source with this slug exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     controlSchedule: {
@@ -716,6 +1113,199 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSourceRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceRun"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    testSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceInput"];
+            };
+        };
+        responses: {
+            /** @description Finished */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The discovery worker did not answer in time */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    syncSchedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created: number;
+                        updated: number;
+                        removed: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listQueries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Query"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Query"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Query"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description A query with this name exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Query"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Query"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteQuery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };

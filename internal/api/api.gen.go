@@ -23,6 +23,60 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for CrawlPolicyRender.
+const (
+	Always   CrawlPolicyRender = "always"
+	Auto     CrawlPolicyRender = "auto"
+	HttpOnly CrawlPolicyRender = "http_only"
+)
+
+// Valid indicates whether the value is a known member of the CrawlPolicyRender enum.
+func (e CrawlPolicyRender) Valid() bool {
+	switch e {
+	case Always:
+		return true
+	case Auto:
+		return true
+	case HttpOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthState.
+const (
+	Degraded HealthState = "degraded"
+	Disabled HealthState = "disabled"
+	Failing  HealthState = "failing"
+	Healthy  HealthState = "healthy"
+	Paused   HealthState = "paused"
+	Stale    HealthState = "stale"
+	Waiting  HealthState = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the HealthState enum.
+func (e HealthState) Valid() bool {
+	switch e {
+	case Degraded:
+		return true
+	case Disabled:
+		return true
+	case Failing:
+		return true
+	case Healthy:
+		return true
+	case Paused:
+		return true
+	case Stale:
+		return true
+	case Waiting:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IncidentFactsStatus.
 const (
 	Alleged   IncidentFactsStatus = "alleged"
@@ -155,6 +209,45 @@ func (e ReviewStatus) Valid() bool {
 	}
 }
 
+// Defines values for SourceRunStatus.
+const (
+	Failed  SourceRunStatus = "failed"
+	Partial SourceRunStatus = "partial"
+	Success SourceRunStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the SourceRunStatus enum.
+func (e SourceRunStatus) Valid() bool {
+	switch e {
+	case Failed:
+		return true
+	case Partial:
+		return true
+	case Success:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SourceTypeUrl.
+const (
+	None     SourceTypeUrl = "none"
+	Required SourceTypeUrl = "required"
+)
+
+// Valid indicates whether the value is a known member of the SourceTypeUrl enum.
+func (e SourceTypeUrl) Valid() bool {
+	switch e {
+	case None:
+		return true
+	case Required:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HitAndRun.
 const (
 	HitAndRunNo      HitAndRun = "no"
@@ -215,6 +308,27 @@ func (e Verification) Valid() bool {
 	case VerificationReviewed:
 		return true
 	case VerificationUnverified:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ControlScheduleJSONBodyAction.
+const (
+	Pause   ControlScheduleJSONBodyAction = "pause"
+	Resume  ControlScheduleJSONBodyAction = "resume"
+	Trigger ControlScheduleJSONBodyAction = "trigger"
+)
+
+// Valid indicates whether the value is a known member of the ControlScheduleJSONBodyAction enum.
+func (e ControlScheduleJSONBodyAction) Valid() bool {
+	switch e {
+	case Pause:
+		return true
+	case Resume:
+		return true
+	case Trigger:
 		return true
 	default:
 		return false
@@ -320,27 +434,6 @@ func (e ListIncidentsParamsHitAndRun) Valid() bool {
 	case ListIncidentsParamsHitAndRunUnknown:
 		return true
 	case ListIncidentsParamsHitAndRunYes:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for ControlScheduleJSONBodyAction.
-const (
-	Pause   ControlScheduleJSONBodyAction = "pause"
-	Resume  ControlScheduleJSONBodyAction = "resume"
-	Trigger ControlScheduleJSONBodyAction = "trigger"
-)
-
-// Valid indicates whether the value is a known member of the ControlScheduleJSONBodyAction enum.
-func (e ControlScheduleJSONBodyAction) Valid() bool {
-	switch e {
-	case Pause:
-		return true
-	case Resume:
-		return true
-	case Trigger:
 		return true
 	default:
 		return false
@@ -751,9 +844,31 @@ type BreakdownRow struct {
 	Key        string `json:"key"`
 }
 
+// Coverage defines model for Coverage.
+type Coverage struct {
+	Cities  *[]string `json:"cities,omitempty"`
+	Country *string   `json:"country,omitempty"`
+	States  *[]string `json:"states,omitempty"`
+}
+
+// CrawlPolicy defines model for CrawlPolicy.
+type CrawlPolicy struct {
+	AllowedDomains *[]string          `json:"allowed_domains,omitempty"`
+	MaxDepth       *int               `json:"max_depth,omitempty"`
+	MaxPages       *int               `json:"max_pages,omitempty"`
+	Render         *CrawlPolicyRender `json:"render,omitempty"`
+	UrlPatterns    *[]string          `json:"url_patterns,omitempty"`
+}
+
+// CrawlPolicyRender defines model for CrawlPolicy.Render.
+type CrawlPolicyRender string
+
 // Error defines model for Error.
 type Error struct {
 	Error string `json:"error"`
+
+	// Problems Every validation problem
+	Problems *[]string `json:"problems,omitempty"`
 }
 
 // Event defines model for Event.
@@ -764,6 +879,15 @@ type Event struct {
 	Id        int64                  `json:"id"`
 	Type      string                 `json:"type"`
 }
+
+// Health defines model for Health.
+type Health struct {
+	Reason string      `json:"reason"`
+	State  HealthState `json:"state"`
+}
+
+// HealthState defines model for Health.State.
+type HealthState string
 
 // Incident defines model for Incident.
 type Incident struct {
@@ -864,6 +988,24 @@ type PipelineSummary struct {
 	} `json:"counts"`
 }
 
+// Query defines model for Query.
+type Query struct {
+	Enabled bool `json:"enabled"`
+
+	// Family Example: pedestrian
+	Family string `json:"family"`
+
+	// Name 2-63 characters: lowercase letters, digits and dashes. Identifies the query.
+	Name string `json:"name"`
+
+	// Providers Source types that run it; empty means every search-style type.
+	Providers *[]string `json:"providers,omitempty"`
+	Region    *string   `json:"region,omitempty"`
+
+	// Text GDELT/Google News syntax: OR groups must be parenthesized.
+	Text string `json:"text"`
+}
+
 // Review defines model for Review.
 type Review struct {
 	CandidateIncident Incident                `json:"candidate_incident"`
@@ -896,6 +1038,19 @@ type ReviewResult struct {
 	Target *openapi_types.UUID `json:"target,omitempty"`
 }
 
+// RunStats Discovery runs over the requested window.
+type RunStats struct {
+	AvgSeconds  float64 `json:"avg_seconds"`
+	Failures    int64   `json:"failures"`
+	NewUrls     int64   `json:"new_urls"`
+	P95Seconds  float64 `json:"p95_seconds"`
+	Partials    int64   `json:"partials"`
+	Requests    int64   `json:"requests"`
+	Runs        int64   `json:"runs"`
+	SuccessRate float64 `json:"success_rate"`
+	Successes   int64   `json:"successes"`
+}
+
 // ScheduleState Null when Temporal is unreachable or the schedule does not exist yet.
 type ScheduleState struct {
 	LastRun *time.Time `json:"last_run,omitempty"`
@@ -903,28 +1058,126 @@ type ScheduleState struct {
 	Paused  *bool      `json:"paused,omitempty"`
 }
 
-// SourceInfo defines model for SourceInfo.
-type SourceInfo struct {
-	ArticlesFetched     *int64     `json:"articles_fetched,omitempty"`
-	AvgDelaySeconds     *float64   `json:"avg_delay_seconds,omitempty"`
-	ConsecutiveFailures int        `json:"consecutive_failures"`
-	Discoveries         *int64     `json:"discoveries,omitempty"`
-	Enabled             bool       `json:"enabled"`
-	ErrorState          *string    `json:"error_state,omitempty"`
-	ExclusiveUrls       *int64     `json:"exclusive_urls,omitempty"`
-	FetchSuccessRate    *float64   `json:"fetch_success_rate,omitempty"`
-	Incidents           *int64     `json:"incidents,omitempty"`
-	LastSuccessAt       *time.Time `json:"last_success_at,omitempty"`
-	Name                string     `json:"name"`
-	PollIntervalSeconds int        `json:"poll_interval_seconds"`
-	RelevantRate        *float64   `json:"relevant_rate,omitempty"`
+// SourceDetail defines model for SourceDetail.
+type SourceDetail struct {
+	ConsecutiveFailures int          `json:"consecutive_failures"`
+	Coverage            *Coverage    `json:"coverage,omitempty"`
+	Crawl               *CrawlPolicy `json:"crawl,omitempty"`
+	Enabled             bool         `json:"enabled"`
+	ErrorState          *string      `json:"error_state,omitempty"`
+	Health              Health       `json:"health"`
+	LastAttemptAt       *time.Time   `json:"last_attempt_at,omitempty"`
+	LastSuccessAt       *time.Time   `json:"last_success_at,omitempty"`
+	Name                string       `json:"name"`
+	PollIntervalSeconds int          `json:"poll_interval_seconds"`
+
+	// Quality How useful the source's finds turned out to be over the requested window.
+	Quality SourceQuality `json:"quality"`
+
+	// RunStats Discovery runs over the requested window.
+	RunStats RunStats `json:"run_stats"`
 
 	// Schedule Null when Temporal is unreachable or the schedule does not exist yet.
-	Schedule   *ScheduleState `json:"schedule,omitempty"`
-	Slug       string         `json:"slug"`
-	Type       string         `json:"type"`
-	UniqueUrls *int64         `json:"unique_urls,omitempty"`
+	Schedule *ScheduleState `json:"schedule,omitempty"`
+
+	// ScheduleError Set when the source was saved but its schedule could not be updated.
+	ScheduleError *string `json:"schedule_error,omitempty"`
+
+	// Slug 2-63 characters: lowercase letters, digits and dashes.
+	Slug string  `json:"slug"`
+	Type string  `json:"type"`
+	Url  *string `json:"url,omitempty"`
 }
+
+// SourceInput defines model for SourceInput.
+type SourceInput struct {
+	Coverage            *Coverage    `json:"coverage,omitempty"`
+	Crawl               *CrawlPolicy `json:"crawl,omitempty"`
+	Enabled             bool         `json:"enabled"`
+	Name                string       `json:"name"`
+	PollIntervalSeconds int          `json:"poll_interval_seconds"`
+
+	// Slug 2-63 characters: lowercase letters, digits and dashes.
+	Slug string  `json:"slug"`
+	Type string  `json:"type"`
+	Url  *string `json:"url,omitempty"`
+}
+
+// SourceQuality How useful the source's finds turned out to be over the requested window.
+type SourceQuality struct {
+	ArticlesFetched  int64   `json:"articles_fetched"`
+	AvgDelaySeconds  float64 `json:"avg_delay_seconds"`
+	Discoveries      int64   `json:"discoveries"`
+	ExclusiveUrls    int64   `json:"exclusive_urls"`
+	FetchSuccessRate float64 `json:"fetch_success_rate"`
+	Incidents        int64   `json:"incidents"`
+	RelevantRate     float64 `json:"relevant_rate"`
+	UniqueUrls       int64   `json:"unique_urls"`
+}
+
+// SourceRun defines model for SourceRun.
+type SourceRun struct {
+	Error       *string         `json:"error,omitempty"`
+	FinishedAt  time.Time       `json:"finished_at"`
+	Found       int             `json:"found"`
+	KnownUrls   int             `json:"known_urls"`
+	NewUrls     int             `json:"new_urls"`
+	PendingUrls int             `json:"pending_urls"`
+	Requests    int             `json:"requests"`
+	StartedAt   time.Time       `json:"started_at"`
+	Status      SourceRunStatus `json:"status"`
+	Truncated   bool            `json:"truncated"`
+	UniqueUrls  int             `json:"unique_urls"`
+	Unresolved  int             `json:"unresolved"`
+	Warnings    []string        `json:"warnings"`
+	WindowSince *time.Time      `json:"window_since,omitempty"`
+	WindowUntil *time.Time      `json:"window_until,omitempty"`
+}
+
+// SourceRunStatus defines model for SourceRun.Status.
+type SourceRunStatus string
+
+// SourceTestResult defines model for SourceTestResult.
+type SourceTestResult struct {
+	DurationMs int64   `json:"duration_ms"`
+	Error      *string `json:"error,omitempty"`
+	Found      int     `json:"found"`
+	Ok         bool    `json:"ok"`
+	Requests   int     `json:"requests"`
+
+	// Samples Up to 20 of the URLs found, with the title and time the source gave them.
+	Samples []struct {
+		PublishedAt *time.Time `json:"published_at,omitempty"`
+		Title       *string    `json:"title,omitempty"`
+		Url         string     `json:"url"`
+	} `json:"samples"`
+	Truncated  bool     `json:"truncated"`
+	UniqueUrls int      `json:"unique_urls"`
+	Unresolved int      `json:"unresolved"`
+	Warnings   []string `json:"warnings"`
+}
+
+// SourceType What a source type is and which fields it reads, as declared by its provider.
+type SourceType struct {
+	Crawl struct {
+		AllowedDomains bool `json:"allowed_domains"`
+		MaxDepth       bool `json:"max_depth"`
+		MaxPages       bool `json:"max_pages"`
+		Render         bool `json:"render"`
+		RequireDomains bool `json:"require_domains"`
+		UrlPatterns    bool `json:"url_patterns"`
+	} `json:"crawl"`
+	Description  string        `json:"description"`
+	Label        string        `json:"label"`
+	Type         string        `json:"type"`
+	Url          SourceTypeUrl `json:"url"`
+	UrlHint      *string       `json:"url_hint,omitempty"`
+	UsesCoverage bool          `json:"uses_coverage"`
+	UsesQueries  bool          `json:"uses_queries"`
+}
+
+// SourceTypeUrl defines model for SourceType.Url.
+type SourceTypeUrl string
 
 // StatsSummary defines model for StatsSummary.
 type StatsSummary struct {
@@ -982,6 +1235,24 @@ type NotFound = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// ListAdminSourcesParams defines parameters for ListAdminSources.
+type ListAdminSourcesParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
+// ListSourceRunsParams defines parameters for ListSourceRuns.
+type ListSourceRunsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ControlScheduleJSONBody defines parameters for ControlSchedule.
+type ControlScheduleJSONBody struct {
+	Action ControlScheduleJSONBodyAction `json:"action"`
+}
+
+// ControlScheduleJSONBodyAction defines parameters for ControlSchedule.
+type ControlScheduleJSONBodyAction string
+
 // ListIncidentsParams defines parameters for ListIncidents.
 type ListIncidentsParams struct {
 	// Bbox minLon,minLat,maxLon,maxLat (WGS84). Incidents without coordinates are excluded when set.
@@ -1011,19 +1282,6 @@ type ListIncidentsParamsVerification string
 
 // ListIncidentsParamsHitAndRun defines parameters for ListIncidents.
 type ListIncidentsParamsHitAndRun string
-
-// ListSourcesParams defines parameters for ListSources.
-type ListSourcesParams struct {
-	Days *int `form:"days,omitempty" json:"days,omitempty"`
-}
-
-// ControlScheduleJSONBody defines parameters for ControlSchedule.
-type ControlScheduleJSONBody struct {
-	Action ControlScheduleJSONBodyAction `json:"action"`
-}
-
-// ControlScheduleJSONBodyAction defines parameters for ControlSchedule.
-type ControlScheduleJSONBodyAction string
 
 // ListReviewsParams defines parameters for ListReviews.
 type ListReviewsParams struct {
@@ -1130,6 +1388,21 @@ type StatsTimeseriesParamsVerification string
 // StatsTimeseriesParamsHitAndRun defines parameters for StatsTimeseries.
 type StatsTimeseriesParamsHitAndRun string
 
+// CreateQueryJSONRequestBody defines body for CreateQuery for application/json ContentType.
+type CreateQueryJSONRequestBody = Query
+
+// UpdateQueryJSONRequestBody defines body for UpdateQuery for application/json ContentType.
+type UpdateQueryJSONRequestBody = Query
+
+// TestSourceJSONRequestBody defines body for TestSource for application/json ContentType.
+type TestSourceJSONRequestBody = SourceInput
+
+// CreateSourceJSONRequestBody defines body for CreateSource for application/json ContentType.
+type CreateSourceJSONRequestBody = SourceInput
+
+// UpdateSourceJSONRequestBody defines body for UpdateSource for application/json ContentType.
+type UpdateSourceJSONRequestBody = SourceInput
+
 // ControlScheduleJSONRequestBody defines body for ControlSchedule for application/json ContentType.
 type ControlScheduleJSONRequestBody ControlScheduleJSONBody
 
@@ -1138,6 +1411,48 @@ type DecideReviewJSONRequestBody = ReviewDecision
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListQueries Search queries used by search-style sources
+	// (GET /admin/queries)
+	ListQueries(w http.ResponseWriter, r *http.Request)
+
+	// (POST /admin/queries)
+	CreateQuery(w http.ResponseWriter, r *http.Request)
+
+	// (DELETE /admin/queries/{name})
+	DeleteQuery(w http.ResponseWriter, r *http.Request, name string)
+
+	// (PUT /admin/queries/{name})
+	UpdateQuery(w http.ResponseWriter, r *http.Request, name string)
+	// SyncSchedules Make every source's Temporal Schedule match its configuration, and remove schedules of deleted sources
+	// (POST /admin/schedules/sync)
+	SyncSchedules(w http.ResponseWriter, r *http.Request)
+	// TestSource Try a source configuration without saving it or recording anything
+	// (POST /admin/source-tests)
+	TestSource(w http.ResponseWriter, r *http.Request)
+	// ListSourceTypes The source types the running providers support, and which fields each uses
+	// (GET /admin/source-types)
+	ListSourceTypes(w http.ResponseWriter, r *http.Request)
+	// ListAdminSources Sources with configuration, health, run statistics, quality metrics and schedule state
+	// (GET /admin/sources)
+	ListAdminSources(w http.ResponseWriter, r *http.Request, params ListAdminSourcesParams)
+	// CreateSource Add a source and create its schedule
+	// (POST /admin/sources)
+	CreateSource(w http.ResponseWriter, r *http.Request)
+	// DeleteSource Delete a source, its schedule and its run history
+	// (DELETE /admin/sources/{slug})
+	DeleteSource(w http.ResponseWriter, r *http.Request, slug string)
+
+	// (GET /admin/sources/{slug})
+	GetAdminSource(w http.ResponseWriter, r *http.Request, slug string)
+	// UpdateSource Replace a source's configuration
+	// (PUT /admin/sources/{slug})
+	UpdateSource(w http.ResponseWriter, r *http.Request, slug string)
+	// ListSourceRuns A source's recent discovery runs, newest first
+	// (GET /admin/sources/{slug}/runs)
+	ListSourceRuns(w http.ResponseWriter, r *http.Request, slug string, params ListSourceRunsParams)
+
+	// (POST /admin/sources/{slug}/schedule)
+	ControlSchedule(w http.ResponseWriter, r *http.Request, slug string)
 	// ListIncidents List incidents (newest first)
 	// (GET /incidents)
 	ListIncidents(w http.ResponseWriter, r *http.Request, params ListIncidentsParams)
@@ -1147,12 +1462,6 @@ type ServerInterface interface {
 	// PipelineSummary Pipeline counters
 	// (GET /ops/pipeline)
 	PipelineSummary(w http.ResponseWriter, r *http.Request)
-	// ListSources Discovery sources with quality metrics and schedule state
-	// (GET /ops/sources)
-	ListSources(w http.ResponseWriter, r *http.Request, params ListSourcesParams)
-
-	// (POST /ops/sources/{slug}/schedule)
-	ControlSchedule(w http.ResponseWriter, r *http.Request, slug string)
 	// ListReviews Possible duplicate matches awaiting a human decision
 	// (GET /reviews)
 	ListReviews(w http.ResponseWriter, r *http.Request, params ListReviewsParams)
@@ -1174,6 +1483,85 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
+// ListQueries Search queries used by search-style sources
+// (GET /admin/queries)
+func (_ Unimplemented) ListQueries(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /admin/queries)
+func (_ Unimplemented) CreateQuery(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /admin/queries/{name})
+func (_ Unimplemented) DeleteQuery(w http.ResponseWriter, r *http.Request, name string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /admin/queries/{name})
+func (_ Unimplemented) UpdateQuery(w http.ResponseWriter, r *http.Request, name string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SyncSchedules Make every source's Temporal Schedule match its configuration, and remove schedules of deleted sources
+// (POST /admin/schedules/sync)
+func (_ Unimplemented) SyncSchedules(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// TestSource Try a source configuration without saving it or recording anything
+// (POST /admin/source-tests)
+func (_ Unimplemented) TestSource(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListSourceTypes The source types the running providers support, and which fields each uses
+// (GET /admin/source-types)
+func (_ Unimplemented) ListSourceTypes(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListAdminSources Sources with configuration, health, run statistics, quality metrics and schedule state
+// (GET /admin/sources)
+func (_ Unimplemented) ListAdminSources(w http.ResponseWriter, r *http.Request, params ListAdminSourcesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateSource Add a source and create its schedule
+// (POST /admin/sources)
+func (_ Unimplemented) CreateSource(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteSource Delete a source, its schedule and its run history
+// (DELETE /admin/sources/{slug})
+func (_ Unimplemented) DeleteSource(w http.ResponseWriter, r *http.Request, slug string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /admin/sources/{slug})
+func (_ Unimplemented) GetAdminSource(w http.ResponseWriter, r *http.Request, slug string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateSource Replace a source's configuration
+// (PUT /admin/sources/{slug})
+func (_ Unimplemented) UpdateSource(w http.ResponseWriter, r *http.Request, slug string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListSourceRuns A source's recent discovery runs, newest first
+// (GET /admin/sources/{slug}/runs)
+func (_ Unimplemented) ListSourceRuns(w http.ResponseWriter, r *http.Request, slug string, params ListSourceRunsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /admin/sources/{slug}/schedule)
+func (_ Unimplemented) ControlSchedule(w http.ResponseWriter, r *http.Request, slug string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ListIncidents List incidents (newest first)
 // (GET /incidents)
 func (_ Unimplemented) ListIncidents(w http.ResponseWriter, r *http.Request, params ListIncidentsParams) {
@@ -1189,17 +1577,6 @@ func (_ Unimplemented) GetIncident(w http.ResponseWriter, r *http.Request, id op
 // PipelineSummary Pipeline counters
 // (GET /ops/pipeline)
 func (_ Unimplemented) PipelineSummary(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// ListSources Discovery sources with quality metrics and schedule state
-// (GET /ops/sources)
-func (_ Unimplemented) ListSources(w http.ResponseWriter, r *http.Request, params ListSourcesParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// (POST /ops/sources/{slug}/schedule)
-func (_ Unimplemented) ControlSchedule(w http.ResponseWriter, r *http.Request, slug string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1239,6 +1616,321 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListQueries operation middleware
+func (siw *ServerInterfaceWrapper) ListQueries(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListQueries(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateQuery operation middleware
+func (siw *ServerInterfaceWrapper) CreateQuery(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteQuery operation middleware
+func (siw *ServerInterfaceWrapper) DeleteQuery(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", chi.URLParam(r, "name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteQuery(w, r, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateQuery operation middleware
+func (siw *ServerInterfaceWrapper) UpdateQuery(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", chi.URLParam(r, "name"), &name, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateQuery(w, r, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SyncSchedules operation middleware
+func (siw *ServerInterfaceWrapper) SyncSchedules(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SyncSchedules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestSource operation middleware
+func (siw *ServerInterfaceWrapper) TestSource(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestSource(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSourceTypes operation middleware
+func (siw *ServerInterfaceWrapper) ListSourceTypes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSourceTypes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdminSources operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminSources(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAdminSourcesParams
+
+	// ------------- Optional query parameter "days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminSources(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSource operation middleware
+func (siw *ServerInterfaceWrapper) CreateSource(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSource(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSource operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSource(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSource(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdminSource operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminSource(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdminSource(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSource operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSource(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSource(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSourceRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListSourceRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSourceRunsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSourceRuns(w, r, slug, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ControlSchedule operation middleware
+func (siw *ServerInterfaceWrapper) ControlSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "slug" -------------
+	var slug string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ControlSchedule(w, r, slug)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListIncidents operation middleware
 func (siw *ServerInterfaceWrapper) ListIncidents(w http.ResponseWriter, r *http.Request) {
@@ -1434,65 +2126,6 @@ func (siw *ServerInterfaceWrapper) PipelineSummary(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PipelineSummary(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// ListSources operation middleware
-func (siw *ServerInterfaceWrapper) ListSources(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params ListSourcesParams
-
-	// ------------- Optional query parameter "days" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "days"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListSources(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// ControlSchedule operation middleware
-func (siw *ServerInterfaceWrapper) ControlSchedule(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// ------------- Path parameter "slug" -------------
-	var slug string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "slug", chi.URLParam(r, "slug"), &slug, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "slug", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ControlSchedule(w, r, slug)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2172,10 +2805,46 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/reviews/{id}/decision", wrapper.DecideReview)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/ops/sources", wrapper.ListSources)
+		r.Get(options.BaseURL+"/admin/source-types", wrapper.ListSourceTypes)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/ops/sources/{slug}/schedule", wrapper.ControlSchedule)
+		r.Get(options.BaseURL+"/admin/sources", wrapper.ListAdminSources)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/sources", wrapper.CreateSource)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/sources/{slug}", wrapper.DeleteSource)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/sources/{slug}", wrapper.GetAdminSource)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/sources/{slug}", wrapper.UpdateSource)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/sources/{slug}/schedule", wrapper.ControlSchedule)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/sources/{slug}/runs", wrapper.ListSourceRuns)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/source-tests", wrapper.TestSource)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/schedules/sync", wrapper.SyncSchedules)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/queries", wrapper.ListQueries)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/queries", wrapper.CreateQuery)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/queries/{name}", wrapper.DeleteQuery)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/queries/{name}", wrapper.UpdateQuery)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ops/pipeline", wrapper.PipelineSummary)
@@ -2189,6 +2858,721 @@ type BadRequestJSONResponse Error
 type NotFoundJSONResponse Error
 
 type UnauthorizedJSONResponse Error
+
+type ListQueriesRequestObject struct {
+}
+
+type ListQueriesResponseObject interface {
+	VisitListQueriesResponse(w http.ResponseWriter) error
+}
+
+type ListQueries200JSONResponse []Query
+
+func (response ListQueries200JSONResponse) VisitListQueriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListQueries401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListQueries401JSONResponse) VisitListQueriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQueryRequestObject struct {
+	Body *CreateQueryJSONRequestBody
+}
+
+type CreateQueryResponseObject interface {
+	VisitCreateQueryResponse(w http.ResponseWriter) error
+}
+
+type CreateQuery201JSONResponse Query
+
+func (response CreateQuery201JSONResponse) VisitCreateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuery400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateQuery400JSONResponse) VisitCreateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuery401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateQuery401JSONResponse) VisitCreateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateQuery409JSONResponse Error
+
+func (response CreateQuery409JSONResponse) VisitCreateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteQueryRequestObject struct {
+	Name string `json:"name"`
+}
+
+type DeleteQueryResponseObject interface {
+	VisitDeleteQueryResponse(w http.ResponseWriter) error
+}
+
+type DeleteQuery204Response struct {
+}
+
+func (response DeleteQuery204Response) VisitDeleteQueryResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteQuery401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteQuery401JSONResponse) VisitDeleteQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteQuery404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteQuery404JSONResponse) VisitDeleteQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateQueryRequestObject struct {
+	Name string `json:"name"`
+	Body *UpdateQueryJSONRequestBody
+}
+
+type UpdateQueryResponseObject interface {
+	VisitUpdateQueryResponse(w http.ResponseWriter) error
+}
+
+type UpdateQuery200JSONResponse Query
+
+func (response UpdateQuery200JSONResponse) VisitUpdateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateQuery400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateQuery400JSONResponse) VisitUpdateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateQuery401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateQuery401JSONResponse) VisitUpdateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateQuery404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateQuery404JSONResponse) VisitUpdateQueryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncSchedulesRequestObject struct {
+}
+
+type SyncSchedulesResponseObject interface {
+	VisitSyncSchedulesResponse(w http.ResponseWriter) error
+}
+
+type SyncSchedules200JSONResponse struct {
+	Created int `json:"created"`
+	Removed int `json:"removed"`
+	Updated int `json:"updated"`
+}
+
+func (response SyncSchedules200JSONResponse) VisitSyncSchedulesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SyncSchedules401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SyncSchedules401JSONResponse) VisitSyncSchedulesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestSourceRequestObject struct {
+	Body *TestSourceJSONRequestBody
+}
+
+type TestSourceResponseObject interface {
+	VisitTestSourceResponse(w http.ResponseWriter) error
+}
+
+type TestSource200JSONResponse SourceTestResult
+
+func (response TestSource200JSONResponse) VisitTestSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestSource400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response TestSource400JSONResponse) VisitTestSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestSource401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response TestSource401JSONResponse) VisitTestSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestSource503JSONResponse Error
+
+func (response TestSource503JSONResponse) VisitTestSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSourceTypesRequestObject struct {
+}
+
+type ListSourceTypesResponseObject interface {
+	VisitListSourceTypesResponse(w http.ResponseWriter) error
+}
+
+type ListSourceTypes200JSONResponse []SourceType
+
+func (response ListSourceTypes200JSONResponse) VisitListSourceTypesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSourceTypes401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListSourceTypes401JSONResponse) VisitListSourceTypesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminSourcesRequestObject struct {
+	Params ListAdminSourcesParams
+}
+
+type ListAdminSourcesResponseObject interface {
+	VisitListAdminSourcesResponse(w http.ResponseWriter) error
+}
+
+type ListAdminSources200JSONResponse []SourceDetail
+
+func (response ListAdminSources200JSONResponse) VisitListAdminSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminSources401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminSources401JSONResponse) VisitListAdminSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSourceRequestObject struct {
+	Body *CreateSourceJSONRequestBody
+}
+
+type CreateSourceResponseObject interface {
+	VisitCreateSourceResponse(w http.ResponseWriter) error
+}
+
+type CreateSource201JSONResponse SourceDetail
+
+func (response CreateSource201JSONResponse) VisitCreateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSource400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateSource400JSONResponse) VisitCreateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSource401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateSource401JSONResponse) VisitCreateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSource409JSONResponse Error
+
+func (response CreateSource409JSONResponse) VisitCreateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSourceRequestObject struct {
+	Slug string `json:"slug"`
+}
+
+type DeleteSourceResponseObject interface {
+	VisitDeleteSourceResponse(w http.ResponseWriter) error
+}
+
+type DeleteSource204Response struct {
+}
+
+func (response DeleteSource204Response) VisitDeleteSourceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteSource401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteSource401JSONResponse) VisitDeleteSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSource404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteSource404JSONResponse) VisitDeleteSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminSourceRequestObject struct {
+	Slug string `json:"slug"`
+}
+
+type GetAdminSourceResponseObject interface {
+	VisitGetAdminSourceResponse(w http.ResponseWriter) error
+}
+
+type GetAdminSource200JSONResponse SourceDetail
+
+func (response GetAdminSource200JSONResponse) VisitGetAdminSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminSource401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminSource401JSONResponse) VisitGetAdminSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminSource404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminSource404JSONResponse) VisitGetAdminSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSourceRequestObject struct {
+	Slug string `json:"slug"`
+	Body *UpdateSourceJSONRequestBody
+}
+
+type UpdateSourceResponseObject interface {
+	VisitUpdateSourceResponse(w http.ResponseWriter) error
+}
+
+type UpdateSource200JSONResponse SourceDetail
+
+func (response UpdateSource200JSONResponse) VisitUpdateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSource400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateSource400JSONResponse) VisitUpdateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSource401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateSource401JSONResponse) VisitUpdateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSource404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateSource404JSONResponse) VisitUpdateSourceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSourceRunsRequestObject struct {
+	Slug   string `json:"slug"`
+	Params ListSourceRunsParams
+}
+
+type ListSourceRunsResponseObject interface {
+	VisitListSourceRunsResponse(w http.ResponseWriter) error
+}
+
+type ListSourceRuns200JSONResponse []SourceRun
+
+func (response ListSourceRuns200JSONResponse) VisitListSourceRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSourceRuns401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListSourceRuns401JSONResponse) VisitListSourceRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSourceRuns404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListSourceRuns404JSONResponse) VisitListSourceRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ControlScheduleRequestObject struct {
+	Slug string `json:"slug"`
+	Body *ControlScheduleJSONRequestBody
+}
+
+type ControlScheduleResponseObject interface {
+	VisitControlScheduleResponse(w http.ResponseWriter) error
+}
+
+type ControlSchedule204Response struct {
+}
+
+func (response ControlSchedule204Response) VisitControlScheduleResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ControlSchedule400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ControlSchedule400JSONResponse) VisitControlScheduleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ControlSchedule401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ControlSchedule401JSONResponse) VisitControlScheduleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ControlSchedule404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ControlSchedule404JSONResponse) VisitControlScheduleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type ListIncidentsRequestObject struct {
 	Params ListIncidentsParams
@@ -2279,87 +3663,6 @@ func (response PipelineSummary200JSONResponse) VisitPipelineSummaryResponse(w ht
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type ListSourcesRequestObject struct {
-	Params ListSourcesParams
-}
-
-type ListSourcesResponseObject interface {
-	VisitListSourcesResponse(w http.ResponseWriter) error
-}
-
-type ListSources200JSONResponse []SourceInfo
-
-func (response ListSources200JSONResponse) VisitListSourcesResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type ControlScheduleRequestObject struct {
-	Slug string `json:"slug"`
-	Body *ControlScheduleJSONRequestBody
-}
-
-type ControlScheduleResponseObject interface {
-	VisitControlScheduleResponse(w http.ResponseWriter) error
-}
-
-type ControlSchedule204Response struct {
-}
-
-func (response ControlSchedule204Response) VisitControlScheduleResponse(w http.ResponseWriter) error {
-	w.WriteHeader(204)
-	return nil
-}
-
-type ControlSchedule400JSONResponse struct{ BadRequestJSONResponse }
-
-func (response ControlSchedule400JSONResponse) VisitControlScheduleResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type ControlSchedule401JSONResponse struct{ UnauthorizedJSONResponse }
-
-func (response ControlSchedule401JSONResponse) VisitControlScheduleResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-type ControlSchedule404JSONResponse struct{ NotFoundJSONResponse }
-
-func (response ControlSchedule404JSONResponse) VisitControlScheduleResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -2575,6 +3878,48 @@ func (response StatsTimeseries400JSONResponse) VisitStatsTimeseriesResponse(w ht
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// ListQueries Search queries used by search-style sources
+	// (GET /admin/queries)
+	ListQueries(ctx context.Context, request ListQueriesRequestObject) (ListQueriesResponseObject, error)
+
+	// (POST /admin/queries)
+	CreateQuery(ctx context.Context, request CreateQueryRequestObject) (CreateQueryResponseObject, error)
+
+	// (DELETE /admin/queries/{name})
+	DeleteQuery(ctx context.Context, request DeleteQueryRequestObject) (DeleteQueryResponseObject, error)
+
+	// (PUT /admin/queries/{name})
+	UpdateQuery(ctx context.Context, request UpdateQueryRequestObject) (UpdateQueryResponseObject, error)
+	// SyncSchedules Make every source's Temporal Schedule match its configuration, and remove schedules of deleted sources
+	// (POST /admin/schedules/sync)
+	SyncSchedules(ctx context.Context, request SyncSchedulesRequestObject) (SyncSchedulesResponseObject, error)
+	// TestSource Try a source configuration without saving it or recording anything
+	// (POST /admin/source-tests)
+	TestSource(ctx context.Context, request TestSourceRequestObject) (TestSourceResponseObject, error)
+	// ListSourceTypes The source types the running providers support, and which fields each uses
+	// (GET /admin/source-types)
+	ListSourceTypes(ctx context.Context, request ListSourceTypesRequestObject) (ListSourceTypesResponseObject, error)
+	// ListAdminSources Sources with configuration, health, run statistics, quality metrics and schedule state
+	// (GET /admin/sources)
+	ListAdminSources(ctx context.Context, request ListAdminSourcesRequestObject) (ListAdminSourcesResponseObject, error)
+	// CreateSource Add a source and create its schedule
+	// (POST /admin/sources)
+	CreateSource(ctx context.Context, request CreateSourceRequestObject) (CreateSourceResponseObject, error)
+	// DeleteSource Delete a source, its schedule and its run history
+	// (DELETE /admin/sources/{slug})
+	DeleteSource(ctx context.Context, request DeleteSourceRequestObject) (DeleteSourceResponseObject, error)
+
+	// (GET /admin/sources/{slug})
+	GetAdminSource(ctx context.Context, request GetAdminSourceRequestObject) (GetAdminSourceResponseObject, error)
+	// UpdateSource Replace a source's configuration
+	// (PUT /admin/sources/{slug})
+	UpdateSource(ctx context.Context, request UpdateSourceRequestObject) (UpdateSourceResponseObject, error)
+	// ListSourceRuns A source's recent discovery runs, newest first
+	// (GET /admin/sources/{slug}/runs)
+	ListSourceRuns(ctx context.Context, request ListSourceRunsRequestObject) (ListSourceRunsResponseObject, error)
+
+	// (POST /admin/sources/{slug}/schedule)
+	ControlSchedule(ctx context.Context, request ControlScheduleRequestObject) (ControlScheduleResponseObject, error)
 	// ListIncidents List incidents (newest first)
 	// (GET /incidents)
 	ListIncidents(ctx context.Context, request ListIncidentsRequestObject) (ListIncidentsResponseObject, error)
@@ -2584,12 +3929,6 @@ type StrictServerInterface interface {
 	// PipelineSummary Pipeline counters
 	// (GET /ops/pipeline)
 	PipelineSummary(ctx context.Context, request PipelineSummaryRequestObject) (PipelineSummaryResponseObject, error)
-	// ListSources Discovery sources with quality metrics and schedule state
-	// (GET /ops/sources)
-	ListSources(ctx context.Context, request ListSourcesRequestObject) (ListSourcesResponseObject, error)
-
-	// (POST /ops/sources/{slug}/schedule)
-	ControlSchedule(ctx context.Context, request ControlScheduleRequestObject) (ControlScheduleResponseObject, error)
 	// ListReviews Possible duplicate matches awaiting a human decision
 	// (GET /reviews)
 	ListReviews(ctx context.Context, request ListReviewsRequestObject) (ListReviewsResponseObject, error)
@@ -2644,6 +3983,401 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListQueries operation middleware
+func (sh *strictHandler) ListQueries(w http.ResponseWriter, r *http.Request) {
+	var request ListQueriesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListQueries(ctx, request.(ListQueriesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListQueries")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListQueriesResponseObject); ok {
+		if err := validResponse.VisitListQueriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateQuery operation middleware
+func (sh *strictHandler) CreateQuery(w http.ResponseWriter, r *http.Request) {
+	var request CreateQueryRequestObject
+
+	var body CreateQueryJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateQuery(ctx, request.(CreateQueryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateQuery")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateQueryResponseObject); ok {
+		if err := validResponse.VisitCreateQueryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteQuery operation middleware
+func (sh *strictHandler) DeleteQuery(w http.ResponseWriter, r *http.Request, name string) {
+	var request DeleteQueryRequestObject
+
+	request.Name = name
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteQuery(ctx, request.(DeleteQueryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteQuery")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteQueryResponseObject); ok {
+		if err := validResponse.VisitDeleteQueryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateQuery operation middleware
+func (sh *strictHandler) UpdateQuery(w http.ResponseWriter, r *http.Request, name string) {
+	var request UpdateQueryRequestObject
+
+	request.Name = name
+
+	var body UpdateQueryJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateQuery(ctx, request.(UpdateQueryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateQuery")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateQueryResponseObject); ok {
+		if err := validResponse.VisitUpdateQueryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SyncSchedules operation middleware
+func (sh *strictHandler) SyncSchedules(w http.ResponseWriter, r *http.Request) {
+	var request SyncSchedulesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SyncSchedules(ctx, request.(SyncSchedulesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SyncSchedules")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SyncSchedulesResponseObject); ok {
+		if err := validResponse.VisitSyncSchedulesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestSource operation middleware
+func (sh *strictHandler) TestSource(w http.ResponseWriter, r *http.Request) {
+	var request TestSourceRequestObject
+
+	var body TestSourceJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestSource(ctx, request.(TestSourceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestSource")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestSourceResponseObject); ok {
+		if err := validResponse.VisitTestSourceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSourceTypes operation middleware
+func (sh *strictHandler) ListSourceTypes(w http.ResponseWriter, r *http.Request) {
+	var request ListSourceTypesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSourceTypes(ctx, request.(ListSourceTypesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSourceTypes")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSourceTypesResponseObject); ok {
+		if err := validResponse.VisitListSourceTypesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdminSources operation middleware
+func (sh *strictHandler) ListAdminSources(w http.ResponseWriter, r *http.Request, params ListAdminSourcesParams) {
+	var request ListAdminSourcesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminSources(ctx, request.(ListAdminSourcesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminSources")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminSourcesResponseObject); ok {
+		if err := validResponse.VisitListAdminSourcesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSource operation middleware
+func (sh *strictHandler) CreateSource(w http.ResponseWriter, r *http.Request) {
+	var request CreateSourceRequestObject
+
+	var body CreateSourceJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSource(ctx, request.(CreateSourceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSource")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSourceResponseObject); ok {
+		if err := validResponse.VisitCreateSourceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteSource operation middleware
+func (sh *strictHandler) DeleteSource(w http.ResponseWriter, r *http.Request, slug string) {
+	var request DeleteSourceRequestObject
+
+	request.Slug = slug
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSource(ctx, request.(DeleteSourceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSource")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSourceResponseObject); ok {
+		if err := validResponse.VisitDeleteSourceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdminSource operation middleware
+func (sh *strictHandler) GetAdminSource(w http.ResponseWriter, r *http.Request, slug string) {
+	var request GetAdminSourceRequestObject
+
+	request.Slug = slug
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminSource(ctx, request.(GetAdminSourceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminSource")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdminSourceResponseObject); ok {
+		if err := validResponse.VisitGetAdminSourceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSource operation middleware
+func (sh *strictHandler) UpdateSource(w http.ResponseWriter, r *http.Request, slug string) {
+	var request UpdateSourceRequestObject
+
+	request.Slug = slug
+
+	var body UpdateSourceJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSource(ctx, request.(UpdateSourceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSource")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSourceResponseObject); ok {
+		if err := validResponse.VisitUpdateSourceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSourceRuns operation middleware
+func (sh *strictHandler) ListSourceRuns(w http.ResponseWriter, r *http.Request, slug string, params ListSourceRunsParams) {
+	var request ListSourceRunsRequestObject
+
+	request.Slug = slug
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSourceRuns(ctx, request.(ListSourceRunsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSourceRuns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSourceRunsResponseObject); ok {
+		if err := validResponse.VisitListSourceRunsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ControlSchedule operation middleware
+func (sh *strictHandler) ControlSchedule(w http.ResponseWriter, r *http.Request, slug string) {
+	var request ControlScheduleRequestObject
+
+	request.Slug = slug
+
+	var body ControlScheduleJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ControlSchedule(ctx, request.(ControlScheduleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ControlSchedule")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ControlScheduleResponseObject); ok {
+		if err := validResponse.VisitControlScheduleResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListIncidents operation middleware
@@ -2715,65 +4449,6 @@ func (sh *strictHandler) PipelineSummary(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PipelineSummaryResponseObject); ok {
 		if err := validResponse.VisitPipelineSummaryResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ListSources operation middleware
-func (sh *strictHandler) ListSources(w http.ResponseWriter, r *http.Request, params ListSourcesParams) {
-	var request ListSourcesRequestObject
-
-	request.Params = params
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListSources(ctx, request.(ListSourcesRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListSources")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ListSourcesResponseObject); ok {
-		if err := validResponse.VisitListSourcesResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ControlSchedule operation middleware
-func (sh *strictHandler) ControlSchedule(w http.ResponseWriter, r *http.Request, slug string) {
-	var request ControlScheduleRequestObject
-
-	request.Slug = slug
-
-	var body ControlScheduleJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ControlSchedule(ctx, request.(ControlScheduleRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ControlSchedule")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(ControlScheduleResponseObject); ok {
-		if err := validResponse.VisitControlScheduleResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -2923,58 +4598,93 @@ func (sh *strictHandler) StatsTimeseries(w http.ResponseWriter, r *http.Request,
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"5e1LDyp60YRu0Sub6+/e7/49AA==",
+	"7D1bkxO3mn9F1btVgarGM0BgN8MTBxJCHRIITM55YCkfufXZVkYtdXSxx4ea/76lS3eru9V2e4aZJdk8",
+	"gW1dPn33mzSfs0KUleDAtcrOPmcVlrgEDdJ9+ttCXNp/CahC0kpTwbOzrKT8jeC5/QfrvMSX7hO+fIM1",
+	"uvfPVx/++9v7M/SaF5TYVdGW6rUwGhVCSEI51qAQloDgsmCGAEHbNXCkQM+yPKN2g98NyF2WZxyXkJ1l",
+	"CwtFnqliDSW24MAlLitmf3rw8NGj2ZP88X/Nnubu/4/t/7/L8kzvKjtAaUn5Kru6yrMXVO/s7NQWhf0t",
+	"3mI4/QcpyrHpS/tbPH0pZIl1dpYRrCEJzY9UP+fkveFja66pnmNO5tLw7uG5KbOzj9kOlB0ssjwz/IKL",
+	"Lc8+pTb6ABuQe46u6t9Tmyyxxsz+ApIKYzcsKRfy4J7aHntsQ+1xkqLni+dJZJ2LscW0OBLv/wBJl7TA",
+	"npfTi27iMSm0GO6HAMnyrBBSioWQWLuPEjYUtkDSmPmHNEOBei8weWAUSFRgDSshKahnqMS6WINCtJEk",
+	"yjeCbShfIcx3SCyRXkNppQYuKyYIZGdLzBSkpWgjTecsVEOp4kNVQMBCiu2ZF7TYFYwqbVefL+gFzCUl",
+	"IN0SQmiQzedSaCHb0aWogDQ/btcArFhjKudG+ekXWMNCYOkHCL0GmcBV8wWWEu/sZ6V3jkcsjR0uJahK",
+	"cAVeVWHyHn43oLT9VAiugbv/4qpigZYnvylP9BYL/ylhmZ1l/3HSqsET/6s6+V5KIbMru1WXXq/5BjNK",
+	"kAwbXuXZz0L/IAwnt7/5z0KjpdvqKs9+5djotZD033AHW/9ElbLcJyTaSmHZkJSUIy0ugDuKhBUcPSTg",
+	"CyK2/L3Y2s+VFBVITT21nF6hzadaainXT79txZZyDSuQ9qCNEEwe/5uRQCaOvoBdWulbClO3zkc3KAYk",
+	"j0/R7tiyslj8BoXjjhdiAxKvYIiIokFCI48HBaEQhmu5S451yvWo9a5S8Eq8Ze8Eo8VuCDJmTGyBzIko",
+	"MeVHwl7iyzmBSq/t6JJyWlrlc5oiih1a4RWow0MlcAIyVmZrrau54MySDBtnJTDb4p1Kqhoj2bzCWoPk",
+	"N8adl54B1qD+erBkJcWChf268vb9BuQOOV3j5BiFoVk+FUKngLm1ExIQVagUEpBeY44Eh1l2xg1jfT73",
+	"kKbY+PtN0C09hij0yNEKCdYqzrEeGOcHmpYJC53bH52GwoRQe2jM3kW7aWkgARmdKun+m0OiTkk9OQ+n",
+	"65wlAJlC0Y+AmV4PcSQBBx2cFtkO77o1LPEIrCQmzq1YYsrsBDeeWcAqbJT7aYup9j8RqvCCjfke8Qlr",
+	"JyzAlTpK7cEnCC41LRjMnSKKzhThuQgep2UwC1KPchGL2DWmDV3iQqu5hdx0HJdC8CWVpcMFZgxW7n+G",
+	"Fwxw2rUIinvXnmBk8+hEsT9+rBs+YFBjWhbrDPNG5Bi4GNZDzfGzYQwZzkAphNEKRCEISCRBG8mBIIwq",
+	"QbmLuFqpFGbhGGtkT27KRdhSeL9iXkkoqKIjjM3899fYQBSFkXK/4jjILs0ifTCwPm5+55Q13e0qAZKw",
+	"4D7yqygIu0lsFWmLg/ArLQH0HBMiQalJU0xFjtbXG1h7ZdCELsd5BHGwlRDuSaFWntkkA5F4BGkbaa4J",
+	"X8owJBgjKRODfZPIyuMIvBv0dxReGlN5Txl3aLhPqz/308aV+0SNtQQbpd5MUl2kO1eFkHBNhRFWaLgn",
+	"vQWQ+SLtNldmwai66TnqVeQkYdNUs2mSbCQ77LNEdPMzeljp4GAfZ7wEjSkbZYyu+OyLI/uslgplqCxM",
+	"qTTmBUxTUbCpo8BJMHiXNbFzsIlz5zwQ4MV1Wa9eSAkji2n0pJFnNQWBjoFBroDMKdciJZeHrdlCgdw4",
+	"3TEde2/bSSkcWrn4t+DTDr0V8mLJxDYolq6/cg5lJSRmqB6FXr8MCa4m//WNQowuwWaaoBk3yw55uvX0",
+	"VlWqrIeOhqu6UO4TkjdUJRzjBqlHyUcStcI6BwM8/WRF2KZgoqTgigt7cMRoSfWJWC5DKv1gNNRDlN+y",
+	"Di1Th4/Z4aZ2Y0qY1+ORNaACc2KDYVs9wIVmO4SVDWVR2B1JqITUQBDVsyxxBE/3o1ycfXo2Xm5PVPiO",
+	"VsAohw+mLLFM5FSc8Vb7de6E6JZQVdhUE5C5kWzqLLjUEheNZpgwwwaj9tDHQVcBJ5Sv5t5tmzarh/z+",
+	"ATsy3Yeqe7Lh/kNK9XYLVElR9BeXXB/QC7iPv1trvRCCAeYeayVlu27Bo5N0HwiJT933lcCjB08fo2KN",
+	"7dFAqjNk83GywAoQA22/yhGhK6oVwpwggtUa1Ay9JsC19aSVU6uuPDBL7VpJsaEklAC7W39wRg7ZKXYV",
+	"rJE0HFH9DEFZ6R0qAXOFwOWtFGBZrB+4tL2bMZuet3KEWI0FlhouEzHvq5ffvzk/eSXEigH6GbYKqR3X",
+	"+PIMvX2PVlKYSqHSKI0WgCosges1KJs4P2xDAuUCQQIAeUPtFIO8d0yWkPRag82v4wVcK6EGdv7NPNt6",
+	"jcW0TM1EG8Bhey0s+KSVOjpLuCfCGLh1w0g0qI8sz3BlRSSEoHbxKRk3h4LGF/eg9LKKHXzkKVYZ57SX",
+	"UY5iJD3bFZd/rgUKZH2GJBRC2lo8dclihA2hGmmJKZv5xMQb4Cub2HyYoGPAR0rr9Y1nGFmnVcfP8x6U",
+	"YancY437pIr1qn2qD6KxXEFCk5xHXqdDhytSoi1WyLvhyLrhHR9rmhvew0YLbcRTSZQYbkvqCYX8MhjE",
+	"nVXECtn/OohDadJ2V1BOvJ/cQ+RmNVdQCE7URJGw9tXIyebecvMRXkj13ZMj4amspceTNwgomTzcTHaH",
+	"lCkKUGouQ2puinrxU+BaXpADLV4jwkVEph5geYfkXYRH1IoQlWLFDzaFYBg0LR6JxLOrOTUhHVXIcAm4",
+	"WFvJQMIzqArrICJAIS40gkuqNNr54KUvSF3eZVjpOhF/PYPG4fKGK4TyS1rnDdHmHKc2tYIZe7vMzj7u",
+	"N3p+1mteGbvIMGjgCgqj6QbmsWwOGdSV9ObTU8frpoq1D7pQ63I1CKXnWGsoK30jP8MtVHPtTRb63bgC",
+	"T3Y2BcG/hMFe6h2eDgbvjUoObQ+Wlw/u1pGdaOK8qQ733G3QqC7gIp9gclZI4Q0QtDAaWSe/EaVCGEac",
+	"LC0AhTzw7GirFIifp/krRlGL5qGm+NQwvWffRMjb9kTsQ1rTO+HcX7xlBydEzQtX+f6QrA6whtItGLPJ",
+	"NpvvYLFdahoRniY7ERQzqy8VsWWjTVGfR3PEx5HaQdtGNb7gnT76/minK0eD8/8otsgoWBoWcfI3Ci0p",
+	"JwqFmqTtEdXCsu4xXkwI9uehDjHRYltLSIDh3ZEuR51/mN645LpclRWhI3whd5j5NdyKY9ukJDDYYK6P",
+	"2cNw+rs54jgjKRxf+4oXGyArH5I3iZv+ObpdWkNaj3Nw6Mcdad053KFA+cEq0nBS3TeY6EuzZeAG0/td",
+	"7PF82/iI2CUe/qo0lscmG4Zhc6BU66M2mbp016c0vHD13aTC7jHfEGjDJSjBuhFi9PsWS0756sgitVc/",
+	"c0UHdaJjnJKwiuGasuuuMuzjkU3+IGa/KNfgGawva5HDH7FZj2s6+Iz4JaZThNNxwToHpcdCemKkr2mX",
+	"k5XqdIkcFy5xMZZD2CsULnObiMR/raz1enRal61+ff9G+Ubd3F2BcF+6mq+z8ZbasVu3whto+rkbxuwi",
+	"6stUqZu68/XqzHZQis6DCtZXKMi9o4iLUemYwvYx30bwtDyyRxyCG9dPyWGNcM0RdqoNni23bNe0WKMl",
+	"BUYUohpJwETltvhFoGBY2mhg54KBOnk/dJUa5/lgO++QWp223fTPTatuSqLq9ty0tFEJ+7fv9+ceyjL2",
+	"jjTcpbdkfIL4sA3oKUp2aJdqf8MLYHuYclwAa9PJBYcsOtpY6/Kadtowox8VqHkcaCVQa4fYWhCFKagN",
+	"MYI/WxcHdddJZ8U+DHUMlxQNjbUaLZEeWWzstIpNrWpqzObHutBHX2XoNZL+n19+sMZpHl3Ou45Tf/BW",
+	"xBC7/Wa3ARiDdr+GA1LMc05LUI7n3gmaalpemOIC9IRLYvnXdTulh+lwjGtdRHGNqIWRVO9sKqoMgkVK",
+	"ys/dHZ76ipDTAIAlyBYge6PCXwqifCkSl9gAE4Sdr28doQa8HCmNNVWaFt6WVaEZArnyust9+EIIIqGG",
+	"pXLvItlClAUOWTr6Xh20FBKRpujhTaVC91wb1yoY5Bz5HFbepMZUjjQoV61W92fIFngUyA0tnIW1SVkO",
+	"+oG9L/IsVK+lMBp8idtXyVRuMzh8BcqmsOGyEgpUbas72zvgPQQIMyVQoJ9txfZY9VemZv/Ds8Ydy14I",
+	"xtzp0WuugTG6Al4Aev7utW/9VB7Np7OHs1PnvlbAcUWzs+zx7HT22MVXeu0oeuKwdhJp9VDmavD4mmRn",
+	"me1h+qXR053bdI9OT4+6Tjap38n3TAydsr4tzd7+3Y769vTh2IoNrCedC3Axg7vceszaHz9dfcozVZuX",
+	"7INrT0ABScgo70N1uhYCe1kqYetpfvQrZp9chlAlcPrC1XN/CVcvg+P4N0F2X+x2XsBiVy9oaeBqQMOH",
+	"t7Fpl1T+vMTT6/QwvaJrmtcjsZ303e1fdXzu+2PqyI0qxHEJvkalpjBan2Gu8p5Ynny2K155RcpAw5CZ",
+	"XrrvW2bqEPfbRDHYjSc3wOy3hyc1N12vgYS8877Ax3D72uqt9p6y+6fP2/uu5n/Ks1Bg6GLvV1cA+UpE",
+	"8fT2RbHWmnclhbfMK63ANEb8RO14YXdN694PO17UJbYbW7R+7Ay9VEYni1qK0TRFKMOlfux3G4Y92jnt",
+	"0glfbkD/l4LDHdjNn/AF1B1+dR2nqfXX6PePF7iERM8zs76RP1XrnNmUmdeBZI/JjRjCjXmg6yxdzQ49",
+	"h9Rw3+lYp0SQ4AXkSK+lMCufj2s9Sdv4DRLds98+f/fagg5siUp84doTbHVqYVm5rkmp+/VZtJFcoa31",
+	"FGm4mj9D3rt44HI4tZNqVMj4ueptMAMz9LwFMFRZrU/aNjL76q90ydPcVXexdaTRj+fn75DLhHpHsisM",
+	"NuHqc023pPw6vQl3qwIHKeWENPwQcuF3qROfnD6+fc/kPMW2hPq6P+ZqC9LxDC3hOME+l7s2+dgNaOon",
+	"fBR2r49QbUMg3zMYXiPRa98aeVhod9WBkKTNkN5NWNLu99XEJudtXaButQYbu9oEc6MtFFKmskoiH6aI",
+	"bbeV1TdT9Oh+ajy3Iz80Sjnlv/UemiF4pzovzRBYYlf4eXzqkqu+f+Lx0yd5203xMJH4+HR31A+NWV9N",
+	"bBoshos+RlIb0vAos5Kj0IqDStCyTrU0nUH1df/xMHaoZAIDUlW/QAEE4RWmXPm2I4upb6KCA3qt7WCl",
+	"hQSCllQq/QzR5WgjYLBqDllIacoYcrViIB74AksXmXebpDyz/+vd2w/nKOkf/gvdCy2GtscPEaiY2N1H",
+	"3rtSnd7DlN30Ae3XZTkffuGta27//xTO191zTTxve5+OiOdb4XxOSGsnHaM6pHVa8aao3ZPPFoReAqAH",
+	"dsh4e2Gmq7W2FcbGzXTP6F1A5dxCxARfgURYa0kXxkqrFg2gswGj+2RBxOh/uOxCSxIPWnPYvNsWaZFn",
+	"v7Aac02tftolVWHSBr6C2ARmt+7Vjsvm279/Pai/TmInNBteJ7GTME5Wemn3RlsQyXtUu2SdckQfhKb3",
+	"g3Hh1l/2Gf1nSDdL+mhrIcjOXxbzgaz9zp5mhl66J3ac11tv6DrB1ZDngIeRrmCvTNkzP8/CvRIgdioD",
+	"2wGCUYm5wcwvijATPGmmfHLrzx3gHRaFP2iqq1Vc76FiuGg11ze9fMkRduSkvrByILCyaZHsVuQ1T8cD",
+	"7l56OiB4EgcEj05Pv56AwDaC3mY0cKtc9bzlJgkFcB0lDCyX5IjDFpT2TvoxPBbfdBgpgAmupWAfWkfo",
+	"dizDdTXe4G5k710np3e9mTe+xVXS1Sr5RGm/68ivlU7VHtKdKX+ryef+iTL6nU6JUU3VPB49ZJ8UeO2Q",
+	"E/di9VV+cJx7zXnCuHMxZVR9oefgwBf+mtHBcfaZ4Cn71i9HTVkyftR4wvj2geprKPaHp7Fmf3h6ULWP",
+	"bOFfM0nvES95egvWYsptdMusX9BBuYq1uF07euflXqyz70dKuxnSF7GTz5RcjcrZK2jEbJKSpmSvij5w",
+	"2fpOqHHYYTxawzXUeMujO+Eui+Bua4UAPUcVyAfhE4ofF3KRQHSdfg/hRKVO6uaoUbL1n5K5RbT2txrB",
+	"awdN7/rNXdF5RVWfNHoBZtQGvA9jJuWco3cVBnoierjh+k853LZr+xXqv0nesqfSVFe5yypCKWoTwcR4",
+	"MKB58h6HJ20RRmtTYt50Bkbc1LziE3OUU3knJH4LI5nffgmMumeEbI6s98jY8C0yX2/1IXeOlJ9Rb9JJ",
+	"kOfI4RRIqDX7CnH3bY1m2ZCLSoX3L13LYUDuXWnnL59C6D1NcsdZhM5DIqmksCfVV+xj31F2/NxVYlwL",
+	"rr1djpkETHb16zBHxp5eoaJ77qWU+75QbBWre3O4L/Gj8uwumJ8s6j8iMGop3J2B5m8NTDMWi91eWWku",
+	"LoaaWf23YcZead0CXBD31nopuJNJ/6c2wluvX8acPHpyrDn5K1C6+0DpTkxu5y9rHJGjukks8koKU0XB",
+	"yGLnXl0ktATes8tOcjtSrNorPeMy3PqzfwX8f3g+3ptfjan9Rdl1nAN1czloPxO2l4gmWpL6Mk4q7Kit",
+	"Qfti/C5Yi8hU7NJ/ouAvBf4nVuD9q2q3qsMHQuGcObmp2dpdOc1ONg+zKGX7uQkrmhTFVd58qTTuflG7",
+	"btFXoup89Cngq09X/zsA",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

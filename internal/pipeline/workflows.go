@@ -250,6 +250,22 @@ func DiscoveryWorkflow(ctx workflow.Context, in DiscoveryInput) (*DiscoveryResul
 	return res, nil
 }
 
+// SourceTestWorkflow tries one source configuration (typically an unsaved one from the admin
+// UI) through the discovery worker, so the API itself never makes outbound requests. It does
+// not retry: the person is waiting, and a failure is shown to them.
+func SourceTestWorkflow(ctx workflow.Context, in SourceTestInput) (*SourceTestResult, error) {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		TaskQueue: TQDiscovery, StartToCloseTimeout: testSourceTimeout + 10*time.Second,
+		ScheduleToStartTimeout: 20 * time.Second, // no worker polling: fail fast
+		RetryPolicy:            &temporal.RetryPolicy{MaximumAttempts: 1},
+	})
+	var out SourceTestResult
+	if err := workflow.ExecuteActivity(ctx, act.TestSource, in).Get(ctx, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // RetentionWorkflow enforces the article text retention period and trims old discovery run
 // history. A daily Schedule runs it. Its result is how many article bodies were removed; a
 // failure to prune history is logged and does not fail the run.

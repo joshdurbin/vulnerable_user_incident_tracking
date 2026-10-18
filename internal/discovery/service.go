@@ -87,6 +87,9 @@ type RunRequest struct {
 	QueryNames []string
 	// AdHocQueries are used instead of configured queries (targeted follow-ups).
 	AdHocQueries []Query
+	// MaxQueries, if positive, runs only the first N configured queries. Test runs use it so
+	// a search source answers while someone waits.
+	MaxQueries int
 }
 
 // Report is the outcome of one run.
@@ -125,6 +128,7 @@ func (s *Service) Run(ctx context.Context, rr RunRequest) (*Report, error) {
 		w = DefaultWindow(src, start)
 	}
 	req := Request{Source: src, Window: w}
+	var queryNote string
 	desc, _ := s.reg.Describe(src.Type) // an unknown type is reported by Discover below
 	if desc.UsesQueries && len(rr.AdHocQueries) > 0 {
 		req.Queries = rr.AdHocQueries
@@ -150,13 +154,21 @@ func (s *Service) Run(ctx context.Context, rr RunRequest) (*Report, error) {
 			}
 			qs = keep
 		}
+		if rr.MaxQueries > 0 && len(qs) > rr.MaxQueries {
+			queryNote = fmt.Sprintf("only the first %d of %d queries were run", rr.MaxQueries, len(qs))
+			qs = qs[:rr.MaxQueries]
+		}
 		req.Queries = qs
 	}
 
 	res, derr := s.reg.Discover(ctx, req)
 	rep := &Report{Source: src, Window: w}
+	if queryNote != "" {
+		rep.Warnings = append(rep.Warnings, queryNote)
+	}
 	if res != nil {
-		rep.Found, rep.Warnings, rep.Truncated, rep.Requests = len(res.Candidates), res.Warnings, res.Truncated, res.Requests
+		rep.Found, rep.Truncated, rep.Requests = len(res.Candidates), res.Truncated, res.Requests
+		rep.Warnings = append(rep.Warnings, res.Warnings...)
 		for _, c := range res.Candidates {
 			if c.NeedsResolution {
 				rep.Unresolved++

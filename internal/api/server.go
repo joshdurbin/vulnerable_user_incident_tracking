@@ -10,7 +10,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -22,6 +21,8 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/pgrepo"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/registry"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
@@ -34,17 +35,26 @@ type Config struct {
 	Log        zerolog.Logger
 	// Metrics, if set, records request counts and latency.
 	Metrics *HTTPMetrics
+	// Registry describes and validates source types. The API runs no providers, so it needs
+	// no HTTP clients or crawler; nil means all known types.
+	Registry *discovery.Registry
 }
 
 type Server struct {
 	store *storage.Store
+	repo  *pgrepo.Repo
+	reg   *discovery.Registry
 	wf    Workflows
 	cfg   Config
 	now   func() time.Time
 }
 
 func NewServer(st *storage.Store, wf Workflows, cfg Config) *Server {
-	return &Server{store: st, wf: wf, cfg: cfg, now: time.Now}
+	reg := cfg.Registry
+	if reg == nil {
+		reg = registry.New(registry.Deps{})
+	}
+	return &Server{store: st, repo: pgrepo.New(st), reg: reg, wf: wf, cfg: cfg, now: time.Now}
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -99,6 +109,8 @@ func (s *Server) responseError(w http.ResponseWriter, r *http.Request, err error
 		writeErr(w, http.StatusBadRequest, br.Error())
 	case errors.Is(err, ErrTemporalDown):
 		writeErr(w, http.StatusServiceUnavailable, "workflow service unavailable")
+	case errors.Is(err, ErrWorkerUnavailable):
+		writeErr(w, http.StatusServiceUnavailable, "the discovery worker did not answer in time; is it running?")
 	default:
 		s.cfg.Log.Error().Err(err).Str("path", r.URL.Path).Msg("request failed")
 		writeErr(w, http.StatusInternalServerError, "internal error")
@@ -416,67 +428,6 @@ func (s *Server) DecideReview(ctx context.Context, req DecideReviewRequestObject
 }
 
 // ---- ops ----
-
-func (s *Server) ListSources(ctx context.Context, req ListSourcesRequestObject) (ListSourcesResponseObject, error) {
-	days := 30
-	if req.Params.Days != nil {
-		days = *req.Params.Days
-	}
-	q := dbgen.New(s.store.Pool)
-	srcs, err := q.ListSources(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-	stats, err := q.DiscoveryStats(ctx, s.now().AddDate(0, 0, -days))
-	if err != nil {
-		return nil, err
-	}
-	// A source can be found by several providers; sum the rows that name it.
-	bySlug := map[string]discovery.SourceStats{}
-	for _, st := range stats {
-		a := bySlug[st.SourceSlug]
-		a.Discoveries += st.Discoveries
-		a.UniqueURLs += st.UniqueUrls
-		a.ExclusiveURLs += st.ExclusiveUrls
-		a.ArticlesFetched += st.ArticlesFetched
-		a.FetchOK += st.FetchOk
-		a.RelevantArticles += st.RelevantArticles
-		a.Incidents += st.Incidents
-		a.AvgDelaySeconds = st.AvgDelaySeconds
-		bySlug[st.SourceSlug] = a
-	}
-	out := make([]SourceInfo, 0, len(srcs))
-	for _, src := range srcs {
-		st := bySlug[src.Slug]
-		fsr, rr := st.FetchSuccessRate(), st.RelevantRate()
-		avg := st.AvgDelaySeconds
-		info := SourceInfo{
-			Slug: src.Slug, Name: src.Name, Type: src.SourceType, Enabled: src.Enabled, PollIntervalSeconds: int(src.PollIntervalSeconds),
-			LastSuccessAt: src.LastSuccessAt, ConsecutiveFailures: int(src.ConsecutiveFailures), ErrorState: src.ErrorState,
-			Discoveries: &st.Discoveries, UniqueUrls: &st.UniqueURLs, ExclusiveUrls: &st.ExclusiveURLs, ArticlesFetched: &st.ArticlesFetched,
-			Incidents: &st.Incidents, AvgDelaySeconds: &avg, FetchSuccessRate: &fsr, RelevantRate: &rr,
-		}
-		out = append(out, info)
-	}
-	// Schedule state is best effort and fetched concurrently under a short deadline, so an
-	// unreachable Temporal slows this page by seconds at most, never by one timeout per source.
-	if s.wf != nil {
-		sctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		defer cancel()
-		var wg sync.WaitGroup
-		for i := range out {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if sch, err := s.wf.Schedule(sctx, out[i].Slug); err == nil {
-					out[i].Schedule = sch
-				}
-			}()
-		}
-		wg.Wait()
-	}
-	return ListSources200JSONResponse(out), nil
-}
 
 func (s *Server) ControlSchedule(ctx context.Context, req ControlScheduleRequestObject) (ControlScheduleResponseObject, error) {
 	if req.Body == nil {

@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
 	slogzerolog "github.com/samber/slog-zerolog/v2"
 	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 	tlog "go.temporal.io/sdk/log"
 	"go.temporal.io/sdk/temporal"
@@ -102,6 +104,7 @@ func NewWorkers(c client.Client, a *Activities, cfg WorkerConfig) []worker.Worke
 		w := worker.New(c, TQWorkflow, worker.Options{})
 		w.RegisterWorkflow(ArticleWorkflow)
 		w.RegisterWorkflow(DiscoveryWorkflow)
+		w.RegisterWorkflow(SourceTestWorkflow)
 		w.RegisterWorkflow(IncidentWorkflow)
 		w.RegisterWorkflow(BackfillWorkflow)
 		w.RegisterWorkflow(ReprocessWorkflow)
@@ -195,6 +198,59 @@ func SyncSchedules(ctx context.Context, c client.Client, sources []discovery.Sou
 		}
 	}
 	return created, updated, nil
+}
+
+// ApplySource creates or updates one source's Schedule after it was saved in the admin UI.
+// The interval and action always follow the source. The pause state follows it only when
+// enabledChanged: disabling pauses, enabling resumes, and any other edit leaves a pause an
+// operator set alone.
+func ApplySource(ctx context.Context, c client.Client, src discovery.Source, opts Options, enabledChanged bool) error {
+	if _, _, err := SyncSchedules(ctx, c, []discovery.Source{src}, opts); err != nil {
+		return err
+	}
+	if !enabledChanged {
+		return nil
+	}
+	h := c.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID(src.Slug))
+	if src.Enabled {
+		return h.Unpause(ctx, client.ScheduleUnpauseOptions{Note: "source enabled"})
+	}
+	return h.Pause(ctx, client.SchedulePauseOptions{Note: "source disabled"})
+}
+
+// DeleteSourceSchedule removes a source's Schedule; a missing one is not an error.
+func DeleteSourceSchedule(ctx context.Context, c client.Client, slug string) error {
+	err := c.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID(slug)).Delete(ctx)
+	var nf *serviceerror.NotFound
+	if errors.As(err, &nf) {
+		return nil
+	}
+	return err
+}
+
+// PruneSchedules deletes discovery Schedules whose source no longer exists, so a deleted
+// source cannot keep starting workflows that fail. keep is the set of existing slugs.
+func PruneSchedules(ctx context.Context, c client.Client, keep map[string]bool) (removed int, err error) {
+	const prefix = "discover-"
+	it, err := c.ScheduleClient().List(ctx, client.ScheduleListOptions{})
+	if err != nil {
+		return 0, err
+	}
+	for it.HasNext() {
+		e, err := it.Next()
+		if err != nil {
+			return removed, err
+		}
+		slug, ok := strings.CutPrefix(e.ID, prefix)
+		if !ok || keep[slug] {
+			continue
+		}
+		if err := DeleteSourceSchedule(ctx, c, slug); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
 }
 
 // MaintenanceScheduleID is the Schedule that enforces article text retention.
