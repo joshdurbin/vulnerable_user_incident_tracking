@@ -37,7 +37,7 @@ func (t *uaTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 // DefaultUserAgent identifies the bot to publishers and APIs.
-const DefaultUserAgent = "CollisionTrackerBot/0.1 (+https://github.com/joshdurbin/fuck_cars)"
+const DefaultUserAgent = "CollisionTrackerBot/0.1 (+https://github.com/joshdurbin/vulnerable_user_incident_tracking)"
 
 // NewPlainHTTPClient returns a client with NO automatic retries. Search-style
 // providers use it because their upstreams enforce strict request spacing, so

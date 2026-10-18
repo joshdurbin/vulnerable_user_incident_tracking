@@ -16,8 +16,8 @@ import (
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/payloadcodec"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/payloadcodec"
 )
 
 // Dial connects to Temporal with the correlation-ID propagator and zerolog logging.

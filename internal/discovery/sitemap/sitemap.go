@@ -20,7 +20,7 @@ import (
 
 	gps "github.com/oxffaa/gopher-parse-sitemap"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
 const (

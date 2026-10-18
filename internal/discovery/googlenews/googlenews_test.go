@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
 var q = discovery.Query{Family: "pedestrian", Name: "ped", Text: "pedestrian struck killed"}

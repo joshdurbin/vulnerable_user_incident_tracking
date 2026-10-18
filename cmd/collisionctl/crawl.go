@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
-	"github.com/joshdurbin/fuck_cars/internal/domain"
-	"github.com/joshdurbin/fuck_cars/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
 	"go.temporal.io/sdk/client"
 )
 

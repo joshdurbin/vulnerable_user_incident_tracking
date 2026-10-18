@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/joshdurbin/fuck_cars/internal/llm"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/llm"
 )
 
 const EnvPrefix = "COLLISION"

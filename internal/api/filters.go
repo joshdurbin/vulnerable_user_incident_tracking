@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
 // filter is the set of optional incident filters shared by listing and statistics.

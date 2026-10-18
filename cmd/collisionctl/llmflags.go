@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/llm"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/llm"
 )
 
 // addLLMFlags registers the gateway flags shared by commands that call the LLM.

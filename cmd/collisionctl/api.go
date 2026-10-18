@@ -11,10 +11,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/api"
-	"github.com/joshdurbin/fuck_cars/internal/metrics"
-	"github.com/joshdurbin/fuck_cars/internal/pipeline"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/api"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/metrics"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 )
 
 func newAPICmd(a *app) *cobra.Command {

@@ -1,4 +1,4 @@
-module github.com/joshdurbin/fuck_cars
+module github.com/joshdurbin/vulnerable_user_incident_tracking
 
 go 1.27.2
 

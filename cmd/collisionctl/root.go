@@ -7,11 +7,11 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/joshdurbin/fuck_cars/internal/config"
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/llm"
-	"github.com/joshdurbin/fuck_cars/internal/logging"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/config"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/llm"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/logging"
 )
 
 // deps are the process-level collaborators; tests inject fakes.

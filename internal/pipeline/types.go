@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
 )
 
 // Options toggle cluster-dependent features. They travel in workflow inputs so

@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 GOBIN := $(shell go env GOPATH)/bin
 export PATH := $(PATH):$(GOBIN)
-IMAGE_PREFIX ?= ghcr.io/joshdurbin/fuck_cars
+IMAGE_PREFIX ?= ghcr.io/joshdurbin/vulnerable_user_incident_tracking
 TAG ?= dev
 
 .PHONY: helm-check test-web web-dev generate eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate

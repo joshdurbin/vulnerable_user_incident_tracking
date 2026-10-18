@@ -21,10 +21,10 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/rs/zerolog"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/pipeline"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
 // Config for the API process.

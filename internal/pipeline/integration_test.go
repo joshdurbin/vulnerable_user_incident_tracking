@@ -27,13 +27,13 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/domain"
-	"github.com/joshdurbin/fuck_cars/internal/incidents"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
-	"github.com/joshdurbin/fuck_cars/internal/testutil"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/testutil"
 )
 
 var (

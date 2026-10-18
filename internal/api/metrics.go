@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/joshdurbin/fuck_cars/internal/storage"
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
 // HTTPMetrics records request counts and latency by route pattern (not raw path, so

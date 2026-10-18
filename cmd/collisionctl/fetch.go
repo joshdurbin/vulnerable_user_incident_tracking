@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 )
 
 func newFetchCmd(a *app) *cobra.Command {

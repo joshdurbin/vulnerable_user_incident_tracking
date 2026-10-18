@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
 var allTypes = []string{"atom", "gdelt", "googlenews", "index_page", "news_sitemap", "police_press", "rss", "sitemap"}

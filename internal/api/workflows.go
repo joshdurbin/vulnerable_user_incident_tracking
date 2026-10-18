@@ -10,7 +10,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 
-	"github.com/joshdurbin/fuck_cars/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
 )
 
 var (

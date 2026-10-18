@@ -7,7 +7,7 @@ import (
 
 	"go.temporal.io/sdk/client"
 
-	"github.com/joshdurbin/fuck_cars/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 )
 
 // Client implements Fetcher and LinkDiscoverer for callers outside a workflow

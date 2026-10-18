@@ -17,7 +17,7 @@ import (
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
 )
 
 func newEnv(t *testing.T) *testsuite.TestWorkflowEnvironment {

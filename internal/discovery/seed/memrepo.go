@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
 // MemoryRepo is a read-only discovery.Repository over seed files. It lets

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joshdurbin/fuck_cars/internal/classification"
-	"github.com/joshdurbin/fuck_cars/internal/domain"
-	"github.com/joshdurbin/fuck_cars/internal/llm"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/classification"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/llm"
 )
 
 // ExpectedIncident holds only the labels that are certain. Unset fields are not scored.

@@ -10,7 +10,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
-	"github.com/joshdurbin/fuck_cars/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 )
 
 // ValidationError means the model output is unusable (not JSON, schema

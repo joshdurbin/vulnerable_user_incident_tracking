@@ -13,8 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
-	"github.com/joshdurbin/fuck_cars/db"
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/db"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
 // IsNoRows reports whether err means a query matched no row.

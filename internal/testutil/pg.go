@@ -11,7 +11,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/joshdurbin/fuck_cars/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 )
 
 const image = "ghcr.io/cloudnative-pg/postgis:18-3.6-standard-trixie"

@@ -5,13 +5,13 @@ package registry
 import (
 	"net/http"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/crawllinks"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/feed"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/gdelt"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/googlenews"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/sitemap"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/crawllinks"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/feed"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/gdelt"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/googlenews"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/sitemap"
 )
 
 // Deps are the collaborators providers need.

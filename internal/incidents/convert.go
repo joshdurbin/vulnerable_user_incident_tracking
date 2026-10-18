@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
 func isNoRows(err error) bool { return errors.Is(err, pgx.ErrNoRows) }

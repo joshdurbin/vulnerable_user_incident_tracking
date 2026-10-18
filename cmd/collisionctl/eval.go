@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/classification"
-	"github.com/joshdurbin/fuck_cars/internal/eval"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/classification"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/eval"
 )
 
 func newEvalCmd(a *app) *cobra.Command {

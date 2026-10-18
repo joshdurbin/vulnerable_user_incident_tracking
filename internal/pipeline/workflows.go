@@ -3,7 +3,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	"github.com/joshdurbin/fuck_cars/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,7 +11,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 
-	"github.com/joshdurbin/fuck_cars/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
 )
 
 // act is a typed handle used to reference activities by method.

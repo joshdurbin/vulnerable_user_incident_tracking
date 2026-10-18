@@ -11,7 +11,7 @@ import (
 
 	"github.com/mmcdole/gofeed"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
 type Provider struct {

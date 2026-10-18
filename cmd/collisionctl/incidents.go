@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/incidents"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 )
 
 func newIncidentsCmd(a *app) *cobra.Command {

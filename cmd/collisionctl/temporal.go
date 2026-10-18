@@ -14,13 +14,13 @@ import (
 	"github.com/spf13/cobra"
 	"go.temporal.io/sdk/client"
 
-	"github.com/joshdurbin/fuck_cars/internal/classification"
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/pgrepo"
-	"github.com/joshdurbin/fuck_cars/internal/incidents"
-	"github.com/joshdurbin/fuck_cars/internal/metrics"
-	"github.com/joshdurbin/fuck_cars/internal/pipeline"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/classification"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/pgrepo"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/metrics"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 )
 
 func addTemporalFlags(cmd *cobra.Command) {

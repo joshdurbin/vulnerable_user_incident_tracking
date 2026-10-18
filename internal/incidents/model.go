@@ -7,7 +7,7 @@ package incidents
 import (
 	"time"
 
-	"github.com/joshdurbin/fuck_cars/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 )
 
 // Observation is one article's view of an incident, stored verbatim.

@@ -9,12 +9,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/googlenews"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/pgrepo"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/registry"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/seed"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/googlenews"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/pgrepo"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/registry"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/seed"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 )
 
 // discoveryRegistry returns the injected registry or all real providers.

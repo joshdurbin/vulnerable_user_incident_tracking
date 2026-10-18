@@ -1,7 +1,7 @@
 # Defaults are safe for the home k3s cluster this was written for; see docs/runbooks/deploy.md.
 
 image:
-  registry: ghcr.io/joshdurbin/fuck_cars
+  registry: ghcr.io/joshdurbin/vulnerable_user_incident_tracking
   pullPolicy: IfNotPresent
   # Pin by digest in the GitOps repo: tag and digest both may be set; the digest wins.
   collisionctl: { tag: latest, digest: "" }

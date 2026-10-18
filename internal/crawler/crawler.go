@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/joshdurbin/fuck_cars/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 )
 
 // Activity names registered by the Python worker.

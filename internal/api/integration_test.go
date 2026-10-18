@@ -21,12 +21,12 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.temporal.io/sdk/client"
 
-	"github.com/joshdurbin/fuck_cars/internal/domain"
-	"github.com/joshdurbin/fuck_cars/internal/incidents"
-	"github.com/joshdurbin/fuck_cars/internal/pipeline"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
-	"github.com/joshdurbin/fuck_cars/internal/testutil"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/testutil"
 )
 
 var (

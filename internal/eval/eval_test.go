@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/joshdurbin/fuck_cars/internal/classification"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/classification"
 )
 
 const casesDir = "../../tests/evaluations/cases"

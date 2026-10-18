@@ -13,12 +13,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/feed"
-	"github.com/joshdurbin/fuck_cars/internal/discovery/seed"
-	"github.com/joshdurbin/fuck_cars/internal/storage"
-	"github.com/joshdurbin/fuck_cars/internal/storage/dbgen"
-	"github.com/joshdurbin/fuck_cars/internal/testutil"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/feed"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/seed"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/testutil"
 )
 
 var (

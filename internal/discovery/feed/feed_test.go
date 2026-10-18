@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
 const rssDoc = `<?xml version="1.0"?><rss version="2.0"><channel><title>Oakland Gazette</title><language>en-us</language>

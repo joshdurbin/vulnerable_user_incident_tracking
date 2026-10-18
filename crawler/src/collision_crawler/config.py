@@ -11,7 +11,7 @@ class Config:
     mode: str = "crawl"  # crawl: HTTP fetch and link discovery | render: headless browser
     task_queue: str = ""  # default depends on mode
     metrics_address: str = "0.0.0.0:9100"
-    user_agent: str = "CollisionTrackerBot/0.1 (+https://github.com/joshdurbin/fuck_cars)"
+    user_agent: str = "CollisionTrackerBot/0.1 (+https://github.com/joshdurbin/vulnerable_user_incident_tracking)"
     max_response_bytes: int = 5 * 1024 * 1024
     default_timeout_s: float = 20.0
     max_redirects: int = 5

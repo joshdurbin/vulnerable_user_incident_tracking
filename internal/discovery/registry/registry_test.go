@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/joshdurbin/fuck_cars/internal/discovery"
-	"github.com/joshdurbin/fuck_cars/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 )
 
 type noopLinks struct{}
