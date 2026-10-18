@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestNormalize(t *testing.T) {
@@ -52,6 +53,9 @@ func TestDedupePreservesProvenanceAndRejectsBad(t *testing.T) {
 type fake struct{ typ string }
 
 func (f fake) Type() string { return f.typ }
+func (f fake) Describe(t string) Descriptor {
+	return Descriptor{Type: t, Label: f.typ}
+}
 func (f fake) Discover(context.Context, Request) (*Result, error) {
 	return &Result{Candidates: []Candidate{{URL: "https://x.example.com/1"}}}, nil
 }
@@ -81,4 +85,62 @@ func TestRegistryRejectsDuplicateType(t *testing.T) {
 	r := NewRegistry()
 	r.Register(fake{"a"})
 	r.Register(fake{"a"})
+}
+
+func TestAssessHealth(t *testing.T) {
+	now := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	ago := func(d time.Duration) *time.Time { t := now.Add(-d); return &t }
+	base := Source{Enabled: true, PollInterval: 30 * time.Minute, LastAttemptAt: ago(time.Minute), LastSuccessAt: ago(time.Minute)}
+	cases := []struct {
+		name   string
+		mod    func(s *Source)
+		paused bool
+		want   HealthState
+	}{
+		{"healthy", func(*Source) {}, false, HealthHealthy},
+		{"disabled wins over everything", func(s *Source) { s.Enabled = false; s.ConsecutiveFailures = 9 }, false, HealthDisabled},
+		{"paused schedule", func(*Source) {}, true, HealthPaused},
+		{"never ran", func(s *Source) { s.LastAttemptAt, s.LastSuccessAt = nil, nil }, false, HealthWaiting},
+		{"one failure is degraded", func(s *Source) { s.ConsecutiveFailures = 1; s.ErrorState = "503" }, false, HealthDegraded},
+		{"repeated failures", func(s *Source) { s.ConsecutiveFailures = FailingAfter; s.ErrorState = "503" }, false, HealthFailing},
+		{"never succeeded", func(s *Source) { s.LastSuccessAt = nil; s.ConsecutiveFailures = 1 }, false, HealthStale},
+		{"quiet for under an hour is fine for a 30m source", func(s *Source) { s.LastSuccessAt = ago(50 * time.Minute) }, false, HealthHealthy},
+		{"quiet for over three intervals and an hour is stale", func(s *Source) { s.LastSuccessAt = ago(3 * time.Hour) }, false, HealthStale},
+		{"a slow source is judged on its own interval", func(s *Source) { s.PollInterval = 24 * time.Hour; s.LastSuccessAt = ago(30 * time.Hour) }, false, HealthHealthy},
+	}
+	for _, c := range cases {
+		s := base
+		c.mod(&s)
+		if got := AssessHealth(s, c.paused, now); got.State != c.want || got.Reason == "" {
+			t.Errorf("%s: got %+v, want %s", c.name, got, c.want)
+		}
+	}
+}
+
+func TestValidateSourceUsesDescriptors(t *testing.T) {
+	r := NewRegistry()
+	r.Register(fake{"feed"}, "rss")
+	good := Source{Slug: "ok-feed", Name: "OK", Type: "rss", PollInterval: time.Hour}
+	// fake describes no URL requirement, so a url is rejected for it: the descriptor decides.
+	good.URL = "https://x.test/"
+	if errs := ValidateSource(r, good); len(errs) != 1 {
+		t.Fatalf("want exactly the does-not-use-a-url error, got %v", errs)
+	}
+	good.URL = ""
+	if errs := ValidateSource(r, good); len(errs) != 0 {
+		t.Fatalf("%v", errs)
+	}
+	bad := Source{Slug: "x", Name: " ", Type: "nope", PollInterval: time.Second}
+	if errs := ValidateSource(r, bad); len(errs) < 3 {
+		t.Fatalf("slug, name and type must all be reported: %v", errs)
+	}
+	for _, c := range []Source{
+		{Slug: "ok-feed", Name: "n", Type: "rss", PollInterval: time.Hour, Crawl: CrawlPolicy{Render: "sometimes"}},
+		{Slug: "ok-feed", Name: "n", Type: "rss", PollInterval: time.Hour, Crawl: CrawlPolicy{URLPatterns: []string{"("}}},
+		{Slug: "ok-feed", Name: "n", Type: "rss", PollInterval: time.Hour, Crawl: CrawlPolicy{MaxPages: -1}},
+	} {
+		if errs := ValidateSource(r, c); len(errs) != 1 {
+			t.Errorf("%+v: want one error, got %v", c.Crawl, errs)
+		}
+	}
 }

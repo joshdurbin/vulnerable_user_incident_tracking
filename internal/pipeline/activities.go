@@ -453,6 +453,14 @@ func (a *Activities) ExpireArticleText(ctx context.Context) (int64, error) {
 	return a.DB.Queries().ExpireArticleText(ctx)
 }
 
+// RunHistoryDays is how long discovery run history is kept.
+const RunHistoryDays = 90
+
+// PruneDiscoveryRuns removes discovery run history older than RunHistoryDays and reports how many.
+func (a *Activities) PruneDiscoveryRuns(ctx context.Context) (int64, error) {
+	return a.DB.Queries().PruneDiscoveryRuns(ctx, a.now().AddDate(0, 0, -RunHistoryDays))
+}
+
 // ---- reprocess ----
 
 // ListReprocessBatch returns the next batch of articles that lack an extraction

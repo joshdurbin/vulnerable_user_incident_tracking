@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/seed"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/sourcefile"
 )
 
 type stubProv struct {
@@ -18,6 +18,18 @@ type stubProv struct {
 }
 
 func (s *stubProv) Type() string { return s.typ }
+
+// Describe mirrors the real providers closely enough for validation: search types take queries
+// and no URL, crawled types need allowed domains, everything else needs a URL.
+func (s *stubProv) Describe(t string) discovery.Descriptor {
+	switch t {
+	case discovery.TypeGDELT, discovery.TypeGoogleNews:
+		return discovery.Descriptor{Type: t, URL: discovery.URLNone, UsesQueries: true}
+	case discovery.TypeIndexPage, discovery.TypePolicePress:
+		return discovery.Descriptor{Type: t, URL: discovery.URLRequired, Crawl: discovery.CrawlFields{AllowedDomains: true, RequireDomains: true}}
+	}
+	return discovery.Descriptor{Type: t, URL: discovery.URLRequired}
+}
 func (s *stubProv) Discover(_ context.Context, r discovery.Request) (*discovery.Result, error) {
 	s.last = r
 	pub := time.Date(2026, 10, 16, 14, 0, 0, 0, time.UTC)
@@ -27,6 +39,9 @@ func (s *stubProv) Discover(_ context.Context, r discovery.Request) (*discovery.
 	}}, nil
 }
 
+// example is the shipped example source file; tests use it as realistic configuration.
+const example = "../../docs/examples/sources.yaml"
+
 func testRegistry() (*discovery.Registry, *stubProv, *stubProv) {
 	reg := discovery.NewRegistry()
 	rss, gd := &stubProv{typ: "rss"}, &stubProv{typ: "gdelt"}
@@ -35,9 +50,9 @@ func testRegistry() (*discovery.Registry, *stubProv, *stubProv) {
 	return reg, rss, gd
 }
 
-func TestSourcesValidateDefaults(t *testing.T) {
+func TestSourcesValidateExamples(t *testing.T) {
 	reg, _, _ := testRegistry()
-	out, _, err := run(t, deps{registry: reg}, "sources", "validate")
+	out, _, err := run(t, deps{registry: reg}, "sources", "validate", "--file", example)
 	if err != nil || !strings.Contains(out, "OK:") {
 		t.Fatalf("%v %s", err, out)
 	}
@@ -55,7 +70,7 @@ func TestSourcesValidateCatchesBadFile(t *testing.T) {
 
 func TestDiscoverDryRunUsesSeedsAndNoDatabase(t *testing.T) {
 	reg, rss, _ := testRegistry()
-	out, _, err := run(t, deps{registry: reg}, "discover", "--source", "oaklandside", "--dry-run", "--lookback", "6h")
+	out, _, err := run(t, deps{registry: reg}, "discover", "--source", "oaklandside", "--dry-run", "--lookback", "6h", "--seed-file", example)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +86,7 @@ func TestDiscoverDryRunUsesSeedsAndNoDatabase(t *testing.T) {
 
 func TestDiscoverSearchProviderGetsSeededQueries(t *testing.T) {
 	reg, _, gd := testRegistry()
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "gdelt", "--dry-run"); err != nil {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "gdelt", "--dry-run", "--seed-file", example); err != nil {
 		t.Fatal(err)
 	}
 	if len(gd.last.Queries) < 10 || gd.last.Source.Slug != "gdelt-us" {
@@ -81,13 +96,13 @@ func TestDiscoverSearchProviderGetsSeededQueries(t *testing.T) {
 
 func TestDiscoverProviderAmbiguousAndMissing(t *testing.T) {
 	reg, _, _ := testRegistry()
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "rss", "--dry-run"); err == nil || !strings.Contains(err.Error(), "choose one with --source") {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "rss", "--dry-run", "--seed-file", example); err == nil || !strings.Contains(err.Error(), "choose one with --source") {
 		t.Fatalf("got %v", err)
 	}
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "sitemap", "--dry-run"); err == nil || !strings.Contains(err.Error(), "no enabled source") {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--provider", "sitemap", "--dry-run", "--seed-file", example); err == nil || !strings.Contains(err.Error(), "no enabled source") {
 		t.Fatalf("got %v", err)
 	}
-	if _, _, err := run(t, deps{registry: reg}, "discover", "--dry-run"); err == nil {
+	if _, _, err := run(t, deps{registry: reg}, "discover", "--dry-run", "--seed-file", example); err == nil {
 		t.Fatal("needs --source or --provider")
 	}
 }
@@ -101,15 +116,18 @@ func TestDiscoverWithoutDryRunRequiresDatabase(t *testing.T) {
 
 func TestDiscoverJSONAndRecordWithInjectedRepo(t *testing.T) {
 	reg, _, _ := testRegistry()
-	f, _ := seed.Defaults()
-	out, _, err := run(t, deps{registry: reg, repo: seed.MemoryRepo{F: f}}, "discover", "--source", "oaklandside", "--json")
+	f, err := sourcefile.Load("../../docs/examples/sources.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := run(t, deps{registry: reg, repo: sourcefile.MemoryRepo{F: f}}, "discover", "--source", "oaklandside", "--json")
 	if err != nil || !strings.Contains(out, `"Normalized": "https://gazette.example.com/a"`) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 }
 
-func TestSourcesListFromSeeds(t *testing.T) {
-	out, _, err := run(t, deps{}, "sources", "list")
+func TestSourcesListFromAFile(t *testing.T) {
+	out, _, err := run(t, deps{}, "sources", "list", "--file", "../../docs/examples/sources.yaml")
 	if err != nil || !strings.Contains(out, "gdelt-us") || !strings.Contains(out, "streetsblog-cal") {
 		t.Fatalf("%v\n%s", err, out)
 	}

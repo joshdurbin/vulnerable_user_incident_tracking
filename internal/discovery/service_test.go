@@ -10,7 +10,7 @@ import (
 type fakeRepo struct {
 	queries  []Query
 	recorded []Deduped
-	marks    []error
+	runs     []RunRecord
 	recErr   error
 	known    map[string]bool
 }
@@ -21,8 +21,8 @@ func (f *fakeRepo) Source(context.Context, string) (Source, error) {
 func (f *fakeRepo) Sources(context.Context, bool) ([]Source, error)         { return nil, nil }
 func (f *fakeRepo) Queries(context.Context, string) ([]Query, error)        { return f.queries, nil }
 func (f *fakeRepo) Stats(context.Context, time.Time) ([]SourceStats, error) { return nil, nil }
-func (f *fakeRepo) MarkResult(_ context.Context, _ string, _ time.Time, err error) error {
-	f.marks = append(f.marks, err)
+func (f *fakeRepo) FinishRun(_ context.Context, rec RunRecord) error {
+	f.runs = append(f.runs, rec)
 	return nil
 }
 func (f *fakeRepo) Record(_ context.Context, _ Source, items []Deduped) (RecordResult, error) {
@@ -49,6 +49,10 @@ type stubProvider struct {
 }
 
 func (s *stubProvider) Type() string { return s.typ }
+func (s *stubProvider) Describe(string) Descriptor {
+	// The search types run queries, like the real GDELT and Google News providers.
+	return Descriptor{Type: s.typ, UsesQueries: s.typ == TypeGDELT || s.typ == TypeGoogleNews}
+}
 func (s *stubProvider) Discover(_ context.Context, r Request) (*Result, error) {
 	s.last = r
 	return s.res, s.err
@@ -75,8 +79,8 @@ func TestRunDedupesRecordsAndMarksSuccess(t *testing.T) {
 	if rep.Found != 4 || rep.Unique != 2 || len(rep.Rejected) != 1 || len(rep.New) != 1 || rep.Known != 1 || rep.Unresolved != 1 || rep.Requests != 2 {
 		t.Fatalf("%+v", rep)
 	}
-	if len(repo.marks) != 1 || repo.marks[0] != nil {
-		t.Fatalf("marks %v", repo.marks)
+	if len(repo.runs) != 1 || repo.runs[0].Status != RunSuccess || repo.runs[0].Found != 4 || repo.runs[0].New != 1 || repo.runs[0].Requests != 2 || repo.runs[0].Slug != "s" {
+		t.Fatalf("runs %+v", repo.runs)
 	}
 	if got := p.last.Window.Duration(); got != 2*time.Hour {
 		t.Fatalf("default window should be at least 2h with overlap, got %v", got)
@@ -87,7 +91,7 @@ func TestDryRunDoesNotPersistOrMark(t *testing.T) {
 	p := &stubProvider{typ: "stub", res: &Result{Candidates: []Candidate{{URL: "https://n.example.com/a"}}}}
 	repo := &fakeRepo{}
 	rep, err := svc(p, repo).Run(context.Background(), RunRequest{Source: Source{Slug: "s", Type: "stub"}, DryRun: true})
-	if err != nil || rep.Unique != 1 || len(rep.New) != 0 || repo.recorded != nil || len(repo.marks) != 0 {
+	if err != nil || rep.Unique != 1 || len(rep.New) != 0 || repo.recorded != nil || len(repo.runs) != 0 {
 		t.Fatalf("%+v %v %+v", rep, err, repo)
 	}
 }
@@ -96,8 +100,8 @@ func TestProviderFailureMarksSourceFailed(t *testing.T) {
 	boom := errors.New("upstream down")
 	repo := &fakeRepo{}
 	_, err := svc(&stubProvider{typ: "stub", res: &Result{}, err: boom}, repo).Run(context.Background(), RunRequest{Source: Source{Slug: "s", Type: "stub"}})
-	if !errors.Is(err, boom) || len(repo.marks) != 1 || repo.marks[0] == nil {
-		t.Fatalf("err=%v marks=%v", err, repo.marks)
+	if !errors.Is(err, boom) || len(repo.runs) != 1 || repo.runs[0].Status != RunFailed || repo.runs[0].Error != "upstream down" {
+		t.Fatalf("err=%v runs=%+v", err, repo.runs)
 	}
 }
 
@@ -108,13 +112,16 @@ func TestPartialResultsAreRecordedWithWarning(t *testing.T) {
 	if err != nil || len(rep.New) != 1 || len(rep.Warnings) == 0 {
 		t.Fatalf("%+v %v", rep, err)
 	}
+	if len(repo.runs) != 1 || repo.runs[0].Status != RunPartial || repo.runs[0].Error != "one query failed" {
+		t.Fatalf("a partial run must be recorded as partial with its error: %+v", repo.runs)
+	}
 }
 
 func TestRecordFailureIsReportedAndMarked(t *testing.T) {
 	repo := &fakeRepo{recErr: errors.New("db down")}
 	p := &stubProvider{typ: "stub", res: &Result{Candidates: []Candidate{{URL: "https://n.example.com/a"}}}}
-	if _, err := svc(p, repo).Run(context.Background(), RunRequest{Source: Source{Slug: "s", Type: "stub"}}); err == nil || len(repo.marks) != 1 || repo.marks[0] == nil {
-		t.Fatalf("err=%v marks=%v", err, repo.marks)
+	if _, err := svc(p, repo).Run(context.Background(), RunRequest{Source: Source{Slug: "s", Type: "stub"}}); err == nil || len(repo.runs) != 1 || repo.runs[0].Status != RunFailed {
+		t.Fatalf("err=%v runs=%+v", err, repo.runs)
 	}
 }
 

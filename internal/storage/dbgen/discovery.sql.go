@@ -12,6 +12,30 @@ import (
 	"github.com/google/uuid"
 )
 
+const deleteQuery = `-- name: DeleteQuery :execrows
+DELETE FROM discovery_queries WHERE name = $1
+`
+
+func (q *Queries) DeleteQuery(ctx context.Context, name string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteQuery, name)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteSource = `-- name: DeleteSource :execrows
+DELETE FROM discovery_sources WHERE slug = $1
+`
+
+func (q *Queries) DeleteSource(ctx context.Context, slug string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSource, slug)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const discoveryStats = `-- name: DiscoveryStats :many
 WITH d AS (
     SELECT ad.id, ad.discovered_url_id, ad.provider, ad.source_id, ad.query_id, ad.discovered_at, ad.published_at, ad.raw_title, ad.raw_url, s.slug AS source_slug
@@ -84,6 +108,26 @@ func (q *Queries) DiscoveryStats(ctx context.Context, since time.Time) ([]Discov
 	return items, nil
 }
 
+const getQueryByName = `-- name: GetQueryByName :one
+SELECT id, family, name, query_text, providers, region, enabled, created_at FROM discovery_queries WHERE name = $1
+`
+
+func (q *Queries) GetQueryByName(ctx context.Context, name string) (DiscoveryQuery, error) {
+	row := q.db.QueryRow(ctx, getQueryByName, name)
+	var i DiscoveryQuery
+	err := row.Scan(
+		&i.ID,
+		&i.Family,
+		&i.Name,
+		&i.QueryText,
+		&i.Providers,
+		&i.Region,
+		&i.Enabled,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getQueryIDByName = `-- name: GetQueryIDByName :one
 SELECT id FROM discovery_queries WHERE name = $1
 `
@@ -96,7 +140,7 @@ func (q *Queries) GetQueryIDByName(ctx context.Context, name string) (uuid.UUID,
 }
 
 const getSourceBySlug = `-- name: GetSourceBySlug :one
-SELECT id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at FROM discovery_sources WHERE slug = $1
+SELECT id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at FROM discovery_sources WHERE slug = $1
 `
 
 func (q *Queries) GetSourceBySlug(ctx context.Context, slug string) (DiscoverySource, error) {
@@ -112,7 +156,6 @@ func (q *Queries) GetSourceBySlug(ctx context.Context, slug string) (DiscoverySo
 		&i.PollIntervalSeconds,
 		&i.Enabled,
 		&i.CrawlPolicy,
-		&i.RateLimitPerMinute,
 		&i.LastSuccessAt,
 		&i.LastAttemptAt,
 		&i.ConsecutiveFailures,
@@ -155,6 +198,93 @@ func (q *Queries) InsertArticleDiscovery(ctx context.Context, arg InsertArticleD
 	return result.RowsAffected(), nil
 }
 
+const insertDiscoveryRun = `-- name: InsertDiscoveryRun :exec
+INSERT INTO discovery_runs (source_id, started_at, finished_at, window_since, window_until, status, found, unique_urls,
+                            new_urls, known_urls, pending_urls, unresolved, requests, truncated, warnings, error)
+SELECT s.id, $1, $2, $3, $4, $5, $6, $7,
+       $8, $9, $10, $11, $12, $13, $14::text[], $15
+FROM discovery_sources s WHERE s.slug = $16
+`
+
+type InsertDiscoveryRunParams struct {
+	StartedAt   time.Time  `json:"started_at"`
+	FinishedAt  time.Time  `json:"finished_at"`
+	WindowSince *time.Time `json:"window_since"`
+	WindowUntil *time.Time `json:"window_until"`
+	Status      string     `json:"status"`
+	Found       int32      `json:"found"`
+	UniqueUrls  int32      `json:"unique_urls"`
+	NewUrls     int32      `json:"new_urls"`
+	KnownUrls   int32      `json:"known_urls"`
+	PendingUrls int32      `json:"pending_urls"`
+	Unresolved  int32      `json:"unresolved"`
+	Requests    int32      `json:"requests"`
+	Truncated   bool       `json:"truncated"`
+	Warnings    []string   `json:"warnings"`
+	Error       *string    `json:"error"`
+	Slug        string     `json:"slug"`
+}
+
+func (q *Queries) InsertDiscoveryRun(ctx context.Context, arg InsertDiscoveryRunParams) error {
+	_, err := q.db.Exec(ctx, insertDiscoveryRun,
+		arg.StartedAt,
+		arg.FinishedAt,
+		arg.WindowSince,
+		arg.WindowUntil,
+		arg.Status,
+		arg.Found,
+		arg.UniqueUrls,
+		arg.NewUrls,
+		arg.KnownUrls,
+		arg.PendingUrls,
+		arg.Unresolved,
+		arg.Requests,
+		arg.Truncated,
+		arg.Warnings,
+		arg.Error,
+		arg.Slug,
+	)
+	return err
+}
+
+const insertQuery = `-- name: InsertQuery :one
+INSERT INTO discovery_queries (family, name, query_text, providers, region, enabled)
+VALUES ($1,$2,$3,$4,$5,$6)
+RETURNING id, family, name, query_text, providers, region, enabled, created_at
+`
+
+type InsertQueryParams struct {
+	Family    string   `json:"family"`
+	Name      string   `json:"name"`
+	QueryText string   `json:"query_text"`
+	Providers []string `json:"providers"`
+	Region    *string  `json:"region"`
+	Enabled   bool     `json:"enabled"`
+}
+
+func (q *Queries) InsertQuery(ctx context.Context, arg InsertQueryParams) (DiscoveryQuery, error) {
+	row := q.db.QueryRow(ctx, insertQuery,
+		arg.Family,
+		arg.Name,
+		arg.QueryText,
+		arg.Providers,
+		arg.Region,
+		arg.Enabled,
+	)
+	var i DiscoveryQuery
+	err := row.Scan(
+		&i.ID,
+		&i.Family,
+		&i.Name,
+		&i.QueryText,
+		&i.Providers,
+		&i.Region,
+		&i.Enabled,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const insertQueryIfMissing = `-- name: InsertQueryIfMissing :execrows
 INSERT INTO discovery_queries (family, name, query_text, providers, region, enabled)
 VALUES ($1,$2,$3,$4,$5,$6)
@@ -185,9 +315,58 @@ func (q *Queries) InsertQueryIfMissing(ctx context.Context, arg InsertQueryIfMis
 	return result.RowsAffected(), nil
 }
 
+const insertSource = `-- name: InsertSource :one
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+RETURNING id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at
+`
+
+type InsertSourceParams struct {
+	Slug                string  `json:"slug"`
+	Name                string  `json:"name"`
+	SourceType          string  `json:"source_type"`
+	Url                 *string `json:"url"`
+	Coverage            []byte  `json:"coverage"`
+	PollIntervalSeconds int32   `json:"poll_interval_seconds"`
+	Enabled             bool    `json:"enabled"`
+	CrawlPolicy         []byte  `json:"crawl_policy"`
+}
+
+func (q *Queries) InsertSource(ctx context.Context, arg InsertSourceParams) (DiscoverySource, error) {
+	row := q.db.QueryRow(ctx, insertSource,
+		arg.Slug,
+		arg.Name,
+		arg.SourceType,
+		arg.Url,
+		arg.Coverage,
+		arg.PollIntervalSeconds,
+		arg.Enabled,
+		arg.CrawlPolicy,
+	)
+	var i DiscoverySource
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.SourceType,
+		&i.Url,
+		&i.Coverage,
+		&i.PollIntervalSeconds,
+		&i.Enabled,
+		&i.CrawlPolicy,
+		&i.LastSuccessAt,
+		&i.LastAttemptAt,
+		&i.ConsecutiveFailures,
+		&i.ErrorState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertSourceIfMissing = `-- name: InsertSourceIfMissing :execrows
-INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 ON CONFLICT (slug) DO NOTHING
 `
 
@@ -200,7 +379,6 @@ type InsertSourceIfMissingParams struct {
 	PollIntervalSeconds int32   `json:"poll_interval_seconds"`
 	Enabled             bool    `json:"enabled"`
 	CrawlPolicy         []byte  `json:"crawl_policy"`
-	RateLimitPerMinute  int32   `json:"rate_limit_per_minute"`
 }
 
 // For first-install bootstrap: never overwrites what an operator changed.
@@ -214,12 +392,94 @@ func (q *Queries) InsertSourceIfMissing(ctx context.Context, arg InsertSourceIfM
 		arg.PollIntervalSeconds,
 		arg.Enabled,
 		arg.CrawlPolicy,
-		arg.RateLimitPerMinute,
 	)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const listAllQueries = `-- name: ListAllQueries :many
+SELECT id, family, name, query_text, providers, region, enabled, created_at FROM discovery_queries ORDER BY family, name
+`
+
+func (q *Queries) ListAllQueries(ctx context.Context) ([]DiscoveryQuery, error) {
+	rows, err := q.db.Query(ctx, listAllQueries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DiscoveryQuery
+	for rows.Next() {
+		var i DiscoveryQuery
+		if err := rows.Scan(
+			&i.ID,
+			&i.Family,
+			&i.Name,
+			&i.QueryText,
+			&i.Providers,
+			&i.Region,
+			&i.Enabled,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDiscoveryRuns = `-- name: ListDiscoveryRuns :many
+SELECT r.id, r.source_id, r.started_at, r.finished_at, r.window_since, r.window_until, r.status, r.found, r.unique_urls, r.new_urls, r.known_urls, r.pending_urls, r.unresolved, r.requests, r.truncated, r.warnings, r.error FROM discovery_runs r JOIN discovery_sources s ON s.id = r.source_id
+WHERE s.slug = $1
+ORDER BY r.started_at DESC
+LIMIT $2::int
+`
+
+type ListDiscoveryRunsParams struct {
+	Slug    string `json:"slug"`
+	MaxRows int32  `json:"max_rows"`
+}
+
+func (q *Queries) ListDiscoveryRuns(ctx context.Context, arg ListDiscoveryRunsParams) ([]DiscoveryRun, error) {
+	rows, err := q.db.Query(ctx, listDiscoveryRuns, arg.Slug, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DiscoveryRun
+	for rows.Next() {
+		var i DiscoveryRun
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.WindowSince,
+			&i.WindowUntil,
+			&i.Status,
+			&i.Found,
+			&i.UniqueUrls,
+			&i.NewUrls,
+			&i.KnownUrls,
+			&i.PendingUrls,
+			&i.Unresolved,
+			&i.Requests,
+			&i.Truncated,
+			&i.Warnings,
+			&i.Error,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listQueriesForProvider = `-- name: ListQueriesForProvider :many
@@ -258,7 +518,7 @@ func (q *Queries) ListQueriesForProvider(ctx context.Context, provider string) (
 }
 
 const listSources = `-- name: ListSources :many
-SELECT id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at FROM discovery_sources WHERE (NOT $1::bool OR enabled) ORDER BY slug
+SELECT id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at FROM discovery_sources WHERE (NOT $1::bool OR enabled) ORDER BY slug
 `
 
 func (q *Queries) ListSources(ctx context.Context, enabledOnly bool) ([]DiscoverySource, error) {
@@ -280,7 +540,6 @@ func (q *Queries) ListSources(ctx context.Context, enabledOnly bool) ([]Discover
 			&i.PollIntervalSeconds,
 			&i.Enabled,
 			&i.CrawlPolicy,
-			&i.RateLimitPerMinute,
 			&i.LastSuccessAt,
 			&i.LastAttemptAt,
 			&i.ConsecutiveFailures,
@@ -327,6 +586,166 @@ type MarkSourceSuccessParams struct {
 func (q *Queries) MarkSourceSuccess(ctx context.Context, arg MarkSourceSuccessParams) error {
 	_, err := q.db.Exec(ctx, markSourceSuccess, arg.At, arg.Slug)
 	return err
+}
+
+const pruneDiscoveryRuns = `-- name: PruneDiscoveryRuns :execrows
+DELETE FROM discovery_runs WHERE started_at < $1
+`
+
+func (q *Queries) PruneDiscoveryRuns(ctx context.Context, startedAt time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, pruneDiscoveryRuns, startedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const sourceRunStats = `-- name: SourceRunStats :many
+SELECT s.slug::text AS slug,
+       count(r.id)::bigint AS runs,
+       count(r.id) FILTER (WHERE r.status = 'success')::bigint AS successes,
+       count(r.id) FILTER (WHERE r.status = 'partial')::bigint AS partials,
+       count(r.id) FILTER (WHERE r.status = 'failed')::bigint AS failures,
+       COALESCE(avg(extract(epoch FROM (r.finished_at - r.started_at))), 0)::float8 AS avg_seconds,
+       COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM (r.finished_at - r.started_at))), 0)::float8 AS p95_seconds,
+       COALESCE(sum(r.new_urls), 0)::bigint AS new_urls,
+       COALESCE(sum(r.requests), 0)::bigint AS requests
+FROM discovery_sources s
+LEFT JOIN discovery_runs r ON r.source_id = s.id AND r.started_at >= $1::timestamptz
+GROUP BY s.slug
+`
+
+type SourceRunStatsRow struct {
+	Slug       string  `json:"slug"`
+	Runs       int64   `json:"runs"`
+	Successes  int64   `json:"successes"`
+	Partials   int64   `json:"partials"`
+	Failures   int64   `json:"failures"`
+	AvgSeconds float64 `json:"avg_seconds"`
+	P95Seconds float64 `json:"p95_seconds"`
+	NewUrls    int64   `json:"new_urls"`
+	Requests   int64   `json:"requests"`
+}
+
+// Per source over a recent window: how often it runs, how often it works, how long it takes,
+// and how much it finds.
+func (q *Queries) SourceRunStats(ctx context.Context, since time.Time) ([]SourceRunStatsRow, error) {
+	rows, err := q.db.Query(ctx, sourceRunStats, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SourceRunStatsRow
+	for rows.Next() {
+		var i SourceRunStatsRow
+		if err := rows.Scan(
+			&i.Slug,
+			&i.Runs,
+			&i.Successes,
+			&i.Partials,
+			&i.Failures,
+			&i.AvgSeconds,
+			&i.P95Seconds,
+			&i.NewUrls,
+			&i.Requests,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateQuery = `-- name: UpdateQuery :one
+UPDATE discovery_queries SET family = $1, query_text = $2, providers = $3, region = $4, enabled = $5
+WHERE name = $6
+RETURNING id, family, name, query_text, providers, region, enabled, created_at
+`
+
+type UpdateQueryParams struct {
+	Family    string   `json:"family"`
+	QueryText string   `json:"query_text"`
+	Providers []string `json:"providers"`
+	Region    *string  `json:"region"`
+	Enabled   bool     `json:"enabled"`
+	Name      string   `json:"name"`
+}
+
+func (q *Queries) UpdateQuery(ctx context.Context, arg UpdateQueryParams) (DiscoveryQuery, error) {
+	row := q.db.QueryRow(ctx, updateQuery,
+		arg.Family,
+		arg.QueryText,
+		arg.Providers,
+		arg.Region,
+		arg.Enabled,
+		arg.Name,
+	)
+	var i DiscoveryQuery
+	err := row.Scan(
+		&i.ID,
+		&i.Family,
+		&i.Name,
+		&i.QueryText,
+		&i.Providers,
+		&i.Region,
+		&i.Enabled,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateSource = `-- name: UpdateSource :one
+UPDATE discovery_sources SET name = $1, source_type = $2, url = $3, coverage = $4,
+    poll_interval_seconds = $5, enabled = $6, crawl_policy = $7, updated_at = now()
+WHERE slug = $8
+RETURNING id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at
+`
+
+type UpdateSourceParams struct {
+	Name                string  `json:"name"`
+	SourceType          string  `json:"source_type"`
+	Url                 *string `json:"url"`
+	Coverage            []byte  `json:"coverage"`
+	PollIntervalSeconds int32   `json:"poll_interval_seconds"`
+	Enabled             bool    `json:"enabled"`
+	CrawlPolicy         []byte  `json:"crawl_policy"`
+	Slug                string  `json:"slug"`
+}
+
+// The slug is the identity (it names the Temporal Schedule), so it is not updatable.
+func (q *Queries) UpdateSource(ctx context.Context, arg UpdateSourceParams) (DiscoverySource, error) {
+	row := q.db.QueryRow(ctx, updateSource,
+		arg.Name,
+		arg.SourceType,
+		arg.Url,
+		arg.Coverage,
+		arg.PollIntervalSeconds,
+		arg.Enabled,
+		arg.CrawlPolicy,
+		arg.Slug,
+	)
+	var i DiscoverySource
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.SourceType,
+		&i.Url,
+		&i.Coverage,
+		&i.PollIntervalSeconds,
+		&i.Enabled,
+		&i.CrawlPolicy,
+		&i.LastSuccessAt,
+		&i.LastAttemptAt,
+		&i.ConsecutiveFailures,
+		&i.ErrorState,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const upsertDiscoveredURL = `-- name: UpsertDiscoveredURL :one
@@ -393,12 +812,12 @@ func (q *Queries) UpsertQuery(ctx context.Context, arg UpsertQueryParams) (Disco
 }
 
 const upsertSource = `-- name: UpsertSource :one
-INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, source_type = EXCLUDED.source_type, url = EXCLUDED.url,
     coverage = EXCLUDED.coverage, poll_interval_seconds = EXCLUDED.poll_interval_seconds, enabled = EXCLUDED.enabled,
-    crawl_policy = EXCLUDED.crawl_policy, rate_limit_per_minute = EXCLUDED.rate_limit_per_minute, updated_at = now()
-RETURNING id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at
+    crawl_policy = EXCLUDED.crawl_policy, updated_at = now()
+RETURNING id, slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, last_success_at, last_attempt_at, consecutive_failures, error_state, created_at, updated_at
 `
 
 type UpsertSourceParams struct {
@@ -410,7 +829,6 @@ type UpsertSourceParams struct {
 	PollIntervalSeconds int32   `json:"poll_interval_seconds"`
 	Enabled             bool    `json:"enabled"`
 	CrawlPolicy         []byte  `json:"crawl_policy"`
-	RateLimitPerMinute  int32   `json:"rate_limit_per_minute"`
 }
 
 func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (DiscoverySource, error) {
@@ -423,7 +841,6 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Dis
 		arg.PollIntervalSeconds,
 		arg.Enabled,
 		arg.CrawlPolicy,
-		arg.RateLimitPerMinute,
 	)
 	var i DiscoverySource
 	err := row.Scan(
@@ -436,7 +853,6 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Dis
 		&i.PollIntervalSeconds,
 		&i.Enabled,
 		&i.CrawlPolicy,
-		&i.RateLimitPerMinute,
 		&i.LastSuccessAt,
 		&i.LastAttemptAt,
 		&i.ConsecutiveFailures,

@@ -25,6 +25,21 @@ func New(c crawler.LinkDiscoverer, sourceType string) *Provider {
 
 func (p *Provider) Type() string { return p.typ }
 
+func (p *Provider) Describe(string) discovery.Descriptor {
+	d := discovery.Descriptor{
+		Type: p.typ, Label: "Index page",
+		Description: "Crawls an index page and follows links to article pages, within the allowed domains and limits.",
+		URL:         discovery.URLRequired, URLHint: "https://example.org/news/",
+		Crawl: discovery.CrawlFields{AllowedDomains: true, RequireDomains: true, URLPatterns: true, MaxPages: true, MaxDepth: true, Render: true},
+	}
+	if p.typ == discovery.TypePolicePress {
+		d.Label = "Police press releases"
+		d.Description = "Crawls an agency's press-release listing and follows links to individual releases, within the allowed domains and limits."
+		d.URLHint = "https://police.example.gov/press-releases/"
+	}
+	return d
+}
+
 const (
 	defaultPages    = 10
 	defaultDepth    = 1
@@ -33,6 +48,9 @@ const (
 
 func (p *Provider) Discover(ctx context.Context, req discovery.Request) (*discovery.Result, error) {
 	src := req.Source
+	if p.crawler == nil {
+		return nil, fmt.Errorf("%s: crawling is not available in this process", p.typ)
+	}
 	if src.URL == "" {
 		return nil, fmt.Errorf("%s: source %q has no url", p.typ, src.Slug)
 	}

@@ -42,7 +42,8 @@ export COLLISION_TEMPORAL_ADDRESS=localhost:7233 COLLISION_TEMPORAL_NAMESPACE=de
 export COLLISION_DATABASE_URL=postgres://... COLLISION_LLM_MODEL=... COLLISION_LLM_BASE_URL=...
 go run ./cmd/collisionctl migrate
 go run ./cmd/collisionctl worker &                      # hosts the workflows and Go activities
-go run ./cmd/collisionctl sources sync && go run ./cmd/collisionctl schedules sync
+go run ./cmd/collisionctl sources import --file docs/examples/sources.yaml   # optional starter set
+go run ./cmd/collisionctl schedules sync
 go run ./cmd/collisionctl api &                         # REST API on :8080
 go run ./cmd/collisionctl fetch https://example.org/article --json
 ```

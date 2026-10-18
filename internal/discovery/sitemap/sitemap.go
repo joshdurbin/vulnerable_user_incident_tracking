@@ -41,6 +41,21 @@ func New(client *http.Client, sourceType string) *Provider {
 
 func (p *Provider) Type() string { return p.typ }
 
+func (p *Provider) Describe(string) discovery.Descriptor {
+	d := discovery.Descriptor{
+		Type: p.typ, Label: "Sitemap",
+		Description: "Reads a sitemap (following sitemap indexes) for recently modified article URLs. Max pages bounds how many sitemap files are read.",
+		URL:         discovery.URLRequired, URLHint: "https://example.org/sitemap.xml",
+		Crawl: discovery.CrawlFields{MaxPages: true},
+	}
+	if p.typ == discovery.TypeNewsSitemap {
+		d.Label = "News sitemap"
+		d.Description = "Reads a Google News sitemap, which lists recent articles with titles and publication times."
+		d.URLHint = "https://example.org/news-sitemap.xml"
+	}
+	return d
+}
+
 type entry struct {
 	loc, title, publisher, lang string
 	when                        *time.Time

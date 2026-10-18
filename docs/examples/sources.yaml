@@ -1,3 +1,24 @@
+# Example discovery sources. They are not loaded automatically: sources live in the database and are managed in the
+# admin UI. Import these with `collisionctl sources import --file docs/examples/sources.yaml`.
+# Feed URLs below were verified to return RSS on 2026-10-16.
+sources:
+  - slug: gdelt-us
+    name: GDELT DOC (US)
+    type: gdelt
+    coverage: {country: US}
+    poll_interval: 30m
+  - slug: googlenews-us
+    name: Google News search (US)
+    type: googlenews
+    coverage: {country: US}
+    poll_interval: 30m
+  - {slug: oaklandside,      name: Oaklandside,            type: rss, url: 'https://oaklandside.org/feed/',      coverage: {country: US, states: [CA], cities: [Oakland]},        poll_interval: 30m}
+  - {slug: streetsblog-cal,  name: Streetsblog California, type: rss, url: 'https://cal.streetsblog.org/feed/',   coverage: {country: US, states: [CA]},                            poll_interval: 1h}
+  - {slug: streetsblog-sf,   name: Streetsblog San Francisco, type: rss, url: 'https://sf.streetsblog.org/feed/', coverage: {country: US, states: [CA], cities: [San Francisco]},   poll_interval: 1h}
+  - {slug: streetsblog-la,   name: Streetsblog Los Angeles, type: rss, url: 'https://la.streetsblog.org/feed/',  coverage: {country: US, states: [CA], cities: [Los Angeles]},     poll_interval: 1h}
+  - {slug: sfist,            name: SFist,                  type: rss, url: 'https://sfist.com/feed/',             coverage: {country: US, states: [CA], cities: [San Francisco]},   poll_interval: 30m}
+  - {slug: laist,            name: LAist,                  type: rss, url: 'https://laist.com/index.rss',         coverage: {country: US, states: [CA], cities: [Los Angeles]},     poll_interval: 30m}
+
 # Discovery query families. Text uses GDELT/Google News syntax: OR groups MUST be parenthesized,
 # phrases in quotes. Wording deliberately avoids requiring "accident" or "crash".
 # providers: [] means every search-style provider.

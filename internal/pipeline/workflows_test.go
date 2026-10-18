@@ -285,11 +285,26 @@ func TestRetentionWorkflowReportsHowManyBodiesWereRemoved(t *testing.T) {
 	env := newEnv(t)
 	env.RegisterWorkflow(RetentionWorkflow)
 	env.OnActivity(act.ExpireArticleText, anyCtx).Return(int64(7), nil)
+	env.OnActivity(act.PruneDiscoveryRuns, anyCtx).Return(int64(40), nil).Once()
 	env.ExecuteWorkflow(RetentionWorkflow)
 	require.NoError(t, env.GetWorkflowError())
 	var n int64
 	require.NoError(t, env.GetWorkflowResult(&n))
 	assert.EqualValues(t, 7, n)
+	env.AssertExpectations(t)
+}
+
+// Trimming run history is housekeeping: if it fails, the retention run still succeeds.
+func TestRetentionWorkflowIgnoresRunHistoryPruneFailure(t *testing.T) {
+	env := newEnv(t)
+	env.RegisterWorkflow(RetentionWorkflow)
+	env.OnActivity(act.ExpireArticleText, anyCtx).Return(int64(3), nil)
+	env.OnActivity(act.PruneDiscoveryRuns, anyCtx).Return(int64(0), temporal.NewNonRetryableApplicationError("db busy", "Busy", nil))
+	env.ExecuteWorkflow(RetentionWorkflow)
+	require.NoError(t, env.GetWorkflowError())
+	var n int64
+	require.NoError(t, env.GetWorkflowResult(&n))
+	assert.EqualValues(t, 3, n)
 }
 
 // ---- rendering escalation ----

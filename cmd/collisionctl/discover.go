@@ -13,7 +13,7 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/googlenews"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/pgrepo"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/registry"
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/seed"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/sourcefile"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 )
 
@@ -39,8 +39,8 @@ func (a *app) discoveryRegistry() (*discovery.Registry, func(), error) {
 }
 
 // discoveryRepo returns the injected repository, PostgreSQL if configured, or
-// (only when memoryOK) the seed files so dry runs need no database.
-func (a *app) discoveryRepo(ctx context.Context, seedFile string, memoryOK bool) (discovery.Repository, func(), error) {
+// (only when memoryOK) a source file, so dry runs need no database.
+func (a *app) discoveryRepo(ctx context.Context, sourceFile string, memoryOK bool) (discovery.Repository, func(), error) {
 	if a.repo != nil {
 		return a.repo, func() {}, nil
 	}
@@ -54,26 +54,20 @@ func (a *app) discoveryRepo(ctx context.Context, seedFile string, memoryOK bool)
 	if !memoryOK {
 		return nil, nil, errors.New("a database is required: --database-url or COLLISION_DATABASE_URL")
 	}
-	f, err := loadSeeds(seedFile)
+	f, err := loadSourceFile(sourceFile)
 	if err != nil {
 		return nil, nil, err
 	}
-	return seed.MemoryRepo{F: f}, func() {}, nil
+	return sourcefile.MemoryRepo{F: f}, func() {}, nil
 }
 
-func loadSeeds(file string) (seed.File, error) {
-	f, err := seed.Defaults()
-	if err != nil {
-		return f, err
+// loadSourceFile reads a sources/queries YAML file. There are no built-in sources: they live
+// in the database, so running without one needs a file.
+func loadSourceFile(path string) (sourcefile.File, error) {
+	if path == "" {
+		return sourcefile.File{}, errors.New("no database configured: give --file with the sources to use, or --database-url / COLLISION_DATABASE_URL")
 	}
-	if file != "" {
-		over, err := seed.LoadFile(file)
-		if err != nil {
-			return f, err
-		}
-		f = seed.Merge(f, over)
-	}
-	return f, nil
+	return sourcefile.Load(path)
 }
 
 func newDiscoverCmd(a *app) *cobra.Command {
@@ -138,7 +132,7 @@ With --dry-run nothing is written and no database is needed: sources and queries
 	f.Duration("lookback", 0, "window length ending now (default: 2x the source poll interval, at least 2h)")
 	f.String("from", "", "window start (RFC3339), for backfills")
 	f.String("to", "", "window end (RFC3339), default now")
-	f.String("seed-file", "", "extra sources/queries YAML merged over the defaults (dry-run without a database)")
+	f.String("seed-file", "", "sources/queries YAML to use instead of a database (dry-run only)")
 	f.Bool("resolve-google-news", false, "resolve Google News links to publisher URLs via an UNDOCUMENTED Google endpoint (COLLISION_DISCOVERY_RESOLVE_GOOGLE_NEWS)")
 	f.StringSlice("query", nil, "only run these configured queries (search providers; repeatable)")
 	f.Int("show", 10, "candidates to print in human output")
@@ -182,7 +176,7 @@ func pickSource(ctx context.Context, repo discovery.Repository, provider string)
 	}
 	switch len(matches) {
 	case 0:
-		return "", fmt.Errorf("no enabled source of type %q; run `collisionctl sources sync` or pass --source", provider)
+		return "", fmt.Errorf("no enabled source of type %q; add one in the admin UI or pass --source", provider)
 	case 1:
 		return matches[0], nil
 	}

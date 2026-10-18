@@ -62,7 +62,8 @@ type Repository interface {
 	Sources(ctx context.Context, enabledOnly bool) ([]Source, error)
 	Queries(ctx context.Context, providerType string) ([]Query, error)
 	Record(ctx context.Context, src Source, items []Deduped) (RecordResult, error)
-	MarkResult(ctx context.Context, slug string, at time.Time, runErr error) error
+	// FinishRun stores the run and updates the source's health fields together.
+	FinishRun(ctx context.Context, rec RunRecord) error
 	Stats(ctx context.Context, since time.Time) ([]SourceStats, error)
 }
 
@@ -116,8 +117,6 @@ func DefaultWindow(src Source, now time.Time) Window {
 	return Window{Since: now.Add(-span), Until: now}
 }
 
-func IsSearchType(t string) bool { return t == TypeGDELT || t == TypeGoogleNews }
-
 func (s *Service) Run(ctx context.Context, rr RunRequest) (*Report, error) {
 	start := s.now()
 	src := rr.Source
@@ -126,15 +125,16 @@ func (s *Service) Run(ctx context.Context, rr RunRequest) (*Report, error) {
 		w = DefaultWindow(src, start)
 	}
 	req := Request{Source: src, Window: w}
-	if IsSearchType(src.Type) && len(rr.AdHocQueries) > 0 {
+	desc, _ := s.reg.Describe(src.Type) // an unknown type is reported by Discover below
+	if desc.UsesQueries && len(rr.AdHocQueries) > 0 {
 		req.Queries = rr.AdHocQueries
-	} else if IsSearchType(src.Type) {
+	} else if desc.UsesQueries {
 		qs, err := s.repo.Queries(ctx, src.Type)
 		if err != nil {
 			return nil, fmt.Errorf("load queries: %w", err)
 		}
 		if len(qs) == 0 {
-			return nil, fmt.Errorf("no enabled queries for provider %s; run `collisionctl sources sync`", src.Type)
+			return nil, fmt.Errorf("no enabled queries for provider %s; add one in the admin UI or with `collisionctl sources import`", src.Type)
 		}
 		if len(rr.QueryNames) > 0 {
 			var keep []Query
@@ -163,13 +163,29 @@ func (s *Service) Run(ctx context.Context, rr RunRequest) (*Report, error) {
 			}
 		}
 	}
-	if derr != nil && (res == nil || len(res.Candidates) == 0) {
-		if !rr.DryRun {
-			_ = s.repo.MarkResult(ctx, src.Slug, s.now(), derr)
+	// finish stores the run (never for a dry run) and returns any storage error.
+	finish := func(status RunStatus, runErr error) error {
+		if rr.DryRun {
+			return nil
 		}
+		rec := RunRecord{
+			Slug: src.Slug, StartedAt: start, FinishedAt: s.now(), Window: w, Status: status,
+			Found: rep.Found, Unique: rep.Unique, New: len(rep.New), Known: rep.Known, Pending: len(rep.Pending),
+			Unresolved: rep.Unresolved, Requests: rep.Requests, Truncated: rep.Truncated, Warnings: rep.Warnings,
+		}
+		if runErr != nil {
+			rec.Error = runErr.Error()
+		}
+		return s.repo.FinishRun(ctx, rec)
+	}
+	if derr != nil && (res == nil || len(res.Candidates) == 0) {
+		_ = finish(RunFailed, derr)
 		return rep, derr
 	}
+	status := RunSuccess
+	var partialErr error
 	if derr != nil {
+		status, partialErr = RunPartial, derr
 		rep.Warnings = append(rep.Warnings, "provider returned partial results: "+derr.Error())
 	}
 
@@ -181,13 +197,13 @@ func (s *Service) Run(ctx context.Context, rr RunRequest) (*Report, error) {
 	if !rr.DryRun {
 		rec, err := s.repo.Record(ctx, src, uniq)
 		if err != nil {
-			_ = s.repo.MarkResult(ctx, src.Slug, s.now(), err)
+			_ = finish(RunFailed, err)
 			return rep, fmt.Errorf("record discoveries: %w", err)
 		}
 		rep.New, rep.Pending, rep.Known = rec.New, rec.Pending, rec.Known
-		if err := s.repo.MarkResult(ctx, src.Slug, s.now(), nil); err != nil {
-			return rep, err
-		}
+	}
+	if err := finish(status, partialErr); err != nil {
+		return rep, err
 	}
 	rep.Duration = s.now().Sub(start)
 	return rep, nil

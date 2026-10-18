@@ -32,11 +32,11 @@ type Source struct {
 	URL          string // feed / sitemap / index page URL; unused by search providers
 	Coverage     Coverage
 	PollInterval time.Duration
-	RatePerMin   int // provider-side request budget; 0 = provider default
 	Crawl        CrawlPolicy
 	// Runtime state (read from the database; ignored by providers).
 	Enabled             bool
 	LastSuccessAt       *time.Time
+	LastAttemptAt       *time.Time
 	ConsecutiveFailures int
 	ErrorState          string
 }
@@ -115,10 +115,14 @@ func (r *Result) Warnf(format string, a ...any) {
 	r.Warnings = append(r.Warnings, fmt.Sprintf(format, a...))
 }
 
-// Provider discovers candidate URLs from one kind of source.
+// Provider discovers candidate URLs from one kind of source. It is the whole contract:
+// Describe is the provider's input side (which Source fields it reads, so configuration
+// can be validated and edited generically), Discover turns a Request into a Result.
 type Provider interface {
-	// Type is the source_type this implementation serves.
+	// Type is the source_type this implementation primarily serves.
 	Type() string
+	// Describe returns the descriptor for one of the types the provider is registered under.
+	Describe(sourceType string) Descriptor
 	Discover(ctx context.Context, req Request) (*Result, error)
 }
 
@@ -132,6 +136,13 @@ type RateLimitedError struct {
 func (e *RateLimitedError) Error() string {
 	return fmt.Sprintf("%s: rate limited (retry after %s)", e.Provider, e.RetryAfter)
 }
+
+// ErrNotFound and ErrAlreadyExists are returned by the repository for a missing or duplicate
+// source or query.
+var (
+	ErrNotFound      = errors.New("not found")
+	ErrAlreadyExists = errors.New("already exists")
+)
 
 // ErrUnknownType is returned for a source type with no registered provider.
 var ErrUnknownType = errors.New("no provider registered for source type")
@@ -162,6 +173,26 @@ func (r *Registry) Provider(sourceType string) (Provider, error) {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownType, sourceType)
 	}
 	return p, nil
+}
+
+// Describe returns the descriptor for a registered source type.
+func (r *Registry) Describe(sourceType string) (Descriptor, bool) {
+	p, ok := r.providers[sourceType]
+	if !ok {
+		return Descriptor{}, false
+	}
+	return p.Describe(sourceType), true
+}
+
+// Descriptors returns every registered type's descriptor, sorted by type.
+func (r *Registry) Descriptors() []Descriptor {
+	types := r.Types()
+	out := make([]Descriptor, 0, len(types))
+	for _, t := range types {
+		d, _ := r.Describe(t)
+		out = append(out, d)
+	}
+	return out
 }
 
 func (r *Registry) Types() []string {

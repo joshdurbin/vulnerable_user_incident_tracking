@@ -124,9 +124,9 @@ spec:
 {{- end }}
 {{- if .Values.jobs.bootstrap }}
 ---
-# After a sync: add any sources and queries that are missing (never overwriting what an
-# operator changed), then make sure every source has a Temporal Schedule (keeping any
-# pause an operator set).
+# After a sync: make sure every configured source has a Temporal Schedule with the current
+# interval (keeping any pause an operator set). Sources themselves live in the database and
+# are managed in the admin UI; nothing is seeded here.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -152,18 +152,6 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         {{- include "ct.podSecurity" . | nindent 8 }}
-      initContainers:
-        - name: sources
-          image: {{ include "ct.image" (dict "ctx" . "image" .Values.image.collisionctl "name" "collisionctl") }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args: ["sources", "sync", "--only-new"]
-          env:
-            {{- include "ct.env" . | nindent 12 }}
-          resources:
-            requests: { cpu: 10m, memory: 32Mi }
-            limits: { memory: 128Mi }
-          securityContext:
-            {{- include "ct.containerSecurity" . | nindent 12 }}
       containers:
         - name: schedules
           image: {{ include "ct.image" (dict "ctx" . "image" .Values.image.collisionctl "name" "collisionctl") }}

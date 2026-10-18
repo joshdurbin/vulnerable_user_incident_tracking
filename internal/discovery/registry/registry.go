@@ -20,7 +20,7 @@ type Deps struct {
 	// SearchHTTP is a NON-retrying client for GDELT and Google News, whose strict
 	// rate limits the providers enforce themselves. Defaults to HTTP if nil (tests).
 	SearchHTTP *http.Client
-	Crawler    crawler.LinkDiscoverer // nil disables crawler-backed source types
+	Crawler    crawler.LinkDiscoverer // nil: crawler-backed types are described and validated but cannot run
 	// GoogleResolvers overrides the Google News resolver chain (default: legacy decoder only).
 	GoogleResolvers []googlenews.Resolver
 }
@@ -41,9 +41,9 @@ func New(d Deps) *discovery.Registry {
 	r.Register(feed.New(d.HTTP), discovery.TypeRSS, discovery.TypeAtom)
 	r.Register(sitemap.New(d.HTTP, discovery.TypeSitemap))
 	r.Register(sitemap.New(d.HTTP, discovery.TypeNewsSitemap))
-	if d.Crawler != nil {
-		r.Register(crawllinks.New(d.Crawler, discovery.TypeIndexPage))
-		r.Register(crawllinks.New(d.Crawler, discovery.TypePolicePress))
-	}
+	// Registered even without a crawler so every process (the API validates and describes
+	// sources) knows the type; running one without a crawler fails with a clear error.
+	r.Register(crawllinks.New(d.Crawler, discovery.TypeIndexPage))
+	r.Register(crawllinks.New(d.Crawler, discovery.TypePolicePress))
 	return r
 }

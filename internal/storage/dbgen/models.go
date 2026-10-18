@@ -89,6 +89,26 @@ type DiscoveryQuery struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type DiscoveryRun struct {
+	ID          uuid.UUID  `json:"id"`
+	SourceID    uuid.UUID  `json:"source_id"`
+	StartedAt   time.Time  `json:"started_at"`
+	FinishedAt  time.Time  `json:"finished_at"`
+	WindowSince *time.Time `json:"window_since"`
+	WindowUntil *time.Time `json:"window_until"`
+	Status      string     `json:"status"`
+	Found       int32      `json:"found"`
+	UniqueUrls  int32      `json:"unique_urls"`
+	NewUrls     int32      `json:"new_urls"`
+	KnownUrls   int32      `json:"known_urls"`
+	PendingUrls int32      `json:"pending_urls"`
+	Unresolved  int32      `json:"unresolved"`
+	Requests    int32      `json:"requests"`
+	Truncated   bool       `json:"truncated"`
+	Warnings    []string   `json:"warnings"`
+	Error       *string    `json:"error"`
+}
+
 type DiscoverySource struct {
 	ID                  uuid.UUID  `json:"id"`
 	Slug                string     `json:"slug"`
@@ -99,7 +119,6 @@ type DiscoverySource struct {
 	PollIntervalSeconds int32      `json:"poll_interval_seconds"`
 	Enabled             bool       `json:"enabled"`
 	CrawlPolicy         []byte     `json:"crawl_policy"`
-	RateLimitPerMinute  int32      `json:"rate_limit_per_minute"`
 	LastSuccessAt       *time.Time `json:"last_success_at"`
 	LastAttemptAt       *time.Time `json:"last_attempt_at"`
 	ConsecutiveFailures int32      `json:"consecutive_failures"`

@@ -24,6 +24,18 @@ func New(client *http.Client) *Provider { return &Provider{client: client, maxLe
 // Type returns "rss"; register the same provider for "atom" too (gofeed reads both).
 func (p *Provider) Type() string { return discovery.TypeRSS }
 
+func (p *Provider) Describe(sourceType string) discovery.Descriptor {
+	label := "RSS feed"
+	if sourceType == discovery.TypeAtom {
+		label = "Atom feed"
+	}
+	return discovery.Descriptor{
+		Type: sourceType, Label: label,
+		Description: "Reads the entries of one RSS or Atom feed.",
+		URL:         discovery.URLRequired, URLHint: "https://example.org/feed/",
+	}
+}
+
 func (p *Provider) Discover(ctx context.Context, req discovery.Request) (*discovery.Result, error) {
 	res := &discovery.Result{}
 	if req.Source.URL == "" {

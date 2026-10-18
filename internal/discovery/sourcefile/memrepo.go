@@ -1,4 +1,4 @@
-package seed
+package sourcefile
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 )
 
-// MemoryRepo is a read-only discovery.Repository over seed files. It lets
+// MemoryRepo is a read-only discovery.Repository over a source file. It lets
 // `discover --dry-run` and tests run with no database. Record treats every URL as
 // new and persists nothing.
 type MemoryRepo struct{ F File }
@@ -21,7 +21,7 @@ func (m MemoryRepo) Source(_ context.Context, slug string) (discovery.Source, er
 			return s.ToSource(), nil
 		}
 	}
-	return discovery.Source{}, fmt.Errorf("unknown source %q", slug)
+	return discovery.Source{}, fmt.Errorf("%w: source %q", discovery.ErrNotFound, slug)
 }
 
 func (m MemoryRepo) Sources(_ context.Context, enabledOnly bool) ([]discovery.Source, error) {
@@ -62,7 +62,7 @@ func (m MemoryRepo) Record(_ context.Context, _ discovery.Source, items []discov
 	return out, nil
 }
 
-func (MemoryRepo) MarkResult(context.Context, string, time.Time, error) error { return nil }
+func (MemoryRepo) FinishRun(context.Context, discovery.RunRecord) error { return nil }
 func (MemoryRepo) Stats(context.Context, time.Time) ([]discovery.SourceStats, error) {
 	return nil, fmt.Errorf("stats need a database")
 }

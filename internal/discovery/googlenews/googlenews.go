@@ -57,6 +57,14 @@ func New(client *http.Client, opts ...Option) *Provider {
 
 func (p *Provider) Type() string { return discovery.TypeGoogleNews }
 
+func (p *Provider) Describe(string) discovery.Descriptor {
+	return discovery.Descriptor{
+		Type: discovery.TypeGoogleNews, Label: "Google News",
+		Description: "Searches Google News RSS with the configured queries. Needs no URL; coverage picks the search locale.",
+		URL:         discovery.URLNone, UsesQueries: true, UsesCoverage: true,
+	}
+}
+
 var titleSuffix = regexp.MustCompile(`\s+-\s+[^-]{1,80}$`)
 
 func (p *Provider) Discover(ctx context.Context, req discovery.Request) (*discovery.Result, error) {

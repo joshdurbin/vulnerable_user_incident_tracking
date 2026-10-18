@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/seed"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
@@ -27,7 +26,7 @@ var _ discovery.Repository = (*Repo)(nil)
 func toSource(r dbgen.DiscoverySource) (discovery.Source, error) {
 	s := discovery.Source{
 		Slug: r.Slug, Name: r.Name, Type: r.SourceType, Enabled: r.Enabled, PollInterval: time.Duration(r.PollIntervalSeconds) * time.Second,
-		RatePerMin: int(r.RateLimitPerMinute), LastSuccessAt: r.LastSuccessAt, ConsecutiveFailures: int(r.ConsecutiveFailures),
+		LastSuccessAt: r.LastSuccessAt, LastAttemptAt: r.LastAttemptAt, ConsecutiveFailures: int(r.ConsecutiveFailures),
 	}
 	if r.Url != nil {
 		s.URL = *r.Url
@@ -47,7 +46,7 @@ func toSource(r dbgen.DiscoverySource) (discovery.Source, error) {
 func (r *Repo) Source(ctx context.Context, slug string) (discovery.Source, error) {
 	row, err := r.store.Queries().GetSourceBySlug(ctx, slug)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return discovery.Source{}, fmt.Errorf("unknown source %q", slug)
+		return discovery.Source{}, fmt.Errorf("%w: source %q", discovery.ErrNotFound, slug)
 	}
 	if err != nil {
 		return discovery.Source{}, err
@@ -184,18 +183,6 @@ func orDefault(s, d string) string {
 	return s
 }
 
-func (r *Repo) MarkResult(ctx context.Context, slug string, at time.Time, runErr error) error {
-	q := r.store.Queries()
-	if runErr == nil {
-		return q.MarkSourceSuccess(ctx, dbgen.MarkSourceSuccessParams{At: &at, Slug: slug})
-	}
-	msg := runErr.Error()
-	if len(msg) > 500 {
-		msg = msg[:500]
-	}
-	return q.MarkSourceFailure(ctx, dbgen.MarkSourceFailureParams{At: &at, Err: &msg, Slug: slug})
-}
-
 func (r *Repo) Stats(ctx context.Context, since time.Time) ([]discovery.SourceStats, error) {
 	rows, err := r.store.Queries().DiscoveryStats(ctx, since)
 	if err != nil {
@@ -210,94 +197,4 @@ func (r *Repo) Stats(ctx context.Context, since time.Time) ([]discovery.SourceSt
 		})
 	}
 	return out, nil
-}
-
-// Sync upserts a validated seed file (sources and queries) into the database.
-func (r *Repo) Sync(ctx context.Context, f seed.File) (sources, queries int, err error) {
-	err = r.store.InTx(ctx, func(q *dbgen.Queries) error {
-		for _, s := range f.Sources {
-			cov, _ := json.Marshal(s.Coverage)
-			crawl, _ := json.Marshal(s.Crawl)
-			var u *string
-			if s.URL != "" {
-				u = &s.URL
-			}
-			rate := int32(s.RateLimitPerMinute)
-			if rate == 0 {
-				rate = 30
-			}
-			if _, err := q.UpsertSource(ctx, dbgen.UpsertSourceParams{
-				Slug: s.Slug, Name: s.Name, SourceType: s.Type, Url: u, Coverage: cov,
-				PollIntervalSeconds: int32(s.PollInterval / time.Second), Enabled: s.IsEnabled(), CrawlPolicy: crawl, RateLimitPerMinute: rate,
-			}); err != nil {
-				return fmt.Errorf("source %s: %w", s.Slug, err)
-			}
-			sources++
-		}
-		for _, qs := range f.Queries {
-			var region *string
-			if qs.Region != "" {
-				region = &qs.Region
-			}
-			provs := qs.Providers
-			if provs == nil {
-				provs = []string{}
-			}
-			if _, err := q.UpsertQuery(ctx, dbgen.UpsertQueryParams{
-				Family: qs.Family, Name: qs.Name, QueryText: qs.Text, Providers: provs, Region: region, Enabled: qs.IsEnabled(),
-			}); err != nil {
-				return fmt.Errorf("query %s: %w", qs.Name, err)
-			}
-			queries++
-		}
-		return nil
-	})
-	return
-}
-
-// SyncNew adds sources and queries from the seed that do not exist yet and leaves existing
-// rows exactly as they are, so re-running it after an operator disabled a source or edited
-// a query changes nothing. It returns how many rows were added.
-func (r *Repo) SyncNew(ctx context.Context, f seed.File) (sources, queries int, err error) {
-	err = r.store.InTx(ctx, func(q *dbgen.Queries) error {
-		for _, s := range f.Sources {
-			cov, _ := json.Marshal(s.Coverage)
-			crawl, _ := json.Marshal(s.Crawl)
-			var u *string
-			if s.URL != "" {
-				u = &s.URL
-			}
-			rate := int32(s.RateLimitPerMinute)
-			if rate == 0 {
-				rate = 30
-			}
-			n, err := q.InsertSourceIfMissing(ctx, dbgen.InsertSourceIfMissingParams{
-				Slug: s.Slug, Name: s.Name, SourceType: s.Type, Url: u, Coverage: cov,
-				PollIntervalSeconds: int32(s.PollInterval / time.Second), Enabled: s.IsEnabled(), CrawlPolicy: crawl, RateLimitPerMinute: rate,
-			})
-			if err != nil {
-				return fmt.Errorf("source %s: %w", s.Slug, err)
-			}
-			sources += int(n)
-		}
-		for _, qs := range f.Queries {
-			var region *string
-			if qs.Region != "" {
-				region = &qs.Region
-			}
-			provs := qs.Providers
-			if provs == nil {
-				provs = []string{}
-			}
-			n, err := q.InsertQueryIfMissing(ctx, dbgen.InsertQueryIfMissingParams{
-				Family: qs.Family, Name: qs.Name, QueryText: qs.Text, Providers: provs, Region: region, Enabled: qs.IsEnabled(),
-			})
-			if err != nil {
-				return fmt.Errorf("query %s: %w", qs.Name, err)
-			}
-			queries += int(n)
-		}
-		return nil
-	})
-	return
 }

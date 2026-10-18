@@ -60,6 +60,14 @@ func New(client *http.Client, opts ...Option) *Provider {
 
 func (p *Provider) Type() string { return discovery.TypeGDELT }
 
+func (p *Provider) Describe(string) discovery.Descriptor {
+	return discovery.Descriptor{
+		Type: discovery.TypeGDELT, Label: "GDELT",
+		Description: "Searches the GDELT DOC 2.0 news index with the configured queries. Needs no URL; coverage narrows the search by country.",
+		URL:         discovery.URLNone, UsesQueries: true, UsesCoverage: true,
+	}
+}
+
 type article struct {
 	URL      string `json:"url"`
 	Title    string `json:"title"`

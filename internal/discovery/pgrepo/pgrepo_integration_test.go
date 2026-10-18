@@ -15,7 +15,7 @@ import (
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/feed"
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/seed"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/sourcefile"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/testutil"
@@ -43,6 +43,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// example is the shipped example source file, used as realistic configuration.
+const example = "../../../docs/examples/sources.yaml"
+
 const rss = `<?xml version="1.0"?><rss version="2.0"><channel><title>Gazette</title>
 <item><title>Ped killed</title><link>https://gazette.example.com/a?utm_source=rss</link><pubDate>Fri, 16 Oct 2026 14:00:00 GMT</pubDate></item>
 <item><title>Cyclist hurt</title><link>https://gazette.example.com/b</link><pubDate>Fri, 16 Oct 2026 15:00:00 GMT</pubDate></item>
@@ -52,14 +55,14 @@ func setup(t *testing.T) (*Repo, *discovery.Service, string) {
 	t.Helper()
 	pg.Reset(t, store)
 	repo := New(store)
-	f, err := seed.Defaults()
+	f, err := sourcefile.Load(example)
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(rss)) }))
 	t.Cleanup(srv.Close)
-	f.Sources = append(f.Sources, seed.SourceSeed{Slug: "test-feed", Name: "Test Feed", Type: "rss", URL: srv.URL, PollInterval: 30 * time.Minute})
-	if _, _, err := repo.Sync(context.Background(), f); err != nil {
+	f.Sources = append(f.Sources, sourcefile.SourceSpec{Slug: "test-feed", Name: "Test Feed", Type: "rss", URL: srv.URL, PollInterval: 30 * time.Minute})
+	if _, _, err := repo.Import(context.Background(), f, true); err != nil {
 		t.Fatal(err)
 	}
 	reg := discovery.NewRegistry()
@@ -69,10 +72,10 @@ func setup(t *testing.T) (*Repo, *discovery.Service, string) {
 
 var win = discovery.Window{Since: time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)}
 
-func TestSyncIsIdempotentAndLoadsSourcesAndQueries(t *testing.T) {
+func TestImportIsIdempotentAndLoadsSourcesAndQueries(t *testing.T) {
 	repo, _, _ := setup(t)
-	f, _ := seed.Defaults()
-	if s, q, err := repo.Sync(context.Background(), f); err != nil || s != len(f.Sources) || q != len(f.Queries) {
+	f, _ := sourcefile.Load(example)
+	if s, q, err := repo.Import(context.Background(), f, true); err != nil || s != len(f.Sources) || q != len(f.Queries) {
 		t.Fatalf("%d %d %v", s, q, err)
 	}
 	all, _ := repo.Sources(context.Background(), false)
@@ -229,14 +232,14 @@ func TestStatsShowWhichSourceIsValuable(t *testing.T) {
 	}
 }
 
-func TestSyncNewAddsMissingAndNeverOverwritesOperatorChanges(t *testing.T) {
+func TestImportOnlyNewAddsMissingAndNeverOverwritesOperatorChanges(t *testing.T) {
 	repo, _, _ := setup(t)
 	ctx := context.Background()
-	f, err := seed.Defaults()
+	f, err := sourcefile.Load(example)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := repo.Sync(ctx, f); err != nil {
+	if _, _, err := repo.Import(ctx, f, true); err != nil {
 		t.Fatal(err)
 	}
 	slug := f.Sources[0].Slug
@@ -246,7 +249,7 @@ func TestSyncNewAddsMissingAndNeverOverwritesOperatorChanges(t *testing.T) {
 	if _, err := store.Pool.Exec(ctx, `DELETE FROM discovery_sources WHERE slug = $1`, f.Sources[1].Slug); err != nil {
 		t.Fatal(err)
 	}
-	ns, nq, err := repo.SyncNew(ctx, f)
+	ns, nq, err := repo.Import(ctx, f, false)
 	if err != nil || ns != 1 || nq != 0 {
 		t.Fatalf("want 1 source added and no queries, got %d, %d, %v", ns, nq, err)
 	}

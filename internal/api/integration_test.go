@@ -348,7 +348,7 @@ func TestSourcesAndSchedules(t *testing.T) {
 	ts, _ := newTestServer(t, wf, token)
 	_, err := store.Queries().UpsertSource(context.Background(), dbgen.UpsertSourceParams{
 		Slug: "oaklandside", Name: "Oaklandside", SourceType: "rss", Url: sp("https://oaklandside.org/feed/"),
-		Coverage: []byte(`{}`), PollIntervalSeconds: 1800, Enabled: true, CrawlPolicy: []byte(`{}`), RateLimitPerMinute: 30,
+		Coverage: []byte(`{}`), PollIntervalSeconds: 1800, Enabled: true, CrawlPolicy: []byte(`{}`),
 	})
 	require.NoError(t, err)
 
@@ -434,7 +434,7 @@ func TestMetricsReflectRequestsAndPipelineState(t *testing.T) {
 	r := incidents.NewResolver(store, incidents.DefaultConfig(), zerolog.Nop())
 	seedMany(t, r)
 	_, err = store.Queries().UpsertSource(context.Background(), dbgen.UpsertSourceParams{Slug: "s1", Name: "S1", SourceType: "rss", Url: sp("https://x/feed"),
-		Coverage: []byte(`{}`), PollIntervalSeconds: 1800, Enabled: true, CrawlPolicy: []byte(`{}`), RateLimitPerMinute: 30})
+		Coverage: []byte(`{}`), PollIntervalSeconds: 1800, Enabled: true, CrawlPolicy: []byte(`{}`)})
 	require.NoError(t, err)
 
 	get(t, ts, "/v1/incidents", nil)

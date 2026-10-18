@@ -1,9 +1,9 @@
 -- name: UpsertSource :one
-INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, source_type = EXCLUDED.source_type, url = EXCLUDED.url,
     coverage = EXCLUDED.coverage, poll_interval_seconds = EXCLUDED.poll_interval_seconds, enabled = EXCLUDED.enabled,
-    crawl_policy = EXCLUDED.crawl_policy, rate_limit_per_minute = EXCLUDED.rate_limit_per_minute, updated_at = now()
+    crawl_policy = EXCLUDED.crawl_policy, updated_at = now()
 RETURNING *;
 
 -- name: GetSourceBySlug :one
@@ -74,11 +74,77 @@ ORDER BY discoveries DESC;
 
 -- name: InsertSourceIfMissing :execrows
 -- For first-install bootstrap: never overwrites what an operator changed.
-INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy, rate_limit_per_minute)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 ON CONFLICT (slug) DO NOTHING;
 
 -- name: InsertQueryIfMissing :execrows
 INSERT INTO discovery_queries (family, name, query_text, providers, region, enabled)
 VALUES ($1,$2,$3,$4,$5,$6)
 ON CONFLICT (name) DO NOTHING;
+
+-- name: InsertSource :one
+INSERT INTO discovery_sources (slug, name, source_type, url, coverage, poll_interval_seconds, enabled, crawl_policy)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+RETURNING *;
+
+-- name: UpdateSource :one
+-- The slug is the identity (it names the Temporal Schedule), so it is not updatable.
+UPDATE discovery_sources SET name = @name, source_type = @source_type, url = @url, coverage = @coverage,
+    poll_interval_seconds = @poll_interval_seconds, enabled = @enabled, crawl_policy = @crawl_policy, updated_at = now()
+WHERE slug = @slug
+RETURNING *;
+
+-- name: DeleteSource :execrows
+DELETE FROM discovery_sources WHERE slug = $1;
+
+-- name: InsertDiscoveryRun :exec
+INSERT INTO discovery_runs (source_id, started_at, finished_at, window_since, window_until, status, found, unique_urls,
+                            new_urls, known_urls, pending_urls, unresolved, requests, truncated, warnings, error)
+SELECT s.id, @started_at, @finished_at, @window_since, @window_until, @status, @found, @unique_urls,
+       @new_urls, @known_urls, @pending_urls, @unresolved, @requests, @truncated, @warnings::text[], @error
+FROM discovery_sources s WHERE s.slug = @slug;
+
+-- name: ListDiscoveryRuns :many
+SELECT r.* FROM discovery_runs r JOIN discovery_sources s ON s.id = r.source_id
+WHERE s.slug = @slug
+ORDER BY r.started_at DESC
+LIMIT @max_rows::int;
+
+-- name: SourceRunStats :many
+-- Per source over a recent window: how often it runs, how often it works, how long it takes,
+-- and how much it finds.
+SELECT s.slug::text AS slug,
+       count(r.id)::bigint AS runs,
+       count(r.id) FILTER (WHERE r.status = 'success')::bigint AS successes,
+       count(r.id) FILTER (WHERE r.status = 'partial')::bigint AS partials,
+       count(r.id) FILTER (WHERE r.status = 'failed')::bigint AS failures,
+       COALESCE(avg(extract(epoch FROM (r.finished_at - r.started_at))), 0)::float8 AS avg_seconds,
+       COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM (r.finished_at - r.started_at))), 0)::float8 AS p95_seconds,
+       COALESCE(sum(r.new_urls), 0)::bigint AS new_urls,
+       COALESCE(sum(r.requests), 0)::bigint AS requests
+FROM discovery_sources s
+LEFT JOIN discovery_runs r ON r.source_id = s.id AND r.started_at >= @since::timestamptz
+GROUP BY s.slug;
+
+-- name: PruneDiscoveryRuns :execrows
+DELETE FROM discovery_runs WHERE started_at < $1;
+
+-- name: ListAllQueries :many
+SELECT * FROM discovery_queries ORDER BY family, name;
+
+-- name: GetQueryByName :one
+SELECT * FROM discovery_queries WHERE name = $1;
+
+-- name: InsertQuery :one
+INSERT INTO discovery_queries (family, name, query_text, providers, region, enabled)
+VALUES ($1,$2,$3,$4,$5,$6)
+RETURNING *;
+
+-- name: UpdateQuery :one
+UPDATE discovery_queries SET family = @family, query_text = @query_text, providers = @providers, region = @region, enabled = @enabled
+WHERE name = @name
+RETURNING *;
+
+-- name: DeleteQuery :execrows
+DELETE FROM discovery_queries WHERE name = $1;

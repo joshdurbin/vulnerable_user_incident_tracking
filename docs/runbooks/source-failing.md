@@ -12,8 +12,8 @@ intervals).
 4. **Common causes**
    - *Rate limited (GDELT, Google News).* GDELT allows one request per five seconds. Persistent 429s are retried later by
      Temporal; if they continue, lower the poll rate by editing the source's interval.
-   - *Feed URL moved or returned HTML.* Open it in a browser. Fix the URL in the seed file and run
-     `collisionctl sources sync` (this overwrites the row; use `--only-new` to add without overwriting).
+   - *Feed URL moved or returned HTML.* Open it in a browser. Fix the URL on the source in the admin UI
+     (Admin, Sources) and use "Test" to confirm it returns articles before saving.
    - *Site now blocks the crawler.* Check robots.txt and the crawler logs. Do not work around a block.
    - *Google News links not resolving.* They are opaque unless `discovery.resolveGoogleNews` is on, which relies on an
      undocumented endpoint and can break without notice.
