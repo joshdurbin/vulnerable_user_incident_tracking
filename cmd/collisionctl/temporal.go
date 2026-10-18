@@ -39,7 +39,7 @@ func (a *app) temporal() (client.Client, error) {
 }
 
 func (a *app) pipelineOptions() pipeline.Options {
-	return pipeline.Options{SearchAttributes: a.cfg.Temporal.SearchAttributes}
+	return pipeline.Options{SearchAttributes: a.cfg.Temporal.SearchAttributes, Render: a.cfg.RenderFallback}
 }
 
 // ---- worker ----

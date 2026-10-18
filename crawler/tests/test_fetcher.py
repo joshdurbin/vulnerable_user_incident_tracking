@@ -72,7 +72,7 @@ async def test_http_error_status():
     assert art.extraction_status == "FETCH_FAILED" and art.page.status == 500
 
 
-async def test_thin_page_is_no_content_and_no_browser_without_renderer():
+async def test_thin_page_is_no_content_and_never_rendered_in_process():
     f = make_fetcher({ART: (200, H, fixture_text("thin_js_page.html"))})
-    art = await f.fetch_article(ART, rendering="AUTO")
+    art = await f.fetch_article(ART)
     assert art.extraction_status == "NO_CONTENT" and not art.rendered

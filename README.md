@@ -36,6 +36,8 @@ make test                           # Go + Python tests (no network)
 # The Python crawler is a Temporal worker, so fetching needs a Temporal server and both workers:
 temporal server start-dev --namespace default &
 (cd crawler && CRAWLER_TEMPORAL_ADDRESS=localhost:7233 CRAWLER_TEMPORAL_NAMESPACE=default uv run collision-crawler) &
+# Optional, for JavaScript-built pages: uv sync --extra browser && uv run playwright install chromium, then run a second
+# worker with CRAWLER_MODE=render and start the others with COLLISION_CRAWLER_RENDER_FALLBACK=true.
 export COLLISION_TEMPORAL_ADDRESS=localhost:7233 COLLISION_TEMPORAL_NAMESPACE=default
 export COLLISION_DATABASE_URL=postgres://... COLLISION_LLM_MODEL=... COLLISION_LLM_BASE_URL=...
 go run ./cmd/collisionctl migrate

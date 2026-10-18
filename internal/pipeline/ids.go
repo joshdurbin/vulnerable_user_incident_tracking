@@ -13,7 +13,8 @@ import (
 // LLM or a polite crawler never starves the others.
 const (
 	TQWorkflow  = "collision-workflow"
-	TQCrawl     = "collision-crawl"
+	TQCrawl     = "collision-crawl"  // Python: HTTP fetch and link discovery
+	TQRender    = "collision-render" // Python: headless browser; separate pods because Chromium is heavy
 	TQLLM       = "collision-llm"
 	TQDiscovery = "collision-discovery" // run a single replica: provider rate limits are per process
 	TQDB        = "collision-db"

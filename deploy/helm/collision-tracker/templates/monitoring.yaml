@@ -15,7 +15,7 @@ spec:
     matchExpressions:
       - key: app.kubernetes.io/component
         operator: In
-        values: [api, crawler{{ range $name, $_ := .Values.workers }}, worker-{{ $name }}{{ end }}]
+        values: [api, crawler{{ if .Values.render.enabled }}, render{{ end }}{{ range $name, $_ := .Values.workers }}, worker-{{ $name }}{{ end }}]
   podMetricsEndpoints:
     - port: metrics
       path: /metrics
@@ -96,6 +96,15 @@ spec:
           annotations:
             summary: The Python crawler is not polling its task queue
             description: Fetching is stopped. See docs/runbooks/pipeline-stalled.md
+        {{- if .Values.render.enabled }}
+        - alert: CollisionRenderNotPolling
+          expr: (sum(temporal_num_pollers{task_queue="collision-render", poller_type="activity_task"}) or vector(0)) == 0
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: No render worker is polling; JavaScript-built pages fall back to the plain HTTP result
+            description: Articles are not blocked (rendering has a 3 minute start deadline), but pages that need a browser will be stored with no text. See docs/runbooks/pipeline-stalled.md
+        {{- end }}
         - alert: CollisionActivitiesFailing
           expr: sum by (activity_type) (rate(temporal_activity_execution_failed_total[30m])) > 0.05
           for: 30m

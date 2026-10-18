@@ -16,6 +16,13 @@ import (
 const (
 	ActivityFetchArticle  = "fetch_article"
 	ActivityDiscoverLinks = "discover_links"
+	ActivityRenderArticle = "render_article"
+)
+
+// Extraction statuses the Python worker reports that workflow logic branches on.
+const (
+	StatusOK        = "OK"
+	StatusNoContent = "NO_CONTENT"
 )
 
 // Names of the small workflows that wrap one crawler activity, for callers that

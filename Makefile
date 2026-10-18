@@ -23,6 +23,7 @@ test-go:
 helm-check: ## lint the chart, render it, and validate against Kubernetes schemas
 	helm lint deploy/helm/collision-tracker --set llm.model=x
 	helm template ct deploy/helm/collision-tracker --set llm.model=x | go run github.com/yannh/kubeconform/cmd/kubeconform@latest -strict -summary -ignore-missing-schemas -kubernetes-version 1.33.0
+	helm template ct deploy/helm/collision-tracker --set llm.model=x --set render.enabled=true | go run github.com/yannh/kubeconform/cmd/kubeconform@latest -strict -summary -ignore-missing-schemas -kubernetes-version 1.33.0
 
 test-web:
 	cd web && npm test

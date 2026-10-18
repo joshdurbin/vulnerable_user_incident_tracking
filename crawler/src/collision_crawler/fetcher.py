@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from urllib.parse import urljoin
@@ -11,6 +12,7 @@ from urllib.parse import urljoin
 import httpx
 
 from .config import Config
+from .metrics import Metrics
 from .extractor import Extracted, extract_article
 from .ratelimit import DomainLimiter
 from .robots import RobotsCache
@@ -51,13 +53,13 @@ class Article:
 
 
 class Fetcher:
-    def __init__(self, cfg: Config, client: httpx.AsyncClient | None = None, renderer=None):
+    def __init__(self, cfg: Config, client: httpx.AsyncClient | None = None, metrics: Metrics | None = None):
         self.cfg = cfg
+        self.metrics = metrics or Metrics()
         self._client = client or make_client(cfg.user_agent, cfg.default_timeout_s)
         self._limiter = DomainLimiter(cfg.per_domain_min_interval_s)
         self._robots = RobotsCache(self._robots_get, cfg.user_agent, cfg.robots_ttl_s)
         self._sem = asyncio.Semaphore(cfg.max_concurrent_fetches)
-        self._renderer = renderer
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -80,10 +82,14 @@ class Fetcher:
             if check_robots and not await self._robots.allowed(parsed.scheme, parsed.host, current):
                 page.outcome, page.error, page.final_url = ROBOTS, "disallowed by robots.txt", current
                 return page
+            waited = time.monotonic()
             await self._limiter.wait(parsed.host)
+            self.metrics.domain_wait(time.monotonic() - waited)
             try:
                 async with self._sem, self._client.stream("GET", current, timeout=timeout or self.cfg.default_timeout_s) as resp:
                     page.final_url, page.status = current, resp.status_code
+                    if check_robots and not resp.is_redirect:  # robots.txt lookups are not page fetches
+                        self.metrics.http(resp.status_code)
                     if resp.is_redirect and "location" in resp.headers:
                         current = urljoin(current, resp.headers["location"])
                         continue
@@ -98,6 +104,8 @@ class Fetcher:
                         if len(body) > self.cfg.max_response_bytes:
                             page.outcome, page.error = UNSUPPORTED, "response too large"
                             return page
+                    if check_robots:
+                        self.metrics.body_bytes(len(body))
                     page.html = bytes(body).decode(resp.encoding or "utf-8", errors="replace")
                     if resp.status_code >= 400:
                         page.outcome, page.error = FETCH_FAILED, f"http {resp.status_code}"
@@ -115,26 +123,13 @@ class Fetcher:
                          allowed_domains: list[str] | None = None) -> Page:
         return await self._get(url, timeout=timeout, allowed_domains=allowed_domains)
 
-    async def fetch_article(self, url: str, rendering: str = "HTTP_ONLY", timeout: float | None = None) -> Article:
+    async def fetch_article(self, url: str, timeout: float | None = None) -> Article:
         page = await self._get(url, timeout=timeout)
         art = Article(page=page)
         if page.outcome != OK:
             art.extraction_status = page.outcome
             return art
         art.extracted = extract_article(page.html, page.final_url)
-        needs_browser = len(art.extracted.text) < MIN_ARTICLE_CHARS
-        if rendering == "ALWAYS" or (rendering == "AUTO" and needs_browser):
-            if self._renderer is not None and self.cfg.browser_enabled:
-                try:
-                    html = await self._renderer.render(page.final_url, timeout or self.cfg.default_timeout_s)
-                    rendered = extract_article(html, page.final_url)
-                    if len(rendered.text) >= len(art.extracted.text):
-                        art.extracted, art.rendered = rendered, True
-                except BlockedError as exc:
-                    art.extraction_status, page.error = BLOCKED, str(exc)
-                    return art
-                except Exception as exc:  # renderer failure must not lose the HTTP result
-                    log.warning("render failed url=%s err=%s", page.final_url, type(exc).__name__)
         if len(art.extracted.text) < MIN_ARTICLE_CHARS:
             art.extraction_status = NO_CONTENT
         return art

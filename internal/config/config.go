@@ -48,6 +48,9 @@ type Config struct {
 	LogLevel      string
 	LogFormat     string
 	LLM           LLM
+	// RenderFallback lets article workflows escalate pages with no extractable text to the
+	// headless-browser pool (collision-render). Needs render workers to be deployed.
+	RenderFallback bool
 	// ResolveGoogleNews enables the undocumented batchexecute resolver (default off).
 	ResolveGoogleNews bool
 }
@@ -63,6 +66,7 @@ func NewViper() *viper.Viper {
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
 	v.SetDefault("discovery.resolve_google_news", false)
+	v.SetDefault("crawler.render_fallback", false)
 	v.SetDefault("metrics.listen", ":9100")
 	v.SetDefault("api.listen", ":8080")
 	v.SetDefault("api.admin_token", "")
@@ -107,6 +111,7 @@ func Load(v *viper.Viper) (Config, error) {
 		LogLevel:          v.GetString("log.level"),
 		LogFormat:         v.GetString("log.format"),
 		ResolveGoogleNews: v.GetBool("discovery.resolve_google_news"),
+		RenderFallback:    v.GetBool("crawler.render_fallback"),
 		MetricsListen:     v.GetString("metrics.listen"),
 		API:               API{Listen: v.GetString("api.listen"), AdminToken: v.GetString("api.admin_token")},
 		Temporal: Temporal{

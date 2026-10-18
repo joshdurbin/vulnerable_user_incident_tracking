@@ -1,7 +1,7 @@
 # The pipeline has stalled
 
 Alerts: `CollisionNoNewIncidents`, `CollisionLLMWorkerNotPolling`, `CollisionCrawlerNotPolling`,
-`CollisionTaskQueueBacklog`, `CollisionActivitiesFailing`, `CollisionMostArticlesFailing`.
+`CollisionRenderNotPolling` (only when rendering is on), `CollisionTaskQueueBacklog`, `CollisionActivitiesFailing`, `CollisionMostArticlesFailing`.
 
 Work flows: Schedule, discovery, fetch (crawler), classify (LLM), resolve, incident. Find the first stage that has stopped.
 
@@ -16,6 +16,10 @@ Work flows: Schedule, discovery, fetch (crawler), classify (LLM), resolve, incid
 4. **Are activities failing?** Dashboard "Activity failures per minute" names the activity.
    - `fetch_article` failing for everything: the network policy, DNS, or the crawler's egress. Check
      `kubectl -n collision-tracker exec deploy/collision-tracker-crawler -- python -c "import urllib.request as u; print(u.urlopen('https://example.com').status)"`.
+   - `render_article` failing or timing out: the render pods are out of memory (`kubectl -n collision-tracker get pods`
+     shows `OOMKilled`), or too many pages are open at once. Lower `render.browserConcurrency` or raise
+     `render.resources.limits.memory`. Articles keep flowing meanwhile: they fall back to the plain HTTP result, and pages
+     that needed a browser are stored with no text. They are not fetched again automatically: reprocessing re-classifies stored text, it does not re-fetch.
    - `Classify` failing: Bifrost or OpenRouter. Check Bifrost's UI for the provider key, quota and error log. A budget
      stop is not a failure; see `llm-cost.md`.
    - Database activities failing: PostgreSQL or the pooler.

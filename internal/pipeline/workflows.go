@@ -3,6 +3,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	"github.com/joshdurbin/fuck_cars/internal/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,18 @@ func crawlCtx(ctx workflow.Context) workflow.Context {
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval: 5 * time.Second, BackoffCoefficient: 2, MaximumInterval: 2 * time.Minute, MaximumAttempts: 5,
 			NonRetryableErrorTypes: []string{ErrTypeNotFound, "InvalidArgument"},
+		},
+	})
+}
+
+// renderCtx targets the render pool. ScheduleToStart is bounded so that an absent or
+// saturated pool degrades to the plain-HTTP result instead of parking articles forever.
+func renderCtx(ctx workflow.Context) workflow.Context {
+	return workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		TaskQueue: TQRender, StartToCloseTimeout: 90 * time.Second, ScheduleToStartTimeout: 3 * time.Minute,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval: 10 * time.Second, BackoffCoefficient: 2, MaximumInterval: time.Minute, MaximumAttempts: 3,
+			NonRetryableErrorTypes: []string{"InvalidArgument"},
 		},
 	})
 }
@@ -125,14 +138,18 @@ func ArticleWorkflow(ctx workflow.Context, in ArticleInput) (*ArticleResult, err
 	}
 	if fetched.ArticleID == uuid.Nil {
 		// The Python worker serves fetch_article; this call is by name across languages.
-		var page crawler.ArticleResponse
-		if err := workflow.ExecuteActivity(crawlCtx(ctx), crawler.ActivityFetchArticle, crawler.FetchArticleRequest{
-			URL: in.URL.URL, Rendering: "http_only", SourceID: in.SourceSlug, TimeoutS: 45, CorrelationID: in.CorrelationID,
-		}).Get(ctx, &page); err != nil {
+		policy := string(domain.RenderHTTPOnly)
+		if in.Options.Render {
+			policy = string(domain.RenderAuto)
+		}
+		page, err := fetchWithRendering(ctx, crawler.FetchArticleRequest{
+			URL: in.URL.URL, Rendering: policy, SourceID: in.SourceSlug, TimeoutS: 45, CorrelationID: in.CorrelationID,
+		})
+		if err != nil {
 			upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAStage, "fetch_failed"))
 			return nil, fmt.Errorf("fetch %s: %w", in.URL.URL, err)
 		}
-		if err := workflow.ExecuteActivity(dbCtx(ctx), act.StoreArticle, StoreInput{Ref: in.URL, Response: page}).Get(ctx, &fetched); err != nil {
+		if err := workflow.ExecuteActivity(dbCtx(ctx), act.StoreArticle, StoreInput{Ref: in.URL, Response: *page}).Get(ctx, &fetched); err != nil {
 			return nil, fmt.Errorf("store article: %w", err)
 		}
 	}
@@ -249,9 +266,42 @@ func RetentionWorkflow(ctx workflow.Context) (int64, error) {
 // CrawlFetchWorkflow runs one fetch_article activity. The CLI and other
 // non-workflow callers use it through crawler.Client.
 func CrawlFetchWorkflow(ctx workflow.Context, req crawler.FetchArticleRequest) (*crawler.ArticleResponse, error) {
+	return fetchWithRendering(ctx, req)
+}
+
+// fetchWithRendering fetches an article honouring the rendering policy in req:
+//   - http_only: the crawl pool's plain HTTP fetch;
+//   - auto: HTTP first, and only when it finds no article text, the render pool. A render
+//     that fails or finds nothing falls back to the HTTP result, so rendering can only help;
+//   - always: the render pool alone, and its failure is the fetch's failure.
+//
+// The two steps are separate activities on separate task queues, so each is visible,
+// retried and timed out on its own in the Temporal UI.
+func fetchWithRendering(ctx workflow.Context, req crawler.FetchArticleRequest) (*crawler.ArticleResponse, error) {
+	policy := domain.RenderingPolicy(req.Rendering)
+	if policy == domain.RenderAlways {
+		var out crawler.ArticleResponse
+		if err := workflow.ExecuteActivity(renderCtx(ctx), crawler.ActivityRenderArticle, req).Get(ctx, &out); err != nil {
+			return nil, err
+		}
+		return &out, nil
+	}
+	httpReq := req
+	httpReq.Rendering = string(domain.RenderHTTPOnly)
 	var out crawler.ArticleResponse
-	if err := workflow.ExecuteActivity(crawlCtx(ctx), crawler.ActivityFetchArticle, req).Get(ctx, &out); err != nil {
+	if err := workflow.ExecuteActivity(crawlCtx(ctx), crawler.ActivityFetchArticle, httpReq).Get(ctx, &out); err != nil {
 		return nil, err
+	}
+	if policy != domain.RenderAuto || out.ExtractionStatus != crawler.StatusNoContent {
+		return &out, nil
+	}
+	var rendered crawler.ArticleResponse
+	if err := workflow.ExecuteActivity(renderCtx(ctx), crawler.ActivityRenderArticle, req).Get(ctx, &rendered); err != nil {
+		workflow.GetLogger(ctx).Warn("render failed; keeping the HTTP result", "url", req.URL, "error", err)
+		return &out, nil
+	}
+	if rendered.ExtractionStatus == crawler.StatusOK {
+		return &rendered, nil
 	}
 	return &out, nil
 }

@@ -316,24 +316,10 @@ func TestSyncSchedulesCreatesThenUpdatesAndKeepsOperatorPause(t *testing.T) {
 // network access, so this test needs no internet and also checks that policy
 // decisions come back as a status, not an error. Skipped if `uv` is not installed.
 func TestGoCallsPythonCrawlerWorker(t *testing.T) {
-	uv, err := exec.LookPath("uv")
-	if err != nil {
-		t.Skip("uv not installed")
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	cmd := exec.CommandContext(ctx, uv, "run", "--project", "../../crawler", "collision-crawler")
-	cmd.Env = append(os.Environ(), "CRAWLER_TEMPORAL_ADDRESS="+temporalAddr, "CRAWLER_TEMPORAL_NAMESPACE=default")
-	// uv starts the worker as a child process; kill the whole group so nothing keeps the pipes open.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
-	cmd.WaitDelay = 5 * time.Second
-	out := &bytes.Buffer{}
-	cmd.Stdout, cmd.Stderr = out, out
-	require.NoError(t, cmd.Start())
-	defer func() { cancel(); _ = cmd.Wait() }()
-
+	out := startPythonWorker(t, ctx, "crawl")
+	var err error
 	ws := startWorkers(t, newActivities(&fakeClassifier{}), nil)
 	defer stop(ws)
 	cl := crawler.New(tc, TQWorkflow)
@@ -358,6 +344,50 @@ func TestGoCallsPythonCrawlerWorker(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Empty(t, res.Links)
+}
+
+// startPythonWorker runs the Python crawler in the given mode (crawl or render) against the
+// test Temporal. uv starts the worker as a child process, so the whole process group is killed
+// on cancel; otherwise the child keeps the output pipes open and the test hangs.
+func startPythonWorker(t *testing.T, ctx context.Context, mode string) *bytes.Buffer {
+	t.Helper()
+	uv, err := exec.LookPath("uv")
+	if err != nil {
+		t.Skip("uv not installed")
+	}
+	cmd := exec.CommandContext(ctx, uv, "run", "--project", "../../crawler", "collision-crawler")
+	cmd.Env = append(os.Environ(), "CRAWLER_TEMPORAL_ADDRESS="+temporalAddr, "CRAWLER_TEMPORAL_NAMESPACE=default", "CRAWLER_MODE="+mode)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.WaitDelay = 5 * time.Second
+	out := &bytes.Buffer{}
+	cmd.Stdout, cmd.Stderr = out, out
+	require.NoError(t, cmd.Start())
+	t.Cleanup(func() { _ = cmd.Wait() })
+	return out
+}
+
+// The render pool is a separate Python worker on its own task queue. A request with
+// rendering=always goes there and nowhere else; the SSRF guard refuses the URL before any
+// browser is launched, so this runs without Chromium or internet.
+func TestGoCallsPythonRenderWorker(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	out := startPythonWorker(t, ctx, "render")
+	ws := startWorkers(t, newActivities(&fakeClassifier{}), nil)
+	defer stop(ws)
+	cl := crawler.New(tc, TQWorkflow)
+
+	var art *domain.Article
+	var err error
+	require.Eventually(t, func() bool {
+		cctx, c := context.WithTimeout(ctx, 20*time.Second)
+		defer c()
+		art, err = cl.FetchArticle(cctx, domain.FetchRequest{URL: "http://169.254.169.254/latest/", Rendering: domain.RenderAlways, Timeout: 10 * time.Second, CorrelationID: "go-render"})
+		return err == nil
+	}, 90*time.Second, time.Second, "python render worker output:\n%s", out.String())
+	assert.Equal(t, domain.ExtractionBlocked, art.ExtractionStatus)
+	assert.True(t, art.Rendered, "the response came from render_article")
 }
 
 func TestRetentionRemovesExpiredTextButKeepsTheRecord(t *testing.T) {

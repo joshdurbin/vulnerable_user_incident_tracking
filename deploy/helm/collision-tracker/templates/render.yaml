@@ -1,0 +1,55 @@
+{{- if .Values.render.enabled }}
+{{- $sel := dict "ctx" . "component" "render" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ct.fullname" . }}-render
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+    app.kubernetes.io/component: render
+spec:
+  replicas: {{ .Values.render.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ct.selector" $sel | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ct.labels" . | nindent 8 }}
+        app.kubernetes.io/component: render
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "ct.podSecurity" . | nindent 8 }}
+      terminationGracePeriodSeconds: 120   # let in-flight renders finish
+      containers:
+        - name: render
+          image: {{ include "ct.image" (dict "ctx" . "image" .Values.image.crawlerRender "name" "crawler-render") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - { name: CRAWLER_MODE, value: render }
+            - { name: CRAWLER_TEMPORAL_ADDRESS, value: {{ .Values.temporal.address | quote }} }
+            - { name: CRAWLER_TEMPORAL_NAMESPACE, value: {{ .Values.temporal.namespace | quote }} }
+            - { name: CRAWLER_METRICS_ADDRESS, value: "0.0.0.0:9100" }
+            - { name: CRAWLER_PER_DOMAIN_INTERVAL_S, value: {{ .Values.render.perDomainIntervalSeconds | quote }} }
+            - { name: CRAWLER_BROWSER_CONCURRENCY, value: {{ .Values.render.browserConcurrency | quote }} }
+          ports:
+            - { name: metrics, containerPort: 9100 }
+          livenessProbe:
+            tcpSocket: { port: metrics }
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.render.resources | nindent 12 }}
+          securityContext:
+            {{- include "ct.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            # Chromium shares memory through /dev/shm, and a container's default is 64 MB.
+            - { name: shm, mountPath: /dev/shm }
+      volumes:
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 256Mi }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 512Mi }
+{{- end }}

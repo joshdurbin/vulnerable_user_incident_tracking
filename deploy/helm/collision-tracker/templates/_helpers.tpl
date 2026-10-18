@@ -48,6 +48,8 @@ capabilities:
   value: {{ .Values.temporal.namespace | quote }}
 - name: COLLISION_TEMPORAL_SEARCH_ATTRIBUTES
   value: {{ .Values.temporal.searchAttributes | quote }}
+- name: COLLISION_CRAWLER_RENDER_FALLBACK
+  value: {{ .Values.render.enabled | quote }}
 - name: COLLISION_LOG_LEVEL
   value: {{ .Values.logLevel | quote }}
 - name: COLLISION_LOG_FORMAT

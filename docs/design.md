@@ -72,13 +72,17 @@ flowchart TB
     dq[collision-db<br/>Find/Store article, Geocode,<br/>Resolve, Notify, reviews]
     disq[collision-discovery<br/>DiscoverSource, FollowUp<br/>single replica: provider limits are per process]
   end
-  subgraph py[Python worker process]
+  subgraph py[Python crawler pods]
     cq[collision-crawl<br/>fetch_article, discover_links]
+  end
+  subgraph pyr[Python render pods, optional]
+    rq[collision-render<br/>render_article, headless Chromium]
   end
   wq -. schedules activities on .-> lq
   wq -.-> dq
   wq -.-> disq
   wq -.-> cq
+  wq -. only when HTTP found no text .-> rq
 ```
 
 ## Discovery
@@ -401,6 +405,27 @@ flowchart LR
   is a typed name recorded in the audit trail, not an authenticated identity.
 - **Network:** tailnet-only exposure; in-cluster egress is default-deny with explicit allows (infra repo).
 
+## Rendering JavaScript-built pages
+
+Plain HTTP plus `trafilatura` extracts text from server-rendered pages. Pages that build their article in the browser
+come back with no text (`NO_CONTENT`). When `render.enabled` is set, the article workflow escalates exactly those pages:
+
+```mermaid
+flowchart LR
+  A[fetch_article<br/>collision-crawl] -->|OK| S[StoreArticle]
+  A -->|NO_CONTENT and render on| R[render_article<br/>collision-render]
+  R -->|OK| S
+  R -->|failed, blocked, or no text<br/>or no worker within 3 min| K[keep the HTTP result] --> S
+```
+
+The render pool is a separate Deployment (its own image with Chromium, about 1.5 GB) on its own task queue, so its
+memory, concurrency and failures never touch ordinary fetching. Inside a pod one Chromium process is shared; every render
+gets a fresh context, and `browser_concurrency` bounds the pages open at once. Every request the page makes, including each
+redirect hop, is validated against the same URL policy as the HTTP path and issued by the worker with redirects off,
+because Chromium follows redirects without asking the guard again. Non-GET requests, images, media and fonts are refused.
+The browser resolves DNS itself, so the pod's egress NetworkPolicy (private ranges denied) is the backstop.
+See [ADR 0004](decisions/0004-rendering-on-its-own-queue.md).
+
 ## Not built yet
 
 - Running it on the cluster. The chart, the dashboard, the alerts and the infra changes exist and were validated
@@ -408,5 +433,5 @@ flowchart LR
   but nothing has been applied: the infra change set is an unmerged local branch, the container images have not been built
   by CI yet, the Vault secrets have not been created, and the OpenRouter provider has not been added to Bifrost.
 - A geocoder (incidents currently match on street, city and county text), a monthly LLM budget stored in the
-  database, a Temporal codec server, a browser-rendering fallback for script-heavy pages, and saga-style
+  database, a Temporal codec server, and saga-style
   compensation for merge and split (they are single database transactions today).

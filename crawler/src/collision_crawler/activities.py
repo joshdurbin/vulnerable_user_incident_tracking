@@ -7,18 +7,28 @@ returned as an extraction status so the workflow records them instead of retryin
 from __future__ import annotations
 
 import logging
+import time
+from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
-from .fetcher import Fetcher
+from .extractor import extract_article
+from .fetcher import MIN_ARTICLE_CHARS, Fetcher
 from .links import discover
+from .metrics import Metrics
+from .security import BlockedError, validate_url
+
+if TYPE_CHECKING:  # the crawl image does not ship Playwright
+    from .renderer import Renderer
 
 log = logging.getLogger("collision_crawler")
 
 FETCH_ARTICLE = "fetch_article"
 DISCOVER_LINKS = "discover_links"
+RENDER_ARTICLE = "render_article"
 _RENDER = {"", "http_only", "auto", "always"}
 
 
@@ -80,8 +90,9 @@ class DiscoverLinksResponse:
 
 
 class CrawlerActivities:
-    def __init__(self, fetcher: Fetcher):
+    def __init__(self, fetcher: Fetcher, metrics: Metrics | None = None):
         self._f = fetcher
+        self._m = metrics or fetcher.metrics
 
     @activity.defn(name=FETCH_ARTICLE)
     async def fetch_article(self, req: FetchArticleRequest) -> ArticleResponse:
@@ -91,7 +102,10 @@ class CrawlerActivities:
             raise ApplicationError(f"invalid rendering {req.rendering!r}", type="InvalidArgument", non_retryable=True)
         # Never log page content; the URL is enough for tracing.
         log.info("fetch cid=%s source=%s url=%s", req.correlation_id, req.source_id, req.url)
-        art = await self._f.fetch_article(req.url, (req.rendering or "http_only").upper(), req.timeout_s or None)
+        started = time.monotonic()
+        # Rendering is a separate step on its own task queue (render_article); this stays HTTP-only.
+        art = await self._f.fetch_article(req.url, req.timeout_s or None)
+        self._m.fetch(art.extraction_status, art.rendered, time.monotonic() - started)
         e, p = art.extracted, art.page
         return ArticleResponse(
             requested_url=req.url, final_url=p.final_url, canonical_url=e.canonical_url, title=e.title,
@@ -111,7 +125,39 @@ class CrawlerActivities:
                                  req.max_pages, req.max_depth, req.max_duration_s or 60.0)
         except Exception as exc:  # bad regex etc. is the caller's mistake, not a transient failure
             raise ApplicationError(f"{type(exc).__name__}: {exc}", type="InvalidArgument", non_retryable=True) from exc
+        self._m.discovery(res.pages_fetched, len(res.links), res.truncated)
         return DiscoverLinksResponse(
             links=[DiscoveredLink(l.url, l.title, l.found_on, l.depth) for l in res.links],
             pages_fetched=res.pages_fetched, truncated=res.truncated, error_detail=res.error,
         )
+
+
+class RenderActivities:
+    """Served by the render pool (its own task queue and pod size, because Chromium is heavy)."""
+
+    def __init__(self, renderer: "Renderer", metrics: Metrics | None = None):
+        self._r = renderer
+        self._m = metrics or renderer.metrics
+
+    @activity.defn(name=RENDER_ARTICLE)
+    async def render_article(self, req: FetchArticleRequest) -> ArticleResponse:
+        if not req.url:
+            raise ApplicationError("url is required", type="InvalidArgument", non_retryable=True)
+        log.info("render cid=%s source=%s url=%s", req.correlation_id, req.source_id, req.url)
+        started = time.monotonic()
+        resp = ArticleResponse(requested_url=req.url, final_url=req.url, rendered=True,
+                               fetched_at=datetime.now(timezone.utc).isoformat())
+        try:
+            validate_url(req.url)
+            page = await self._r.render(req.url, req.timeout_s or 30.0)
+        except BlockedError as exc:
+            resp.extraction_status, resp.error_detail = "BLOCKED", str(exc)
+        else:
+            e = extract_article(page.html, page.final_url)
+            resp.final_url, resp.http_status = page.final_url, page.status
+            resp.canonical_url, resp.title, resp.publisher, resp.author = e.canonical_url, e.title, e.publisher, e.author
+            resp.published_at = e.published_at.isoformat() if e.published_at else None
+            resp.text, resp.description, resp.language, resp.content_type = e.text, e.description, e.language, "text/html"
+            resp.extraction_status = "OK" if len(e.text) >= MIN_ARTICLE_CHARS else "NO_CONTENT"
+        self._m.fetch(resp.extraction_status, True, time.monotonic() - started)
+        return resp

@@ -29,7 +29,11 @@ func newEnv(t *testing.T) *testsuite.TestWorkflowEnvironment {
 	env.RegisterActivityWithOptions(func(context.Context, crawler.FetchArticleRequest) (crawler.ArticleResponse, error) {
 		return crawler.ArticleResponse{}, nil
 	}, activity.RegisterOptions{Name: crawler.ActivityFetchArticle})
+	env.RegisterActivityWithOptions(func(context.Context, crawler.FetchArticleRequest) (crawler.ArticleResponse, error) {
+		return crawler.ArticleResponse{}, nil
+	}, activity.RegisterOptions{Name: crawler.ActivityRenderArticle})
 	env.RegisterWorkflow(ArticleWorkflow)
+	env.RegisterWorkflow(CrawlFetchWorkflow)
 	env.RegisterWorkflow(IncidentWorkflow)
 	env.RegisterWorkflow(ReprocessArticleWorkflow)
 	return env
@@ -298,4 +302,85 @@ func TestRetentionWorkflowReportsHowManyBodiesWereRemoved(t *testing.T) {
 	var n int64
 	require.NoError(t, env.GetWorkflowResult(&n))
 	assert.EqualValues(t, 7, n)
+}
+
+// ---- rendering escalation ----
+
+func fetchVia(t *testing.T, policy string, http, render *crawler.ArticleResponse, renderErr error) (*crawler.ArticleResponse, *testsuite.TestWorkflowEnvironment) {
+	t.Helper()
+	env := newEnv(t)
+	env.OnActivity(crawler.ActivityFetchArticle, anyCtx, anyCtx).Return(*http, nil).Maybe()
+	switch {
+	case render != nil:
+		env.OnActivity(crawler.ActivityRenderArticle, anyCtx, anyCtx).Return(*render, nil).Maybe()
+	case renderErr != nil:
+		env.OnActivity(crawler.ActivityRenderArticle, anyCtx, anyCtx).Return(crawler.ArticleResponse{}, temporal.NewNonRetryableApplicationError(renderErr.Error(), "RenderDown", nil)).Maybe()
+	}
+	env.ExecuteWorkflow(CrawlFetchWorkflow, crawler.FetchArticleRequest{URL: "https://x.test/a", Rendering: policy})
+	require.NoError(t, env.GetWorkflowError())
+	var out crawler.ArticleResponse
+	require.NoError(t, env.GetWorkflowResult(&out))
+	return &out, env
+}
+
+func TestFetch_AutoRendersOnlyWhenHTTPFindsNoText(t *testing.T) {
+	thin := &crawler.ArticleResponse{ExtractionStatus: "NO_CONTENT"}
+	good := &crawler.ArticleResponse{ExtractionStatus: "OK", Text: "built by javascript", Rendered: true}
+	out, env := fetchVia(t, "auto", thin, good, nil)
+	assert.True(t, out.Rendered)
+	assert.Equal(t, "built by javascript", out.Text)
+	env.AssertNumberOfCalls(t, crawler.ActivityRenderArticle, 1)
+
+	// Plain HTTP already worked: the browser pool is never touched.
+	ok := &crawler.ArticleResponse{ExtractionStatus: "OK", Text: "static"}
+	out, env = fetchVia(t, "auto", ok, good, nil)
+	assert.False(t, out.Rendered)
+	env.AssertNumberOfCalls(t, crawler.ActivityRenderArticle, 0)
+}
+
+func TestFetch_AutoKeepsHTTPResultWhenRenderFailsOrFindsNothing(t *testing.T) {
+	thin := &crawler.ArticleResponse{ExtractionStatus: "NO_CONTENT", HTTPStatus: 200}
+	out, _ := fetchVia(t, "auto", thin, nil, errors.New("pool unavailable"))
+	assert.Equal(t, "NO_CONTENT", out.ExtractionStatus)
+	assert.False(t, out.Rendered)
+
+	out, _ = fetchVia(t, "auto", thin, &crawler.ArticleResponse{ExtractionStatus: "NO_CONTENT", Rendered: true}, nil)
+	assert.False(t, out.Rendered, "a render that finds nothing does not replace the HTTP result")
+}
+
+func TestFetch_HTTPOnlyNeverRenders_AlwaysSkipsHTTP(t *testing.T) {
+	thin := &crawler.ArticleResponse{ExtractionStatus: "NO_CONTENT"}
+	_, env := fetchVia(t, "http_only", thin, nil, nil)
+	env.AssertNumberOfCalls(t, crawler.ActivityRenderArticle, 0)
+
+	good := &crawler.ArticleResponse{ExtractionStatus: "OK", Text: "x", Rendered: true}
+	out, env := fetchVia(t, "always", thin, good, nil)
+	assert.True(t, out.Rendered)
+	env.AssertNumberOfCalls(t, crawler.ActivityFetchArticle, 0)
+}
+
+func TestArticleWorkflow_RenderOptionStoresTheRenderedPage(t *testing.T) {
+	env := newEnv(t)
+	aid := uuid.New()
+	env.OnActivity(act.FindArticle, anyCtx, anyCtx).Return(&FetchResult{}, nil)
+	env.OnActivity(crawler.ActivityFetchArticle, anyCtx, anyCtx).Return(crawler.ArticleResponse{ExtractionStatus: "NO_CONTENT"}, nil)
+	env.OnActivity(crawler.ActivityRenderArticle, anyCtx, anyCtx).Return(crawler.ArticleResponse{ExtractionStatus: "OK", Text: "js text", Rendered: true}, nil)
+	var stored StoreInput
+	env.OnActivity(act.StoreArticle, anyCtx, anyCtx).Return(func(_ context.Context, in StoreInput) (*FetchResult, error) {
+		stored = in
+		return &FetchResult{ArticleID: aid, Status: "blocked"}, nil // stop after storing
+	})
+	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}, Options: Options{Render: true}})
+	require.NoError(t, env.GetWorkflowError())
+	assert.True(t, stored.Response.Rendered)
+	assert.Equal(t, "js text", stored.Response.Text)
+
+	// Without the option the same page is stored as found.
+	env = newEnv(t)
+	env.OnActivity(act.FindArticle, anyCtx, anyCtx).Return(&FetchResult{}, nil)
+	env.OnActivity(crawler.ActivityFetchArticle, anyCtx, anyCtx).Return(crawler.ArticleResponse{ExtractionStatus: "NO_CONTENT"}, nil)
+	env.OnActivity(act.StoreArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: aid, Status: "no_content"}, nil)
+	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})
+	require.NoError(t, env.GetWorkflowError())
+	env.AssertNumberOfCalls(t, crawler.ActivityRenderArticle, 0)
 }

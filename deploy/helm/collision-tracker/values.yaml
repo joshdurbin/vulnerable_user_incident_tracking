@@ -6,6 +6,7 @@ image:
   # Pin by digest in the GitOps repo: tag and digest both may be set; the digest wins.
   collisionctl: { tag: latest, digest: "" }
   crawler: { tag: latest, digest: "" }
+  crawlerRender: { tag: latest, digest: "" }   # the crawler image built with --target render (adds Chromium)
   web: { tag: latest, digest: "" }
   # Used only by the one-off Temporal namespace setup Job.
   temporalAdminTools: temporalio/admin-tools:1.32.1
@@ -54,6 +55,17 @@ crawler:
   perDomainIntervalSeconds: 2
   maxConcurrentFetches: 8
   resources: { requests: { cpu: 50m, memory: 192Mi }, limits: { memory: 768Mi } }
+
+# Headless-browser pool for pages whose text is built by JavaScript. Off by default: the image is
+# ~1.5 GB and each concurrent page costs hundreds of MB. When on, article workflows escalate a
+# page to this pool only after the plain HTTP fetch found no text. It has its own task queue
+# (collision-render), so it can be scaled, throttled and OOM-killed without touching fetching.
+render:
+  enabled: false
+  replicas: 1
+  browserConcurrency: 2       # pages open at once per pod
+  perDomainIntervalSeconds: 2
+  resources: { requests: { cpu: 250m, memory: 768Mi }, limits: { memory: 2Gi } }
 
 web:
   replicas: 2

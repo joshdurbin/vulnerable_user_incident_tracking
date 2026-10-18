@@ -14,6 +14,9 @@ type Options struct {
 	// SearchAttributes enables upserting custom search attributes. Register them on
 	// the namespace first, otherwise workflow tasks fail.
 	SearchAttributes bool `json:"search_attributes,omitempty"`
+	// Render lets article workflows escalate pages whose text is built by JavaScript to the
+	// render pool. Off by default: it needs render workers (and ~1 GB each) to be deployed.
+	Render bool `json:"render,omitempty"`
 }
 
 // URLRef identifies a discovered URL to process.

@@ -12,10 +12,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-browser = ["playwright>=1.49"]
+browser = ["playwright>=1.49"]  # only the render image installs this
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.22"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "respx>=0.22", "playwright>=1.49"]
 
 [project.scripts]
 collision-crawler = "collision_crawler.worker:main"

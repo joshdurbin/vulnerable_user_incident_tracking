@@ -18,3 +18,20 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
+  crawler-render:  # optional: docker compose --profile render up
+    build:
+      context: ../..
+      dockerfile: deploy/docker/crawler.Dockerfile
+      target: render
+    depends_on: [temporal]
+    environment:
+      CRAWLER_TEMPORAL_ADDRESS: temporal:7233
+      CRAWLER_TEMPORAL_NAMESPACE: default
+      CRAWLER_PER_DOMAIN_INTERVAL_S: "2"
+      CRAWLER_MODE: render
+    profiles: [render]
+    shm_size: 512m
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

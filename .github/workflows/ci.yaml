@@ -22,7 +22,11 @@ jobs:
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
           make generate
           git diff --exit-code
-      - run: cd crawler && uv run --python 3.13 pytest -q
+      - name: crawler (including the real-browser renderer tests)
+        run: |
+          cd crawler
+          uv run --python 3.13 playwright install --with-deps --only-shell chromium
+          uv run --python 3.13 pytest -q
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
       - name: web
@@ -41,9 +45,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - { name: crawler, file: deploy/docker/crawler.Dockerfile, args: "" }
-          - { name: collisionctl, file: deploy/docker/go.Dockerfile, args: "CMD=collisionctl" }
-          - { name: web, file: deploy/docker/web.Dockerfile, args: "" }
+          - { name: crawler, file: deploy/docker/crawler.Dockerfile, args: "", target: crawl }
+          - { name: crawler-render, file: deploy/docker/crawler.Dockerfile, args: "", target: render }
+          - { name: collisionctl, file: deploy/docker/go.Dockerfile, args: "CMD=collisionctl", target: "" }
+          - { name: web, file: deploy/docker/web.Dockerfile, args: "", target: "" }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -55,6 +60,7 @@ jobs:
           context: .
           file: ${{ matrix.file }}
           build-args: ${{ matrix.args }}
+          target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
