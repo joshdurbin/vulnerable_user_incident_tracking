@@ -70,7 +70,7 @@ func BackfillWorkflow(ctx workflow.Context, in BackfillInput) (*BackfillProgress
 			return &p, nil
 		}
 		if p.Started >= in.MaxArticles {
-			p.Phase = "budget_reached"
+			p.Phase = "limit_reached"
 			return &p, nil
 		}
 		if stepsThisRun >= backfillStepsPerRun || workflow.GetInfo(ctx).GetContinueAsNewSuggested() {

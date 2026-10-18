@@ -89,18 +89,6 @@ func TestArticleWorkflow_NonqualifyingSkipsResolution(t *testing.T) {
 	assert.Equal(t, "nonqualifying", r.Status)
 }
 
-// A budget stop is a clean outcome, not a failed workflow: it can be reprocessed later.
-func TestArticleWorkflow_BudgetExceededIsNotAFailure(t *testing.T) {
-	env := newEnv(t)
-	mockFetch(env, uuid.New(), "fetched")
-	env.OnActivity(act.Classify, anyCtx, anyCtx).Return(nil, temporal.NewNonRetryableApplicationError("over budget", ErrTypeBudget, nil)).Once()
-	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})
-	require.NoError(t, env.GetWorkflowError())
-	var r ArticleResult
-	require.NoError(t, env.GetWorkflowResult(&r))
-	assert.Equal(t, "budget_exceeded", r.Status)
-}
-
 // A transient LLM failure is retried by Temporal and succeeds without failing the workflow.
 func TestArticleWorkflow_RetriesTransientClassifyFailure(t *testing.T) {
 	env := newEnv(t)
@@ -218,7 +206,7 @@ func TestBackfillWorkflow_BudgetStopsAndProgressIsReported(t *testing.T) {
 	require.NoError(t, env.GetWorkflowError())
 	var p BackfillProgress
 	require.NoError(t, env.GetWorkflowResult(&p))
-	assert.Equal(t, "budget_reached", p.Phase)
+	assert.Equal(t, "limit_reached", p.Phase)
 	assert.Equal(t, 5, p.Started)
 	assert.Equal(t, 60, p.TotalSteps)
 }

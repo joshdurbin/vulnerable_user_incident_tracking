@@ -3,9 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -51,19 +49,19 @@ func (m *mockGateway) handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func setup(t *testing.T, m *mockGateway, cfg Config, b Budget) *Client {
+func setup(t *testing.T, m *mockGateway, cfg Config) *Client {
 	srv := httptest.NewServer(http.HandlerFunc(m.handler))
 	t.Cleanup(srv.Close)
 	cfg.BaseURL = srv.URL + "/v1"
 	cfg.APIKey = "test"
-	return NewClient(cfg, b)
+	return NewClient(cfg)
 }
 
 var req = Request{Model: "qwen", System: "sys", User: "usr", SchemaName: "s", Schema: map[string]any{"type": "object"}}
 
-func TestNativeSchemaModeAndCost(t *testing.T) {
+func TestNativeSchemaMode(t *testing.T) {
 	m := &mockGateway{content: `{"ok":true}`}
-	c := setup(t, m, Config{Prices: map[string]Price{"qwen": {InputPerM: 0.2, OutputPerM: 0.6}}}, nil)
+	c := setup(t, m, Config{})
 	r, err := c.Complete(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
@@ -71,15 +69,11 @@ func TestNativeSchemaModeAndCost(t *testing.T) {
 	if r.Content != `{"ok":true}` || r.Mode != ModeJSONSchema || m.formats[0] != "json_schema" {
 		t.Fatalf("bad: %+v formats=%v", r, m.formats)
 	}
-	want := 1000/1e6*0.2 + 200/1e6*0.6
-	if !r.PriceKnown || math.Abs(r.CostUSD-want) > 1e-12 || r.InputTokens != 1000 || r.OutputTokens != 200 {
-		t.Fatalf("bad accounting: %+v want cost %v", r, want)
-	}
 }
 
 func TestDowngradesAndRemembersCapability(t *testing.T) {
 	m := &mockGateway{content: `{}`, rejectJS: true}
-	c := setup(t, m, Config{}, nil)
+	c := setup(t, m, Config{})
 	r, err := c.Complete(context.Background(), req)
 	if err != nil || r.Mode != ModeJSONObject {
 		t.Fatalf("want json_object, got %+v err=%v", r, err)
@@ -95,7 +89,7 @@ func TestDowngradesAndRemembersCapability(t *testing.T) {
 
 func TestDowngradesToPromptMode(t *testing.T) {
 	m := &mockGateway{content: `{}`, rejectJS: true, rejectJO: true}
-	c := setup(t, m, Config{}, nil)
+	c := setup(t, m, Config{})
 	r, err := c.Complete(context.Background(), req)
 	if err != nil || r.Mode != ModePrompt {
 		t.Fatalf("want prompt mode, got %+v err=%v", r, err)
@@ -104,7 +98,7 @@ func TestDowngradesToPromptMode(t *testing.T) {
 
 func TestServerErrorIsNotDowngraded(t *testing.T) {
 	m := &mockGateway{status: 500}
-	c := setup(t, m, Config{MaxRetries: 0}, nil)
+	c := setup(t, m, Config{MaxRetries: 0})
 	if _, err := c.Complete(context.Background(), req); err == nil {
 		t.Fatal("expected error")
 	}
@@ -125,44 +119,16 @@ func TestRetriesTransientErrors(t *testing.T) {
 		w.Write([]byte(`{"id":"x","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"{}"}}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
 	}))
 	defer srv.Close()
-	c := NewClient(Config{BaseURL: srv.URL + "/v1", APIKey: "k", MaxRetries: 2}, nil)
+	c := NewClient(Config{BaseURL: srv.URL + "/v1", APIKey: "k", MaxRetries: 2})
 	if _, err := c.Complete(context.Background(), req); err != nil || n != 2 {
 		t.Fatalf("err=%v attempts=%d", err, n)
-	}
-}
-
-func TestBudgetBlocksAndRecords(t *testing.T) {
-	m := &mockGateway{content: `{}`}
-	b := NewMemoryBudget(0.0001)
-	c := setup(t, m, Config{Prices: map[string]Price{"qwen": {InputPerM: 1, OutputPerM: 1}}}, b)
-	if _, err := c.Complete(context.Background(), req); err != nil {
-		t.Fatal(err)
-	}
-	if b.Spent() <= 0 {
-		t.Fatal("spend not recorded")
-	}
-	_, err := c.Complete(context.Background(), req)
-	if !errors.Is(err, ErrBudgetExceeded) {
-		t.Fatalf("want ErrBudgetExceeded, got %v", err)
-	}
-	if len(m.formats) != 1 {
-		t.Fatal("no request should be sent once over budget")
-	}
-}
-
-func TestUnknownModelPriceReported(t *testing.T) {
-	m := &mockGateway{content: `{}`}
-	c := setup(t, m, Config{}, nil)
-	r, _ := c.Complete(context.Background(), req)
-	if r.PriceKnown || r.CostUSD != 0 {
-		t.Fatalf("%+v", r)
 	}
 }
 
 func TestContextCancellation(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { time.Sleep(2 * time.Second) }))
 	defer srv.Close()
-	c := NewClient(Config{BaseURL: srv.URL + "/v1", APIKey: "k"}, nil)
+	c := NewClient(Config{BaseURL: srv.URL + "/v1", APIKey: "k"})
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	if _, err := c.Complete(ctx, req); err == nil {

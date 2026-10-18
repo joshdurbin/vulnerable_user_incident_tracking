@@ -10,7 +10,6 @@ import (
 
 func TestDefaultsAndEnv(t *testing.T) {
 	t.Setenv("COLLISION_LLM_MODEL", "qwen3")
-	t.Setenv("COLLISION_LLM_PRICES", `{"qwen3":{"input_per_m":0.2,"output_per_m":0.6}}`)
 	cfg, err := Load(NewViper())
 	if err != nil {
 		t.Fatal(err)
@@ -18,14 +17,11 @@ func TestDefaultsAndEnv(t *testing.T) {
 	if cfg.LLM.Model != "qwen3" || cfg.LLM.StructuredMode != "json_schema" || cfg.LLM.Timeout != 120*time.Second {
 		t.Fatalf("%+v", cfg)
 	}
-	if cfg.LLM.Prices["qwen3"].OutputPerM != 0.6 {
-		t.Fatalf("prices %+v", cfg.LLM.Prices)
-	}
 }
 
 func TestFileThenEnvOverrides(t *testing.T) {
 	f := filepath.Join(t.TempDir(), "c.yaml")
-	os.WriteFile(f, []byte("llm:\n  model: from-file\n  fallback_model: fb\n  prices:\n    from-file:\n      input_per_m: 1\n      output_per_m: 2\n"), 0o600)
+	os.WriteFile(f, []byte("llm:\n  model: from-file\n  fallback_model: fb\n"), 0o600)
 	t.Setenv("COLLISION_LLM_MODEL", "from-env")
 	v := NewViper()
 	if err := ReadFile(v, f); err != nil {
@@ -35,19 +31,8 @@ func TestFileThenEnvOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.LLM.Model != "from-env" || cfg.LLM.FallbackModel != "fb" || cfg.LLM.Prices["from-file"].InputPerM != 1 {
+	if cfg.LLM.Model != "from-env" || cfg.LLM.FallbackModel != "fb" {
 		t.Fatalf("%+v", cfg.LLM)
-	}
-}
-
-func TestMissingFileIsFineButBadPricesFail(t *testing.T) {
-	v := NewViper()
-	if err := ReadFile(v, ""); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("COLLISION_LLM_PRICES", "{not json")
-	if _, err := Load(NewViper()); err == nil {
-		t.Fatal("expected error")
 	}
 }
 

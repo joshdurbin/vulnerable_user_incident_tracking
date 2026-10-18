@@ -77,7 +77,7 @@ func (c *Classifier) userPrompt(a *domain.Article) (string, string) {
 }
 
 // Classify runs the primary model, falling back to the secondary on invalid
-// output or request failure. Token usage from every attempt is summed.
+// output or request failure. Every attempt is counted.
 func (c *Classifier) Classify(ctx context.Context, a *domain.Article) (*domain.ExtractionResult, error) {
 	if strings.TrimSpace(a.Text) == "" {
 		return nil, errors.New("classification: article has no text")
@@ -96,15 +96,12 @@ func (c *Classifier) Classify(ctx context.Context, a *domain.Article) (*domain.E
 		})
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", model, err))
-			if errors.Is(err, llm.ErrBudgetExceeded) || ctx.Err() != nil {
+			if ctx.Err() != nil {
 				break
 			}
 			continue
 		}
 		usage.Calls++
-		usage.InputTokens += resp.InputTokens
-		usage.OutputTokens += resp.OutputTokens
-		usage.CostUSD += resp.CostUSD
 		res, verr := validate(c.schema, resp.Content, usedText, c.now())
 		if verr != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", model, verr))
@@ -112,9 +109,6 @@ func (c *Classifier) Classify(ctx context.Context, a *domain.Article) (*domain.E
 		}
 		if len(usedText) < len(a.Text) {
 			res.Warnings = append(res.Warnings, "article text truncated for the model")
-		}
-		if !resp.PriceKnown {
-			res.Warnings = append(res.Warnings, "no price configured for model "+model+"; cost not tracked")
 		}
 		res.Meta = domain.ExtractionMeta{
 			Model: model, PromptVersion: PromptVersion, SchemaVersion: SchemaVersion,

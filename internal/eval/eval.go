@@ -86,7 +86,7 @@ func Load(dir string) ([]Case, error) {
 type Replay struct{ Body string }
 
 func (r Replay) Complete(_ context.Context, req llm.Request) (*llm.Response, error) {
-	return &llm.Response{Content: r.Body, Model: req.Model, Mode: llm.ModeJSONSchema, PriceKnown: true}, nil
+	return &llm.Response{Content: r.Body, Model: req.Model, Mode: llm.ModeJSONSchema}, nil
 }
 
 // Builder returns the classifier to use for a case.
@@ -142,12 +142,7 @@ type Report struct {
 	HallucinationRate     float64 `json:"hallucination_rate"`
 	InventedIncidentCases int     `json:"invented_incident_cases"`
 
-	InputTokens               int64   `json:"input_tokens"`
-	OutputTokens              int64   `json:"output_tokens"`
-	AvgLatencyMS              float64 `json:"avg_latency_ms"`
-	CostUSD                   float64 `json:"cost_usd"`
-	CostPerArticleUSD         float64 `json:"cost_per_article_usd"`
-	CostPerCorrectIncidentUSD float64 `json:"cost_per_correct_incident_usd"`
+	AvgLatencyMS float64 `json:"avg_latency_ms"`
 
 	Results []CaseResult `json:"results"`
 }
@@ -180,10 +175,6 @@ func Run(ctx context.Context, cases []Case, build Builder) (*Report, error) {
 			}
 			continue
 		}
-		u := res.Meta.Usage
-		r.InputTokens += u.InputTokens
-		r.OutputTokens += u.OutputTokens
-		r.CostUSD += u.CostUSD
 		latency += res.Meta.Latency
 
 		exp, got := isPositive(c.Expected.Verdict), isPositive(res.Verdict)
@@ -250,10 +241,6 @@ func Run(ctx context.Context, cases []Case, build Builder) (*Report, error) {
 	}
 	if n := r.Cases - r.Errors; n > 0 {
 		r.AvgLatencyMS = float64(latency.Milliseconds()) / float64(n)
-	}
-	r.CostPerArticleUSD = r.CostUSD / float64(r.Cases)
-	if correctIncidents > 0 {
-		r.CostPerCorrectIncidentUSD = r.CostUSD / float64(correctIncidents)
 	}
 	return r, nil
 }

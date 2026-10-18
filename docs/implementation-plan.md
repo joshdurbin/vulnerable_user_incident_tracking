@@ -41,7 +41,7 @@ Companion to `docs/design.md` (the current design). Records the cluster findings
 3. Long-lived `IncidentWorkflow` per incident: signals deliver articles serially (no resolution races), durable timer for follow-up checks (injury -> fatality).
 4. Human-in-the-loop: possible matches wait on a validated Update (approve/reject/split); merge/split as a saga with compensation.
 5. `BackfillWorkflow`: date windows, Continue-As-New, progress Query, pause/resume/cancel signals, heartbeats.
-6. Task queues `crawl`, `llm`, `geocode` with separate concurrency and rate limits; per-domain politeness; LLM cost cap.
+6. Task queues `crawl`, `llm`, `geocode` with separate concurrency and rate limits; per-domain politeness.
 7. Custom search attributes (source, state, model version) surfaced in the frontend ops page; patching/versioning for prompt changes; replay tests in CI; tracing interceptor propagating correlation IDs into Python gRPC.
 
 ### How each feature is visible in the frontend
@@ -75,8 +75,8 @@ Companion to `docs/design.md` (the current design). Records the cluster findings
 7. Multi-arch Dockerfiles; GitHub Actions workflow.
 
 ### Phase 2 - LLM and data model (Milestones 2-3)
-8. Bifrost client with capability probing, JSON-validation fallback, token/cost accounting, versioned prompts; `collisionctl classify`.
-9. Labeled eval set and harness (precision/recall, field accuracy, hallucination, cost per incident).
+8. Bifrost client with capability probing, JSON-validation fallback, versioned prompts; `collisionctl classify`.
+9. Labeled eval set and harness (precision/recall, field accuracy, hallucination).
 10. Migrations and `sqlc`; PostGIS candidate matching; deterministic resolver + LLM tie-break; audit trail and split.
 
 ### Phase 3 - discovery and durable pipeline (Milestones 4-5)
@@ -98,7 +98,7 @@ Companion to `docs/design.md` (the current design). Records the cluster findings
 |---|---|
 | PostGIS image swap disrupts shared DB | Do it in a quiet window; `kubectl cnpg` status checks between instances; confirm Temporal reconnects. |
 | Chromium on Pi 5 (16K pages) | Rendering off by default; test on a Pi 4B; pin crawler browser pods to a tested node class. |
-| LLM cost/accuracy | Eval harness before scale-up; per-month budget enforced in the llm activity; fallback model. |
+| LLM accuracy | Eval harness before scale-up; fallback model. |
 | Wrong merges | Deterministic rules first, review queue for ambiguity, merge audit + split. |
 | Publisher terms / copyright | Respect robots.txt; store excerpts and short evidence, not full-text redistribution; retention policy ADR. |
 | Memory pressure on small nodes | Small requests/limits, one worker deployment, low concurrency, Playwright limited. |

@@ -54,12 +54,9 @@ type IncidentCandidate struct {
 	Evidence            []Evidence `json:"evidence"`
 }
 
-// Usage is token accounting for one or more LLM calls.
+// Usage counts the LLM calls behind one result (the primary model, and the fallback if it was needed).
 type Usage struct {
-	InputTokens  int64   `json:"input_tokens"`
-	OutputTokens int64   `json:"output_tokens"`
-	CostUSD      float64 `json:"cost_usd"`
-	Calls        int     `json:"calls"`
+	Calls int `json:"calls"`
 }
 
 // ExtractionMeta records what produced a result, for reproducibility.

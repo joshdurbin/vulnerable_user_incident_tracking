@@ -29,7 +29,7 @@ func (f *fakeFetcher) FetchArticle(_ context.Context, r domain.FetchRequest) (*d
 type stubLLM struct{ content string }
 
 func (s stubLLM) Complete(_ context.Context, r llm.Request) (*llm.Response, error) {
-	return &llm.Response{Content: s.content, Model: r.Model, Mode: llm.ModeJSONSchema, InputTokens: 10, OutputTokens: 5, CostUSD: 0.0001, PriceKnown: true}, nil
+	return &llm.Response{Content: s.content, Model: r.Model, Mode: llm.ModeJSONSchema}, nil
 }
 
 const nonqual = `{"verdict":"nonqualifying","article_kind":"unrelated","collision_occurred":false,"motor_vehicle_involved":null,

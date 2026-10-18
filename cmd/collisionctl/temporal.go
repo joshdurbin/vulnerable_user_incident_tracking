@@ -48,10 +48,10 @@ func newWorkerCmd(a *app) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "worker",
 		Short: "Run the Temporal workers (workflows and activities)",
-		Long: `Runs one worker per task queue so slow or costly work cannot starve the rest:
+		Long: `Runs one worker per task queue so slow work cannot starve the rest:
   collision-workflow   workflow tasks
   collision-crawl      page fetches (rate limited)
-  collision-llm        classification (rate limited, budget aware)
+  collision-llm        classification (rate limited)
   collision-discovery  provider calls (run a single replica: provider limits are per process)
   collision-db         geocoding, entity resolution, reviews`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -268,7 +268,7 @@ func newBackfillCmd(a *app) *cobra.Command {
 	start.Flags().String("from", "", "start date YYYY-MM-DD")
 	start.Flags().String("to", "", "end date YYYY-MM-DD (exclusive)")
 	start.Flags().Duration("window", 24*time.Hour, "size of each discovery window")
-	start.Flags().Int("max-articles", 1000, "stop after starting this many article workflows (cost bound)")
+	start.Flags().Int("max-articles", 1000, "stop after starting this many article workflows (volume bound)")
 	start.Flags().String("id", "", "workflow ID (default backfill-<timestamp>)")
 
 	status := &cobra.Command{

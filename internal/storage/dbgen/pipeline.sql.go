@@ -100,7 +100,7 @@ func (q *Queries) GetDiscoveredURL(ctx context.Context, id uuid.UUID) (Discovere
 }
 
 const getExtractionByVersion = `-- name: GetExtractionByVersion :one
-SELECT id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, input_tokens, output_tokens, cost_usd, latency_ms, used_fallback, created_at FROM article_extractions
+SELECT id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, latency_ms, used_fallback, created_at FROM article_extractions
 WHERE article_id = $1 AND model = $2 AND prompt_version = $3 AND schema_version = $4
 `
 
@@ -130,9 +130,6 @@ func (q *Queries) GetExtractionByVersion(ctx context.Context, arg GetExtractionB
 		&i.ArticleKind,
 		&i.Result,
 		&i.Warnings,
-		&i.InputTokens,
-		&i.OutputTokens,
-		&i.CostUsd,
 		&i.LatencyMs,
 		&i.UsedFallback,
 		&i.CreatedAt,
@@ -171,7 +168,7 @@ func (q *Queries) InsertFetchAttempt(ctx context.Context, arg InsertFetchAttempt
 }
 
 const latestExtraction = `-- name: LatestExtraction :one
-SELECT id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, input_tokens, output_tokens, cost_usd, latency_ms, used_fallback, created_at FROM article_extractions WHERE article_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1
+SELECT id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, latency_ms, used_fallback, created_at FROM article_extractions WHERE article_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1
 `
 
 func (q *Queries) LatestExtraction(ctx context.Context, articleID uuid.UUID) (ArticleExtraction, error) {
@@ -188,9 +185,6 @@ func (q *Queries) LatestExtraction(ctx context.Context, articleID uuid.UUID) (Ar
 		&i.ArticleKind,
 		&i.Result,
 		&i.Warnings,
-		&i.InputTokens,
-		&i.OutputTokens,
-		&i.CostUsd,
 		&i.LatencyMs,
 		&i.UsedFallback,
 		&i.CreatedAt,

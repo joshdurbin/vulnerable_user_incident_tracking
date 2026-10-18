@@ -3,15 +3,11 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/spf13/viper"
-
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/llm"
 )
 
 const EnvPrefix = "COLLISION"
@@ -23,8 +19,6 @@ type LLM struct {
 	FallbackModel  string
 	StructuredMode string
 	Timeout        time.Duration
-	Prices         map[string]llm.Price
-	BudgetUSD      float64
 }
 
 // Temporal locates the workflow service.
@@ -76,7 +70,6 @@ func NewViper() *viper.Viper {
 	v.SetDefault("llm.base_url", "http://bifrost.bifrost.svc.cluster.local:8080/v1")
 	v.SetDefault("llm.structured_mode", "json_schema")
 	v.SetDefault("llm.timeout", 120*time.Second)
-	v.SetDefault("llm.budget_usd", 0.0)
 	return v
 }
 
@@ -102,10 +95,6 @@ func ReadFile(v *viper.Viper, path string) error {
 
 // Load produces the typed config from a configured viper.
 func Load(v *viper.Viper) (Config, error) {
-	prices, err := loadPrices(v)
-	if err != nil {
-		return Config{}, err
-	}
 	return Config{
 		DatabaseURL:       v.GetString("database.url"),
 		LogLevel:          v.GetString("log.level"),
@@ -125,30 +114,6 @@ func Load(v *viper.Viper) (Config, error) {
 			FallbackModel:  v.GetString("llm.fallback_model"),
 			StructuredMode: v.GetString("llm.structured_mode"),
 			Timeout:        v.GetDuration("llm.timeout"),
-			Prices:         prices,
-			BudgetUSD:      v.GetFloat64("llm.budget_usd"),
 		},
 	}, nil
-}
-
-// loadPrices accepts either a map (config file) or a JSON string (env/flag).
-func loadPrices(v *viper.Viper) (map[string]llm.Price, error) {
-	out := map[string]llm.Price{}
-	raw := v.Get("llm.prices")
-	switch t := raw.(type) {
-	case nil:
-		return out, nil
-	case string:
-		if strings.TrimSpace(t) == "" {
-			return out, nil
-		}
-		if err := json.Unmarshal([]byte(t), &out); err != nil {
-			return nil, fmt.Errorf("invalid llm.prices JSON: %w", err)
-		}
-	default:
-		if err := v.UnmarshalKey("llm.prices", &out); err != nil {
-			return nil, fmt.Errorf("invalid llm.prices: %w", err)
-		}
-	}
-	return out, nil
 }

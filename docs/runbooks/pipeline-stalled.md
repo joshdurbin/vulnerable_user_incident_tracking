@@ -20,8 +20,7 @@ Work flows: Schedule, discovery, fetch (crawler), classify (LLM), resolve, incid
      shows `OOMKilled`), or too many pages are open at once. Lower `render.browserConcurrency` or raise
      `render.resources.limits.memory`. Articles keep flowing meanwhile: they fall back to the plain HTTP result, and pages
      that needed a browser are stored with no text. They are not fetched again automatically: reprocessing re-classifies stored text, it does not re-fetch.
-   - `Classify` failing: Bifrost or OpenRouter. Check Bifrost's UI for the provider key, quota and error log. A budget
-     stop is not a failure; see `llm-cost.md`.
+   - `Classify` failing: Bifrost or OpenRouter. Check Bifrost's UI for the provider key, quota and error log.
    - Database activities failing: PostgreSQL or the pooler.
 5. **Articles failing en masse** (`CollisionMostArticlesFailing`): publishers are blocking or the crawler's network is
    broken. Look at `article_fetch_attempts.error_detail` for the common reason.

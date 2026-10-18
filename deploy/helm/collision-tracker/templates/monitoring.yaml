@@ -73,13 +73,6 @@ spec:
           annotations:
             summary: More than half of fetched articles failed
             description: Publishers may be blocking the crawler. See docs/runbooks/pipeline-stalled.md
-        - alert: CollisionLLMSpendHigh
-          expr: sum(increase(collision_llm_cost_usd_total[24h])) > {{ $a.llmSpendUSDPerDay }}
-          for: 10m
-          labels: { severity: warning }
-          annotations:
-            summary: LLM spend over the last 24 hours is ${{ "{{ $value | printf \"%.2f\" }}" }}
-            description: See docs/runbooks/llm-cost.md
     - name: collision-tracker.workers
       rules:
         - alert: CollisionLLMWorkerNotPolling

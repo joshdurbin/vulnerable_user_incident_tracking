@@ -10,7 +10,7 @@ import TrendsPage from "./pages/TrendsPage";
 function PendingBadge() {
   const q = useQuery({
     queryKey: ["pipeline", "badge"],
-    queryFn: async () => unwrap(await api.GET("/ops/pipeline", { params: { query: { days: 1 } } })),
+    queryFn: async () => unwrap(await api.GET("/ops/pipeline")),
     refetchInterval: 60_000,
   });
   const n = q.data?.counts.pending_reviews ?? 0;

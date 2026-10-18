@@ -20,7 +20,6 @@ type fakeLLM struct {
 type reply struct {
 	content string
 	err     error
-	in, out int64
 }
 
 func (f *fakeLLM) Complete(_ context.Context, r llm.Request) (*llm.Response, error) {
@@ -29,7 +28,7 @@ func (f *fakeLLM) Complete(_ context.Context, r llm.Request) (*llm.Response, err
 	if rp.err != nil {
 		return nil, rp.err
 	}
-	return &llm.Response{Content: rp.content, Model: r.Model, Mode: llm.ModeJSONSchema, InputTokens: rp.in, OutputTokens: rp.out, CostUSD: 0.001, PriceKnown: true}, nil
+	return &llm.Response{Content: rp.content, Model: r.Model, Mode: llm.ModeJSONSchema}, nil
 }
 
 func article(t *testing.T) *domain.Article {
@@ -61,7 +60,7 @@ func newClassifier(t *testing.T, f *fakeLLM, fallback string) *Classifier {
 }
 
 func TestPedestrianFatality(t *testing.T) {
-	f := &fakeLLM{replies: []reply{{content: fatalJSON, in: 900, out: 250}}}
+	f := &fakeLLM{replies: []reply{{content: fatalJSON}}}
 	res, err := newClassifier(t, f, "").Classify(context.Background(), article(t))
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +81,7 @@ func TestPedestrianFatality(t *testing.T) {
 		t.Fatalf("unexpected warnings: %v", res.Warnings)
 	}
 	m := res.Meta
-	if m.Model != "qwen" || m.PromptVersion != "v1" || m.SchemaVersion != "v1" || m.Usage.InputTokens != 900 || m.Usage.Calls != 1 {
+	if m.Model != "qwen" || m.PromptVersion != "v1" || m.SchemaVersion != "v1" || m.Usage.Calls != 1 {
 		t.Fatalf("bad meta: %+v", m)
 	}
 	// Untrusted article is delimited and the system prompt carries the policy.
@@ -121,12 +120,12 @@ func TestFutureDateCleared(t *testing.T) {
 }
 
 func TestInvalidOutputFallsBackToSecondModel(t *testing.T) {
-	f := &fakeLLM{replies: []reply{{content: "I think this is about a crash.", in: 500, out: 20}, {content: fatalJSON, in: 500, out: 250}}}
+	f := &fakeLLM{replies: []reply{{content: "I think this is about a crash."}, {content: fatalJSON}}}
 	res, err := newClassifier(t, f, "gpt-oss").Classify(context.Background(), article(t))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Meta.UsedFallback || res.Meta.Model != "gpt-oss" || res.Meta.Usage.Calls != 2 || res.Meta.Usage.InputTokens != 1000 {
+	if !res.Meta.UsedFallback || res.Meta.Model != "gpt-oss" || res.Meta.Usage.Calls != 2 {
 		t.Fatalf("bad fallback meta: %+v", res.Meta)
 	}
 }
@@ -135,14 +134,6 @@ func TestBothModelsFail(t *testing.T) {
 	f := &fakeLLM{replies: []reply{{content: "{}"}, {err: errors.New("503")}}}
 	if _, err := newClassifier(t, f, "gpt-oss").Classify(context.Background(), article(t)); err == nil {
 		t.Fatal("expected error")
-	}
-}
-
-func TestBudgetExceededDoesNotFallBack(t *testing.T) {
-	f := &fakeLLM{replies: []reply{{err: llm.ErrBudgetExceeded}, {content: fatalJSON}}}
-	_, err := newClassifier(t, f, "gpt-oss").Classify(context.Background(), article(t))
-	if !errors.Is(err, llm.ErrBudgetExceeded) || len(f.calls) != 1 {
-		t.Fatalf("want budget error after 1 call, got err=%v calls=%d", err, len(f.calls))
 	}
 }
 

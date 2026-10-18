@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { adminToken, api, authHeaders, unwrap, type SourceInfo } from "../api/client";
 import { ErrorNote, Loading, StatCard } from "../components/bits";
 import { label } from "../format";
@@ -13,7 +12,7 @@ export default function OpsPage() {
   });
   const pipe = useQuery({
     queryKey: ["pipeline"],
-    queryFn: async () => unwrap(await api.GET("/ops/pipeline", { params: { query: { days: 30 } } })),
+    queryFn: async () => unwrap(await api.GET("/ops/pipeline")),
     refetchInterval: 30_000,
   });
   const control = useMutation({
@@ -23,11 +22,6 @@ export default function OpsPage() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sources"] }),
   });
-
-  const byDay = new Map<string, number>();
-  pipe.data?.llm_spend.forEach((r) => byDay.set(r.day, (byDay.get(r.day) ?? 0) + r.cost_usd));
-  const spend = [...byDay].map(([day, cost]) => ({ day, cost })).sort((a, b) => a.day.localeCompare(b.day));
-  const total = spend.reduce((s, r) => s + r.cost, 0);
 
   return (
     <>
@@ -39,7 +33,6 @@ export default function OpsPage() {
           <StatCard title="Articles fetched" value={pipe.data.counts.articles.toLocaleString()} hint={`${pipe.data.counts.failed_articles} failed`} />
           <StatCard title="Classified" value={pipe.data.counts.extractions.toLocaleString()} />
           <StatCard title="Awaiting review" value={pipe.data.counts.pending_reviews.toLocaleString()} />
-          <StatCard title="LLM spend (30d)" value={`$${total.toFixed(2)}`} />
         </div>
       )}
 
@@ -65,22 +58,6 @@ export default function OpsPage() {
         )}
       </section>
 
-      <section className="card">
-        <h2>LLM spend per day</h2>
-        {spend.length === 0 ? <p className="muted">No extractions yet.</p> : (
-          <div className="chart" role="img" aria-label="LLM spend per day">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={spend}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(v: number) => `$${v}`} />
-                <Tooltip formatter={(v) => `$${Number(v).toFixed(4)}`} />
-                <Bar dataKey="cost" name="Cost" fill="#495057" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </section>
     </>
   );
 }

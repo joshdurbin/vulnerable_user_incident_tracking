@@ -53,7 +53,7 @@ func newClassifyCmd(a *app) *cobra.Command {
 				return err
 			}
 			a.log.Info().Str("model", res.Meta.Model).Str("verdict", string(res.Verdict)).
-				Int("incidents", len(res.Incidents)).Float64("cost_usd", res.Meta.Usage.CostUSD).Msg("classified")
+				Int("incidents", len(res.Incidents)).Msg("classified")
 			if asJSON {
 				return writeJSON(a.out, res)
 			}
@@ -112,9 +112,8 @@ func printResult(w io.Writer, a *domain.Article, r *domain.ExtractionResult) {
 		fmt.Fprintf(w, "\nwarning: %s", wn)
 	}
 	m := r.Meta
-	fmt.Fprintf(w, "\n\nmodel=%s prompt=%s schema=%s mode=%s fallback=%v tokens=%d/%d cost=$%.5f latency=%s\n",
-		m.Model, m.PromptVersion, m.SchemaVersion, m.StructuredMode, m.UsedFallback,
-		m.Usage.InputTokens, m.Usage.OutputTokens, m.Usage.CostUSD, m.Latency.Round(time.Millisecond))
+	fmt.Fprintf(w, "\n\nmodel=%s prompt=%s schema=%s mode=%s fallback=%v latency=%s\n",
+		m.Model, m.PromptVersion, m.SchemaVersion, m.StructuredMode, m.UsedFallback, m.Latency.Round(time.Millisecond))
 }
 
 func intp(p *int) string {

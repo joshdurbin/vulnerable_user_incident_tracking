@@ -158,7 +158,7 @@ sequenceDiagram
   end
   W->>L: Classify(article id)
   Note over L: reuse stored extraction for same<br/>model + prompt + schema, else call LLM,<br/>validate against schema and evidence quotes
-  alt nonqualifying, insufficient, or budget exceeded
+  alt nonqualifying or insufficient
     L-->>W: stop (clean outcome, not a failure)
   else candidates found
     loop each candidate
@@ -170,7 +170,7 @@ sequenceDiagram
 ```
 
 Retry policy differs by step: crawl and DB steps retry with backoff; classification retries transient gateway errors
-but treats "budget exceeded" and "invalid output" as terminal outcomes recorded on the workflow, not failures.
+but treats "invalid output" as a terminal outcome recorded on the workflow, not a failure.
 
 ### Classification
 
@@ -187,7 +187,7 @@ flowchart LR
 ```
 
 The gateway client probes structured-output support and downgrades `json_schema` to `json_object` to prompt-only.
-Token use and cost are tracked per call, with an optional spend limit.
+LLM spend is tracked outside this application.
 
 ## Entity resolution
 
@@ -264,12 +264,12 @@ stateDiagram-v2
   Running --> Paused: pause signal
   Paused --> Running: resume signal
   Running --> Cancelled: cancel signal
-  Running --> BudgetReached: article budget spent
+  Running --> LimitReached: article limit reached
   Running --> Running: next (window, source) step<br/>Continue-As-New every 40 steps
   Running --> Done: all windows covered
 ```
 
-A backfill walks date windows across sources, answers a progress query, and bounds cost with a maximum number of
+A backfill walks date windows across sources, answers a progress query, and bounds volume with a maximum number of
 article workflows. Reprocess pages through retained articles that lack an extraction for the current model, prompt
 and schema, compares old and new results, withdraws what the old extraction contributed, and resolves the new one.
 
@@ -305,7 +305,6 @@ erDiagram
     text prompt_version
     text schema_version
     jsonb result "validated extraction"
-    numeric cost_usd
   }
   incidents {
     uuid id PK
@@ -364,8 +363,8 @@ flowchart LR
   as a second layer behind the crawler's own SSRF guard.
 - **Metrics.** Each process serves `/metrics` on a separate port. Temporal SDK metrics (Go through tally, Python natively)
   use the same names. The API also exports pipeline state read from PostgreSQL at scrape time (articles by status, pending
-  reviews, spend, per-source failures and last success), which stays correct across restarts and retries.
-- **Alerts and dashboard.** A `VMRule` covers stalled pipelines, failing or stale sources, queue backlog, spend, the review
+  reviews, per-source failures and last success), which stays correct across restarts and retries.
+- **Alerts and dashboard.** A `VMRule` covers stalled pipelines, failing or stale sources, queue backlog, the review
   queue and API errors; a Grafana dashboard ships as a labelled ConfigMap. Each alert points to a runbook in
   `docs/runbooks/`.
 
@@ -391,7 +390,7 @@ flowchart LR
 | Trends | summary, time series, breakdowns | none |
 | Incident detail | sources, per-article observations, audit trail | link to the incident's workflow |
 | Review queue | side-by-side pairs with differences highlighted | decision as a validated Update |
-| Operations | source quality, spend, counters | schedule pause, resume, run now |
+| Operations | source quality, counters | schedule pause, resume, run now |
 
 ## Security
 
@@ -432,6 +431,5 @@ See [ADR 0004](decisions/0004-rendering-on-its-own-queue.md).
   (schema checks, a server-side dry run of the VictoriaMetrics resources, the Temporal setup script on a dev server),
   but nothing has been applied: the infra change set is an unmerged local branch, the container images have not been built
   by CI yet, the Vault secrets have not been created, and the OpenRouter provider has not been added to Bifrost.
-- A geocoder (incidents currently match on street, city and county text), a monthly LLM budget stored in the
-  database, a Temporal codec server, and saga-style
+- A geocoder (incidents currently match on street, city and county text), a Temporal codec server, and saga-style
   compensation for merge and split (they are single database transactions today).

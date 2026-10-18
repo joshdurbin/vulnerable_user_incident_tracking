@@ -29,8 +29,6 @@ llm:
   model: ""             # required, e.g. an OpenRouter model id configured in Bifrost
   fallbackModel: ""
   structuredMode: json_schema
-  budgetUSD: 0          # per worker process; 0 = unlimited
-  prices: {}            # {"model": {"input_per_m": 0.2, "output_per_m": 0.6}} so cost is tracked
 
 discovery:
   resolveGoogleNews: false   # relies on an undocumented Google endpoint
@@ -101,6 +99,5 @@ monitoring:
     pendingReviewsOver: 25
     sourceFailuresOver: 5
     noNewIncidentsHours: 72
-    llmSpendUSDPerDay: 5
 
 podAntiAffinity: true           # spread replicas across nodes

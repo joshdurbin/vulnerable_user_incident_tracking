@@ -79,8 +79,7 @@ func printReport(w io.Writer, r *eval.Report, replay bool) {
 	}
 	fmt.Fprintf(w, "Hallucination    %d/%d unverified quotes (%.1f%%)   incidents invented for non-incident articles: %d\n",
 		r.UnverifiedQuotes, r.EvidenceQuotes, 100*r.HallucinationRate, r.InventedIncidentCases)
-	fmt.Fprintf(w, "Tokens in/out    %d / %d   avg latency %.0f ms\n", r.InputTokens, r.OutputTokens, r.AvgLatencyMS)
-	fmt.Fprintf(w, "Cost             $%.5f total   $%.5f/article   $%.5f/correct incident\n", r.CostUSD, r.CostPerArticleUSD, r.CostPerCorrectIncidentUSD)
+	fmt.Fprintf(w, "Avg latency      %.0f ms\n", r.AvgLatencyMS)
 	fmt.Fprintln(w, "\nPer case:")
 	for _, c := range r.Results {
 		status := "PASS"

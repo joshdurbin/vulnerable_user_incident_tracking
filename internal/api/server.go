@@ -498,25 +498,12 @@ func (s *Server) ControlSchedule(ctx context.Context, req ControlScheduleRequest
 }
 
 func (s *Server) PipelineSummary(ctx context.Context, req PipelineSummaryRequestObject) (PipelineSummaryResponseObject, error) {
-	days := 30
-	if req.Params.Days != nil {
-		days = *req.Params.Days
-	}
-	q := dbgen.New(s.store.Pool)
-	c, err := q.PipelineCounts(ctx)
+	c, err := dbgen.New(s.store.Pool).PipelineCounts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	spend, err := q.LLMSpendByDay(ctx, s.now().AddDate(0, 0, -days))
-	if err != nil {
-		return nil, err
-	}
-	out := PipelineSummary{LlmSpend: make([]LlmSpendRow, 0, len(spend))}
+	var out PipelineSummary
 	out.Counts.DiscoveredUrls, out.Counts.Articles, out.Counts.FailedArticles = c.DiscoveredUrls, c.Articles, c.FailedArticles
 	out.Counts.Extractions, out.Counts.PendingReviews = c.Extractions, c.PendingReviews
-	for _, r := range spend {
-		out.LlmSpend = append(out.LlmSpend, LlmSpendRow{Day: openapi_types.Date{Time: r.Day.Time}, Model: r.Model, Extractions: r.Extractions,
-			InputTokens: r.InputTokens, OutputTokens: r.OutputTokens, CostUsd: r.CostUsd})
-	}
 	return PipelineSummary200JSONResponse(out), nil
 }

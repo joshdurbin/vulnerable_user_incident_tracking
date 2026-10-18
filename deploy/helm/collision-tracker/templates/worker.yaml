@@ -50,12 +50,6 @@ spec:
               value: {{ $.Values.llm.fallbackModel | quote }}
             - name: COLLISION_LLM_STRUCTURED_MODE
               value: {{ $.Values.llm.structuredMode | quote }}
-            - name: COLLISION_LLM_BUDGET_USD
-              value: {{ $.Values.llm.budgetUSD | quote }}
-            {{- if $.Values.llm.prices }}
-            - name: COLLISION_LLM_PRICES
-              value: {{ $.Values.llm.prices | toJson | quote }}
-            {{- end }}
             {{- if $.Values.secrets.llmApiKey.name }}
             - name: COLLISION_LLM_API_KEY
               valueFrom: { secretKeyRef: { name: {{ $.Values.secrets.llmApiKey.name }}, key: {{ $.Values.secrets.llmApiKey.key }} } }

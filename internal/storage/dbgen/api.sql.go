@@ -36,53 +36,6 @@ func (q *Queries) GetReviewNoLock(ctx context.Context, id uuid.UUID) (MatchRevie
 	return i, err
 }
 
-const lLMSpendByDay = `-- name: LLMSpendByDay :many
-SELECT date_trunc('day', created_at)::date AS day, model,
-       count(*)::bigint AS extractions,
-       COALESCE(sum(input_tokens), 0)::bigint AS input_tokens,
-       COALESCE(sum(output_tokens), 0)::bigint AS output_tokens,
-       COALESCE(sum(cost_usd), 0)::float8 AS cost_usd
-FROM article_extractions
-WHERE created_at >= $1::timestamptz
-GROUP BY 1, 2 ORDER BY 1 DESC, 2
-`
-
-type LLMSpendByDayRow struct {
-	Day          pgtype.Date `json:"day"`
-	Model        string      `json:"model"`
-	Extractions  int64       `json:"extractions"`
-	InputTokens  int64       `json:"input_tokens"`
-	OutputTokens int64       `json:"output_tokens"`
-	CostUsd      float64     `json:"cost_usd"`
-}
-
-func (q *Queries) LLMSpendByDay(ctx context.Context, since time.Time) ([]LLMSpendByDayRow, error) {
-	rows, err := q.db.Query(ctx, lLMSpendByDay, since)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []LLMSpendByDayRow
-	for rows.Next() {
-		var i LLMSpendByDayRow
-		if err := rows.Scan(
-			&i.Day,
-			&i.Model,
-			&i.Extractions,
-			&i.InputTokens,
-			&i.OutputTokens,
-			&i.CostUsd,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listIncidentArticlesAPI = `-- name: ListIncidentArticlesAPI :many
 SELECT ia.article_id, ia.match_status, ia.match_score, ia.matched_by, a.title, a.publisher, a.final_url, a.published_at, a.fetched_at
 FROM incident_articles ia JOIN articles a ON a.id = ia.article_id
@@ -399,6 +352,35 @@ func (q *Queries) MetricsArticleStatus(ctx context.Context) ([]MetricsArticleSta
 	return items, nil
 }
 
+const metricsExtractionTotals = `-- name: MetricsExtractionTotals :many
+SELECT model, count(*)::bigint AS extractions FROM article_extractions GROUP BY model
+`
+
+type MetricsExtractionTotalsRow struct {
+	Model       string `json:"model"`
+	Extractions int64  `json:"extractions"`
+}
+
+func (q *Queries) MetricsExtractionTotals(ctx context.Context) ([]MetricsExtractionTotalsRow, error) {
+	rows, err := q.db.Query(ctx, metricsExtractionTotals)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MetricsExtractionTotalsRow
+	for rows.Next() {
+		var i MetricsExtractionTotalsRow
+		if err := rows.Scan(&i.Model, &i.Extractions); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const metricsIncidentTotals = `-- name: MetricsIncidentTotals :one
 SELECT count(*) FILTER (WHERE merged_into IS NULL AND verification_status <> 'withdrawn')::bigint AS active,
        count(*) FILTER (WHERE verification_status = 'withdrawn')::bigint AS withdrawn,
@@ -417,48 +399,6 @@ func (q *Queries) MetricsIncidentTotals(ctx context.Context) (MetricsIncidentTot
 	var i MetricsIncidentTotalsRow
 	err := row.Scan(&i.Active, &i.Withdrawn, &i.NewestCreatedAt)
 	return i, err
-}
-
-const metricsLLMTotals = `-- name: MetricsLLMTotals :many
-SELECT model, count(*)::bigint AS extractions,
-       COALESCE(sum(input_tokens), 0)::bigint AS input_tokens,
-       COALESCE(sum(output_tokens), 0)::bigint AS output_tokens,
-       COALESCE(sum(cost_usd), 0)::float8 AS cost_usd
-FROM article_extractions GROUP BY model
-`
-
-type MetricsLLMTotalsRow struct {
-	Model        string  `json:"model"`
-	Extractions  int64   `json:"extractions"`
-	InputTokens  int64   `json:"input_tokens"`
-	OutputTokens int64   `json:"output_tokens"`
-	CostUsd      float64 `json:"cost_usd"`
-}
-
-func (q *Queries) MetricsLLMTotals(ctx context.Context) ([]MetricsLLMTotalsRow, error) {
-	rows, err := q.db.Query(ctx, metricsLLMTotals)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []MetricsLLMTotalsRow
-	for rows.Next() {
-		var i MetricsLLMTotalsRow
-		if err := rows.Scan(
-			&i.Model,
-			&i.Extractions,
-			&i.InputTokens,
-			&i.OutputTokens,
-			&i.CostUsd,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const metricsSourceHealth = `-- name: MetricsSourceHealth :many

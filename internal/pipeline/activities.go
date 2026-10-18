@@ -19,14 +19,12 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/llm"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
 // Application error types. Workflows match on these in retry policies.
 const (
-	ErrTypeBudget        = "BudgetExceeded"
 	ErrTypeInvalidOutput = "InvalidOutput"
 	ErrTypeNotFound      = "NotFound"
 	ErrTypeNotPending    = "ReviewNotPending"
@@ -237,9 +235,6 @@ func (a *Activities) Classify(ctx context.Context, in ClassifyInput) (*ClassifyR
 	}
 	res, err := a.Classifier.Classify(ctx, art)
 	if err != nil {
-		if errors.Is(err, llm.ErrBudgetExceeded) {
-			return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeBudget, err)
-		}
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
@@ -259,15 +254,14 @@ func (a *Activities) Classify(ctx context.Context, in ClassifyInput) (*ClassifyR
 	ex, err := q.UpsertExtraction(ctx, dbgen.UpsertExtractionParams{
 		ArticleID: in.ArticleID, Model: res.Meta.Model, PromptVersion: res.Meta.PromptVersion, SchemaVersion: res.Meta.SchemaVersion,
 		StructuredMode: &mode, Verdict: string(res.Verdict), ArticleKind: string(res.ArticleKind), Result: resJSON,
-		Warnings: warnings, InputTokens: res.Meta.Usage.InputTokens, OutputTokens: res.Meta.Usage.OutputTokens,
-		CostUsd: res.Meta.Usage.CostUSD, LatencyMs: int32(res.Meta.Latency.Milliseconds()), UsedFallback: res.Meta.UsedFallback,
+		Warnings: warnings, LatencyMs: int32(res.Meta.Latency.Milliseconds()), UsedFallback: res.Meta.UsedFallback,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &ClassifyResult{
 		ExtractionID: ex.ID, Verdict: string(res.Verdict), Incidents: len(res.Incidents),
-		Reused: !ex.Inserted, CostUSD: res.Meta.Usage.CostUSD, Model: res.Meta.Model,
+		Reused: !ex.Inserted, Model: res.Meta.Model,
 	}, nil
 }
 

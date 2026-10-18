@@ -164,7 +164,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Counters, and LLM spend by day and model */
+        /** Pipeline counters */
         get: operations["pipelineSummary"];
         put?: never;
         post?: never;
@@ -396,20 +396,6 @@ export interface components {
                 /** Format: int64 */
                 pending_reviews: number;
             };
-            llm_spend: components["schemas"]["LlmSpendRow"][];
-        };
-        LlmSpendRow: {
-            /** Format: date */
-            day: string;
-            model: string;
-            /** Format: int64 */
-            extractions: number;
-            /** Format: int64 */
-            input_tokens: number;
-            /** Format: int64 */
-            output_tokens: number;
-            /** Format: double */
-            cost_usd: number;
         };
     };
     responses: {
@@ -736,9 +722,7 @@ export interface operations {
     };
     pipelineSummary: {
         parameters: {
-            query?: {
-                days?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;

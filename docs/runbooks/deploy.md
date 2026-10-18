@@ -25,7 +25,7 @@ If a PreSync Job fails, nothing rolls out and the running version keeps serving.
       the nodes need credentials; the simplest fix is to make the packages public.
 - [ ] Sync the Application. Check the Operations page: sources are listed and their schedules show a next run time.
 - [ ] Start small. Leave most sources disabled, run one with "Run now", and watch an article go through before enabling
-      the rest. Keep `llm.budgetUSD` set during the first week.
+      the rest.
 
 ## Upgrade
 

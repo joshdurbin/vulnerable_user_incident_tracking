@@ -10,8 +10,8 @@ SELECT * FROM articles WHERE id = $1;
 -- name: UpsertExtraction :one
 -- Idempotent on (article, model, prompt, schema): a repeat returns the existing row.
 INSERT INTO article_extractions (article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind,
-                                 result, warnings, input_tokens, output_tokens, cost_usd, latency_ms, used_fallback)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                                 result, warnings, latency_ms, used_fallback)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 ON CONFLICT (article_id, model, prompt_version, schema_version) DO UPDATE SET model = EXCLUDED.model
 RETURNING *, (xmax = 0) AS inserted;
 

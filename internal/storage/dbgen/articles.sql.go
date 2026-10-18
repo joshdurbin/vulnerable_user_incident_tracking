@@ -42,7 +42,7 @@ func (q *Queries) GetArticle(ctx context.Context, id uuid.UUID) (Article, error)
 }
 
 const getExtraction = `-- name: GetExtraction :one
-SELECT id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, input_tokens, output_tokens, cost_usd, latency_ms, used_fallback, created_at FROM article_extractions WHERE id = $1
+SELECT id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, latency_ms, used_fallback, created_at FROM article_extractions WHERE id = $1
 `
 
 func (q *Queries) GetExtraction(ctx context.Context, id uuid.UUID) (ArticleExtraction, error) {
@@ -59,9 +59,6 @@ func (q *Queries) GetExtraction(ctx context.Context, id uuid.UUID) (ArticleExtra
 		&i.ArticleKind,
 		&i.Result,
 		&i.Warnings,
-		&i.InputTokens,
-		&i.OutputTokens,
-		&i.CostUsd,
 		&i.LatencyMs,
 		&i.UsedFallback,
 		&i.CreatedAt,
@@ -137,10 +134,10 @@ func (q *Queries) InsertArticle(ctx context.Context, arg InsertArticleParams) (A
 
 const upsertExtraction = `-- name: UpsertExtraction :one
 INSERT INTO article_extractions (article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind,
-                                 result, warnings, input_tokens, output_tokens, cost_usd, latency_ms, used_fallback)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                                 result, warnings, latency_ms, used_fallback)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 ON CONFLICT (article_id, model, prompt_version, schema_version) DO UPDATE SET model = EXCLUDED.model
-RETURNING id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, input_tokens, output_tokens, cost_usd, latency_ms, used_fallback, created_at, (xmax = 0) AS inserted
+RETURNING id, article_id, model, prompt_version, schema_version, structured_mode, verdict, article_kind, result, warnings, latency_ms, used_fallback, created_at, (xmax = 0) AS inserted
 `
 
 type UpsertExtractionParams struct {
@@ -153,9 +150,6 @@ type UpsertExtractionParams struct {
 	ArticleKind    string    `json:"article_kind"`
 	Result         []byte    `json:"result"`
 	Warnings       []string  `json:"warnings"`
-	InputTokens    int64     `json:"input_tokens"`
-	OutputTokens   int64     `json:"output_tokens"`
-	CostUsd        float64   `json:"cost_usd"`
 	LatencyMs      int32     `json:"latency_ms"`
 	UsedFallback   bool      `json:"used_fallback"`
 }
@@ -171,9 +165,6 @@ type UpsertExtractionRow struct {
 	ArticleKind    string    `json:"article_kind"`
 	Result         []byte    `json:"result"`
 	Warnings       []string  `json:"warnings"`
-	InputTokens    int64     `json:"input_tokens"`
-	OutputTokens   int64     `json:"output_tokens"`
-	CostUsd        float64   `json:"cost_usd"`
 	LatencyMs      int32     `json:"latency_ms"`
 	UsedFallback   bool      `json:"used_fallback"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -192,9 +183,6 @@ func (q *Queries) UpsertExtraction(ctx context.Context, arg UpsertExtractionPara
 		arg.ArticleKind,
 		arg.Result,
 		arg.Warnings,
-		arg.InputTokens,
-		arg.OutputTokens,
-		arg.CostUsd,
 		arg.LatencyMs,
 		arg.UsedFallback,
 	)
@@ -210,9 +198,6 @@ func (q *Queries) UpsertExtraction(ctx context.Context, arg UpsertExtractionPara
 		&i.ArticleKind,
 		&i.Result,
 		&i.Warnings,
-		&i.InputTokens,
-		&i.OutputTokens,
-		&i.CostUsd,
 		&i.LatencyMs,
 		&i.UsedFallback,
 		&i.CreatedAt,

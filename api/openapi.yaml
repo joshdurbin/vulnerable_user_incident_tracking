@@ -154,8 +154,7 @@ paths:
     get:
       tags: [ops]
       operationId: pipelineSummary
-      summary: Counters, and LLM spend by day and model
-      parameters: [{name: days, in: query, schema: {type: integer, minimum: 1, maximum: 365, default: 30}}]
+      summary: Pipeline counters
       responses:
         '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/PipelineSummary'}}}}
 
@@ -352,7 +351,7 @@ components:
         last_run: {type: string, format: date-time, nullable: true}
     PipelineSummary:
       type: object
-      required: [counts, llm_spend]
+      required: [counts]
       properties:
         counts:
           type: object
@@ -363,16 +362,3 @@ components:
             failed_articles: {type: integer, format: int64}
             extractions: {type: integer, format: int64}
             pending_reviews: {type: integer, format: int64}
-        llm_spend:
-          type: array
-          items: {$ref: '#/components/schemas/LlmSpendRow'}
-    LlmSpendRow:
-      type: object
-      required: [day, model, extractions, input_tokens, output_tokens, cost_usd]
-      properties:
-        day: {type: string, format: date}
-        model: {type: string}
-        extractions: {type: integer, format: int64}
-        input_tokens: {type: integer, format: int64}
-        output_tokens: {type: integer, format: int64}
-        cost_usd: {type: number, format: double}

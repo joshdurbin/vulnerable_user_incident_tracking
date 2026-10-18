@@ -53,9 +53,6 @@ type ArticleExtraction struct {
 	ArticleKind    string    `json:"article_kind"`
 	Result         []byte    `json:"result"`
 	Warnings       []string  `json:"warnings"`
-	InputTokens    int64     `json:"input_tokens"`
-	OutputTokens   int64     `json:"output_tokens"`
-	CostUsd        float64   `json:"cost_usd"`
 	LatencyMs      int32     `json:"latency_ms"`
 	UsedFallback   bool      `json:"used_fallback"`
 	CreatedAt      time.Time `json:"created_at"`

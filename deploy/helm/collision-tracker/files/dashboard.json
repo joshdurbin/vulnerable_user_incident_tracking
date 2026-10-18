@@ -53,7 +53,7 @@
    "gridPos": {
     "x": 0,
     "y": 1,
-    "w": 4,
+    "w": 6,
     "h": 4
    },
    "targets": [
@@ -102,9 +102,9 @@
     "uid": "${datasource}"
    },
    "gridPos": {
-    "x": 4,
+    "x": 6,
     "y": 1,
-    "w": 4,
+    "w": 6,
     "h": 4
    },
    "targets": [
@@ -161,9 +161,9 @@
     "uid": "${datasource}"
    },
    "gridPos": {
-    "x": 8,
+    "x": 12,
     "y": 1,
-    "w": 4,
+    "w": 6,
     "h": 4
    },
    "targets": [
@@ -212,9 +212,9 @@
     "uid": "${datasource}"
    },
    "gridPos": {
-    "x": 12,
+    "x": 18,
     "y": 1,
-    "w": 4,
+    "w": 6,
     "h": 4
    },
    "targets": [
@@ -245,108 +245,6 @@
        {
         "color": "red",
         "value": 259200
-       }
-      ]
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ]
-    },
-    "colorMode": "value",
-    "graphMode": "none"
-   }
-  },
-  {
-   "id": 6,
-   "type": "stat",
-   "title": "LLM spend, all time",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "${datasource}"
-   },
-   "gridPos": {
-    "x": 16,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "${datasource}"
-     },
-     "expr": "sum(collision_llm_cost_usd_total)",
-     "legendFormat": "",
-     "refId": "A"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "currencyUSD",
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
-       }
-      ]
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "reduceOptions": {
-     "calcs": [
-      "lastNotNull"
-     ]
-    },
-    "colorMode": "value",
-    "graphMode": "none"
-   }
-  },
-  {
-   "id": 7,
-   "type": "stat",
-   "title": "LLM spend, 24h",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "${datasource}"
-   },
-   "gridPos": {
-    "x": 20,
-    "y": 1,
-    "w": 4,
-    "h": 4
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "${datasource}"
-     },
-     "expr": "sum(increase(collision_llm_cost_usd_total[24h]))",
-     "legendFormat": "",
-     "refId": "A"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "currencyUSD",
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "green",
-        "value": null
        }
       ]
      }
@@ -484,111 +382,13 @@
    }
   },
   {
-   "id": 11,
-   "type": "timeseries",
-   "title": "LLM spend per hour",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "${datasource}"
-   },
-   "gridPos": {
-    "x": 0,
-    "y": 14,
-    "w": 12,
-    "h": 8
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "${datasource}"
-     },
-     "expr": "sum by (model) (increase(collision_llm_cost_usd_total[1h]))",
-     "legendFormat": "{{model}}",
-     "refId": "A"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "currencyUSD",
-     "custom": {
-      "lineWidth": 1,
-      "fillOpacity": 15,
-      "stacking": {
-       "mode": "normal"
-      }
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom"
-    },
-    "tooltip": {
-     "mode": "multi"
-    }
-   }
-  },
-  {
-   "id": 12,
-   "type": "timeseries",
-   "title": "LLM tokens per hour",
-   "description": "",
-   "datasource": {
-    "type": "prometheus",
-    "uid": "${datasource}"
-   },
-   "gridPos": {
-    "x": 12,
-    "y": 14,
-    "w": 12,
-    "h": 8
-   },
-   "targets": [
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "${datasource}"
-     },
-     "expr": "sum by (direction) (increase(collision_llm_tokens_total[1h]))",
-     "legendFormat": "{{direction}}",
-     "refId": "A"
-    }
-   ],
-   "fieldConfig": {
-    "defaults": {
-     "unit": "short",
-     "custom": {
-      "lineWidth": 1,
-      "fillOpacity": 15,
-      "stacking": {
-       "mode": "normal"
-      }
-     }
-    },
-    "overrides": []
-   },
-   "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom"
-    },
-    "tooltip": {
-     "mode": "multi"
-    }
-   }
-  },
-  {
    "id": 13,
    "type": "row",
    "title": "Discovery sources",
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 22,
+    "y": 14,
     "w": 24,
     "h": 1
    },
@@ -605,7 +405,7 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 23,
+    "y": 15,
     "w": 12,
     "h": 8
    },
@@ -654,7 +454,7 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 23,
+    "y": 15,
     "w": 12,
     "h": 8
    },
@@ -699,7 +499,7 @@
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 31,
+    "y": 23,
     "w": 24,
     "h": 1
    },
@@ -716,7 +516,7 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 32,
+    "y": 24,
     "w": 12,
     "h": 8
    },
@@ -765,7 +565,7 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 32,
+    "y": 24,
     "w": 12,
     "h": 8
    },
@@ -814,7 +614,7 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 40,
+    "y": 32,
     "w": 12,
     "h": 8
    },
@@ -863,7 +663,7 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 40,
+    "y": 32,
     "w": 12,
     "h": 8
    },
@@ -912,7 +712,7 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 48,
+    "y": 40,
     "w": 12,
     "h": 8
    },
@@ -961,7 +761,7 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 48,
+    "y": 40,
     "w": 12,
     "h": 8
    },
@@ -1015,7 +815,7 @@
    "collapsed": false,
    "gridPos": {
     "x": 0,
-    "y": 56,
+    "y": 48,
     "w": 24,
     "h": 1
    },
@@ -1032,7 +832,7 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 57,
+    "y": 49,
     "w": 12,
     "h": 8
    },
@@ -1081,7 +881,7 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 57,
+    "y": 49,
     "w": 12,
     "h": 8
    },

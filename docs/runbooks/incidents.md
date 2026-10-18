@@ -18,7 +18,7 @@ derived from those observations, so a wrong value usually means one article said
 - **Wrong merge.** `collisionctl incidents split <incident-id> <article-id> --actor <you>` moves that article's
   observations to a new incident and recomputes both. The ids are on the incident page (sources list). There is no UI
   button for this yet.
-- **Bad extraction.** Fix the prompt or model and reprocess (`llm-cost.md`).
+- **Bad extraction.** Fix the prompt or model and reprocess (`model-and-prompt-changes.md`).
 - **An article that should not count.** Withdrawing is done by reprocessing; there is no manual delete by design.
 
 ## Data retention

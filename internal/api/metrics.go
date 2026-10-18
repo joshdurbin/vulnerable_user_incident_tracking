@@ -80,8 +80,6 @@ func NewPipelineCollector(st *storage.Store) *PipelineCollector {
 		"pending_reviews":  d("pending_reviews", "Possible duplicates waiting for a human decision."),
 		"discovered":       d("discovered_urls", "Unique URLs discovered."),
 		"extractions":      d("llm_extractions_total", "Classifications stored, by model.", "model"),
-		"tokens":           d("llm_tokens_total", "LLM tokens used, by model and direction.", "model", "direction"),
-		"cost":             d("llm_cost_usd_total", "LLM spend in USD, by model.", "model"),
 		"src_failures":     d("source_consecutive_failures", "Consecutive failed discovery runs.", "source"),
 		"src_last_success": d("source_last_success_timestamp_seconds", "Last successful discovery run (0 if never).", "source"),
 		"src_enabled":      d("source_enabled", "1 if the source is enabled.", "source"),
@@ -144,15 +142,12 @@ func (c *PipelineCollector) read(ctx context.Context) ([]prometheus.Metric, erro
 	for _, a := range arts {
 		g("articles", float64(a.N), a.Status)
 	}
-	llm, err := q.MetricsLLMTotals(ctx)
+	models, err := q.MetricsExtractionTotals(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, l := range llm {
+	for _, l := range models {
 		ctr("extractions", float64(l.Extractions), l.Model)
-		ctr("tokens", float64(l.InputTokens), l.Model, "input")
-		ctr("tokens", float64(l.OutputTokens), l.Model, "output")
-		ctr("cost", l.CostUsd, l.Model)
 	}
 	srcs, err := q.MetricsSourceHealth(ctx)
 	if err != nil {

@@ -130,7 +130,7 @@ func seed(t *testing.T, r *incidents.Resolver, publisher string, c domain.Incide
 	})
 	require.NoError(t, err)
 	ex, err := q.UpsertExtraction(ctx, dbgen.UpsertExtractionParams{ArticleID: a.ID, Model: "m", PromptVersion: "v1", SchemaVersion: "v1",
-		Verdict: "confirmed", ArticleKind: "current_incident", Result: []byte(`{}`), Warnings: []string{}, CostUsd: 0.002, InputTokens: 100, OutputTokens: 20})
+		Verdict: "confirmed", ArticleKind: "current_incident", Result: []byte(`{}`), Warnings: []string{}})
 	require.NoError(t, err)
 	res, err := r.Resolve(ctx, incidents.Input{ArticleID: a.ID, ExtractionID: ex.ID, Obs: incidents.Observation{
 		Candidate: c, ArticleKind: domain.KindCurrent, Publisher: publisher, ObservedAt: pub, Lat: lat, Lon: lon, GeocodeSource: "test", GeocodePrecision: "rooftop",
@@ -379,8 +379,6 @@ func TestPipelineSummaryAndHealth(t *testing.T) {
 	require.Equal(t, 200, get(t, ts, "/v1/ops/pipeline", &p))
 	assert.EqualValues(t, 4, p.Counts.Articles)
 	assert.EqualValues(t, 4, p.Counts.Extractions)
-	require.NotEmpty(t, p.LlmSpend)
-	assert.InDelta(t, 0.008, p.LlmSpend[0].CostUsd, 1e-9)
 	assert.Equal(t, 200, get(t, ts, "/healthz", nil))
 	assert.Equal(t, 200, get(t, ts, "/readyz", nil))
 }
@@ -463,7 +461,7 @@ func TestMetricsReflectRequestsAndPipelineState(t *testing.T) {
 	assert.Equal(t, 1.0, vals["collision_pipeline_collector_up"])
 	assert.Equal(t, 4.0, vals["collision_incidents"])
 	assert.Equal(t, 4.0, vals["collision_articles|status=fetched"])
-	assert.InDelta(t, 0.008, vals["collision_llm_cost_usd_total|model=m"], 1e-9)
+	assert.Equal(t, 4.0, vals["collision_llm_extractions_total|model=m"])
 	assert.Equal(t, 0.0, vals["collision_source_last_success_timestamp_seconds|source=s1"], "never succeeded")
 	assert.Equal(t, 1800.0, vals["collision_source_poll_interval_seconds|source=s1"])
 	assert.Equal(t, 1.0, vals["collision_http_requests_total|method=GET|route=/v1/incidents|status=200"])

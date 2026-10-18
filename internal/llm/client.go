@@ -37,7 +37,6 @@ type Config struct {
 	// StartMode is the first structured-output mode tried per model. Models that
 	// reject it are downgraded automatically and remembered.
 	StartMode StructuredMode
-	Prices    map[string]Price
 }
 
 // Request is one structured completion.
@@ -51,14 +50,10 @@ type Request struct {
 
 // Response is the model output plus accounting.
 type Response struct {
-	Content      string
-	Model        string
-	Mode         StructuredMode
-	InputTokens  int64
-	OutputTokens int64
-	CostUSD      float64
-	PriceKnown   bool
-	Latency      time.Duration
+	Content string
+	Model   string
+	Mode    StructuredMode
+	Latency time.Duration
 }
 
 // Completer is the interface the classifier depends on.
@@ -68,15 +63,14 @@ type Completer interface {
 
 // Client implements Completer on the OpenAI SDK.
 type Client struct {
-	cfg    Config
-	api    openai.Client
-	budget Budget
+	cfg Config
+	api openai.Client
 
 	mu    sync.Mutex
 	modes map[string]StructuredMode // per-model learned capability
 }
 
-func NewClient(cfg Config, budget Budget, opts ...option.RequestOption) *Client {
+func NewClient(cfg Config, opts ...option.RequestOption) *Client {
 	if cfg.StartMode == "" {
 		cfg.StartMode = ModeJSONSchema
 	}
@@ -91,7 +85,7 @@ func NewClient(cfg Config, budget Budget, opts ...option.RequestOption) *Client 
 	if cfg.Timeout > 0 {
 		base = append(base, option.WithRequestTimeout(cfg.Timeout))
 	}
-	return &Client{cfg: cfg, api: openai.NewClient(append(base, opts...)...), budget: budget, modes: map[string]StructuredMode{}}
+	return &Client{cfg: cfg, api: openai.NewClient(append(base, opts...)...), modes: map[string]StructuredMode{}}
 }
 
 func (c *Client) modeFor(model string) StructuredMode {
@@ -110,13 +104,8 @@ func (c *Client) setMode(model string, m StructuredMode) {
 }
 
 // Complete sends the request, downgrading the structured-output mode if the
-// model/provider rejects it (HTTP 400/422), and records token usage and cost.
+// model/provider rejects it (HTTP 400/422).
 func (c *Client) Complete(ctx context.Context, req Request) (*Response, error) {
-	if c.budget != nil {
-		if err := c.budget.Check(); err != nil {
-			return nil, err
-		}
-	}
 	mode := c.modeFor(req.Model)
 	for {
 		start := time.Now()
@@ -125,10 +114,6 @@ func (c *Client) Complete(ctx context.Context, req Request) (*Response, error) {
 			resp.Latency = time.Since(start)
 			resp.Mode = mode
 			resp.Model = req.Model
-			resp.CostUSD, resp.PriceKnown = Cost(c.cfg.Prices, req.Model, resp.InputTokens, resp.OutputTokens)
-			if c.budget != nil {
-				c.budget.Record(resp.CostUSD)
-			}
 			c.setMode(req.Model, mode)
 			return resp, nil
 		}
@@ -187,9 +172,5 @@ func (c *Client) once(ctx context.Context, req Request, mode StructuredMode) (*R
 	if len(out.Choices) == 0 {
 		return nil, errors.New("no choices in response")
 	}
-	return &Response{
-		Content:      out.Choices[0].Message.Content,
-		InputTokens:  out.Usage.PromptTokens,
-		OutputTokens: out.Usage.CompletionTokens,
-	}, nil
+	return &Response{Content: out.Choices[0].Message.Content}, nil
 }

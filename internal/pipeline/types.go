@@ -51,7 +51,7 @@ type DiscoveryInput struct {
 	Until         time.Time `json:"until,omitempty"`
 	CorrelationID string    `json:"correlation_id,omitempty"`
 	Options       Options   `json:"options,omitempty"`
-	// MaxArticles bounds how many article workflows one run starts (cost control). 0 = default.
+	// MaxArticles bounds how many article workflows one run starts (volume bound). 0 = default.
 	MaxArticles int `json:"max_articles,omitempty"`
 }
 
@@ -98,7 +98,6 @@ type ClassifyResult struct {
 	Verdict      string    `json:"verdict"`
 	Incidents    int       `json:"incidents"`
 	Reused       bool      `json:"reused"` // an extraction for these versions already existed: no LLM call was made
-	CostUSD      float64   `json:"cost_usd"`
 	Model        string    `json:"model"`
 }
 
@@ -139,7 +138,7 @@ type NotifyInput struct {
 type ArticleResult struct {
 	URL       string      `json:"url"`
 	ArticleID uuid.UUID   `json:"article_id,omitempty"`
-	Status    string      `json:"status"` // done|not_fetched|nonqualifying|budget_exceeded|invalid_output
+	Status    string      `json:"status"` // done|not_fetched|nonqualifying|invalid_output
 	Verdict   string      `json:"verdict,omitempty"`
 	Incidents []uuid.UUID `json:"incidents,omitempty"`
 	Reused    bool        `json:"reused,omitempty"`
@@ -204,7 +203,7 @@ type BackfillInput struct {
 	From          time.Time     `json:"from"`
 	To            time.Time     `json:"to"`
 	WindowSize    time.Duration `json:"window_size"`
-	MaxArticles   int           `json:"max_articles"` // total article workflows to start across the backfill (cost bound)
+	MaxArticles   int           `json:"max_articles"` // total article workflows to start across the backfill (volume bound)
 	CorrelationID string        `json:"correlation_id,omitempty"`
 	Options       Options       `json:"options,omitempty"`
 
@@ -222,7 +221,7 @@ type BackfillProgress struct {
 	Found       int    `json:"found"`
 	MaxArticles int    `json:"max_articles"`
 	Paused      bool   `json:"paused"`
-	Phase       string `json:"phase"` // running|paused|cancelled|budget_reached|done
+	Phase       string `json:"phase"` // running|paused|cancelled|limit_reached|done
 	Current     string `json:"current,omitempty"`
 }
 

@@ -5,7 +5,7 @@
 | First deploy, upgrades, rollback | [deploy.md](deploy.md) |
 | Alert: a source is failing or stale | [source-failing.md](source-failing.md) |
 | Alert: no new incidents, worker or crawler not polling, queue backlog | [pipeline-stalled.md](pipeline-stalled.md) |
-| Alert: LLM spend, or changing the model or prompt | [llm-cost.md](llm-cost.md) |
+| Changing the model or prompt, or too many articles being classified | [model-and-prompt-changes.md](model-and-prompt-changes.md) |
 | Merging, splitting and reviewing incidents | [incidents.md](incidents.md) |
 
 Conventions used below: `collisionctl` runs inside the cluster, for example

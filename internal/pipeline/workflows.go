@@ -47,7 +47,7 @@ func llmCtx(ctx workflow.Context) workflow.Context {
 		TaskQueue: TQLLM, StartToCloseTimeout: 3 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval: 10 * time.Second, BackoffCoefficient: 2, MaximumInterval: 2 * time.Minute, MaximumAttempts: 4,
-			NonRetryableErrorTypes: []string{ErrTypeBudget, ErrTypeInvalidOutput, ErrTypeNotFound},
+			NonRetryableErrorTypes: []string{ErrTypeInvalidOutput, ErrTypeNotFound},
 		},
 	})
 }
@@ -164,10 +164,6 @@ func ArticleWorkflow(ctx workflow.Context, in ArticleInput) (*ArticleResult, err
 	var cls ClassifyResult
 	if err := workflow.ExecuteActivity(llmCtx(ctx), act.Classify, ClassifyInput{ArticleID: fetched.ArticleID}).Get(ctx, &cls); err != nil {
 		switch {
-		case hasErrType(err, ErrTypeBudget):
-			res.Status = "budget_exceeded"
-			upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAStage, "budget_exceeded"))
-			return res, nil // not a failure: reprocess later when budget allows
 		case hasErrType(err, ErrTypeInvalidOutput):
 			res.Status = "invalid_output"
 			upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAStage, "invalid_output"))

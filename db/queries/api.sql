@@ -104,16 +104,6 @@ LIMIT sqlc.arg(max_rows)::int OFFSET sqlc.arg(skip_rows)::int;
 -- name: ListIncidentsByIDs :many
 SELECT * FROM incidents_v WHERE id = ANY(@ids::uuid[]);
 
--- name: LLMSpendByDay :many
-SELECT date_trunc('day', created_at)::date AS day, model,
-       count(*)::bigint AS extractions,
-       COALESCE(sum(input_tokens), 0)::bigint AS input_tokens,
-       COALESCE(sum(output_tokens), 0)::bigint AS output_tokens,
-       COALESCE(sum(cost_usd), 0)::float8 AS cost_usd
-FROM article_extractions
-WHERE created_at >= @since::timestamptz
-GROUP BY 1, 2 ORDER BY 1 DESC, 2;
-
 -- name: PipelineCounts :one
 SELECT (SELECT count(*) FROM discovered_urls)::bigint AS discovered_urls,
        (SELECT count(*) FROM articles)::bigint AS articles,
@@ -133,12 +123,8 @@ SELECT count(*) FILTER (WHERE merged_into IS NULL AND verification_status <> 'wi
        COALESCE(max(created_at), 'epoch'::timestamptz)::timestamptz AS newest_created_at
 FROM incidents;
 
--- name: MetricsLLMTotals :many
-SELECT model, count(*)::bigint AS extractions,
-       COALESCE(sum(input_tokens), 0)::bigint AS input_tokens,
-       COALESCE(sum(output_tokens), 0)::bigint AS output_tokens,
-       COALESCE(sum(cost_usd), 0)::float8 AS cost_usd
-FROM article_extractions GROUP BY model;
+-- name: MetricsExtractionTotals :many
+SELECT model, count(*)::bigint AS extractions FROM article_extractions GROUP BY model;
 
 -- name: MetricsSourceHealth :many
 SELECT slug, enabled, consecutive_failures, last_success_at, poll_interval_seconds FROM discovery_sources ORDER BY slug;
