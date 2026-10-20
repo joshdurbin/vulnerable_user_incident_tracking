@@ -3,6 +3,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/dedupe"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 	"time"
 
@@ -157,6 +158,13 @@ func ArticleWorkflow(ctx workflow.Context, in ArticleInput) (*ArticleResult, err
 	if fetched.Status != "fetched" {
 		res.Status = "not_fetched"
 		upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAStage, "not_fetched"), kw(SAVerdict, fetched.Status))
+		return res, nil
+	}
+
+	if fetched.DuplicateKind == dedupe.KindContentHash {
+		// Same text as an article already classified: the model would say the same thing.
+		res.Status = "duplicate"
+		upsertAttrs(ctx, in.Options.SearchAttributes, kw(SAStage, "duplicate"))
 		return res, nil
 	}
 

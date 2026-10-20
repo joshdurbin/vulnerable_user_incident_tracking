@@ -37,22 +37,25 @@ func (q *Queries) GetReviewNoLock(ctx context.Context, id uuid.UUID) (MatchRevie
 }
 
 const listIncidentArticlesAPI = `-- name: ListIncidentArticlesAPI :many
-SELECT ia.article_id, ia.match_status, ia.match_score, ia.matched_by, a.title, a.publisher, a.final_url, a.published_at, a.fetched_at
+SELECT ia.article_id, ia.match_status, ia.match_score, ia.matched_by, a.title, a.publisher, a.final_url, a.published_at, a.fetched_at,
+       a.duplicate_of, a.duplicate_kind
 FROM incident_articles ia JOIN articles a ON a.id = ia.article_id
 WHERE ia.incident_id = $1
 ORDER BY a.published_at NULLS LAST, ia.created_at
 `
 
 type ListIncidentArticlesAPIRow struct {
-	ArticleID   uuid.UUID  `json:"article_id"`
-	MatchStatus string     `json:"match_status"`
-	MatchScore  *float32   `json:"match_score"`
-	MatchedBy   string     `json:"matched_by"`
-	Title       *string    `json:"title"`
-	Publisher   *string    `json:"publisher"`
-	FinalUrl    string     `json:"final_url"`
-	PublishedAt *time.Time `json:"published_at"`
-	FetchedAt   time.Time  `json:"fetched_at"`
+	ArticleID     uuid.UUID  `json:"article_id"`
+	MatchStatus   string     `json:"match_status"`
+	MatchScore    *float32   `json:"match_score"`
+	MatchedBy     string     `json:"matched_by"`
+	Title         *string    `json:"title"`
+	Publisher     *string    `json:"publisher"`
+	FinalUrl      string     `json:"final_url"`
+	PublishedAt   *time.Time `json:"published_at"`
+	FetchedAt     time.Time  `json:"fetched_at"`
+	DuplicateOf   *uuid.UUID `json:"duplicate_of"`
+	DuplicateKind *string    `json:"duplicate_kind"`
 }
 
 func (q *Queries) ListIncidentArticlesAPI(ctx context.Context, incidentID uuid.UUID) ([]ListIncidentArticlesAPIRow, error) {
@@ -74,6 +77,8 @@ func (q *Queries) ListIncidentArticlesAPI(ctx context.Context, incidentID uuid.U
 			&i.FinalUrl,
 			&i.PublishedAt,
 			&i.FetchedAt,
+			&i.DuplicateOf,
+			&i.DuplicateKind,
 		); err != nil {
 			return nil, err
 		}

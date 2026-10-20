@@ -70,7 +70,7 @@ func newRootCmd(d deps) *cobra.Command {
 	pf.String("log-format", "json", "log format: json|console")
 	pf.Bool("json", false, "machine-readable JSON output")
 
-	root.AddCommand(newFetchCmd(a), newClassifyCmd(a), newEvalCmd(a), newMigrateCmd(a), newDiscoverCmd(a), newSourcesCmd(a), newWorkerCmd(a), newSchedulesCmd(a), newBackfillCmd(a), newReprocessCmd(a), newAPICmd(a), newIncidentsCmd(a))
+	root.AddCommand(newFetchCmd(a), newClassifyCmd(a), newEvalCmd(a), newMigrateCmd(a), newDiscoverCmd(a), newSourcesCmd(a), newWorkerCmd(a), newSchedulesCmd(a), newBackfillCmd(a), newReprocessCmd(a), newAPICmd(a), newIncidentsCmd(a), newArticlesCmd(a))
 	return root
 }
 

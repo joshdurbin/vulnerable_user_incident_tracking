@@ -12,8 +12,72 @@ import (
 	"github.com/google/uuid"
 )
 
+const backfillArticleFingerprint = `-- name: BackfillArticleFingerprint :exec
+UPDATE articles SET canonical_key = $2, simhash = $3 WHERE id = $1
+`
+
+type BackfillArticleFingerprintParams struct {
+	ID           uuid.UUID `json:"id"`
+	CanonicalKey *string   `json:"canonical_key"`
+	Simhash      *int64    `json:"simhash"`
+}
+
+func (q *Queries) BackfillArticleFingerprint(ctx context.Context, arg BackfillArticleFingerprintParams) error {
+	_, err := q.db.Exec(ctx, backfillArticleFingerprint, arg.ID, arg.CanonicalKey, arg.Simhash)
+	return err
+}
+
+const findDuplicateArticle = `-- name: FindDuplicateArticle :one
+SELECT m.id, COALESCE(m.duplicate_of, m.id)::uuid AS root_id, m.kind
+FROM (
+    SELECT a.id, a.duplicate_of, a.fetched_at, 1 AS prio, 'content_hash'::text AS kind
+      FROM articles a WHERE a.status = 'fetched' AND a.content_hash = $1::text
+    UNION ALL
+    SELECT a.id, a.duplicate_of, a.fetched_at, 2, 'canonical_url'::text
+      FROM articles a WHERE a.status = 'fetched' AND a.canonical_key = $2::text
+    UNION ALL
+    SELECT a.id, a.duplicate_of, a.fetched_at, 3, 'near_duplicate'::text
+      FROM articles a
+     WHERE a.status = 'fetched' AND a.simhash IS NOT NULL AND $3::bigint IS NOT NULL
+       AND a.fetched_at > $4::timestamptz
+       AND bit_count((a.simhash # $3::bigint)::bit(64)) <= $5::int
+) m
+ORDER BY m.prio, m.fetched_at
+LIMIT 1
+`
+
+type FindDuplicateArticleParams struct {
+	ContentHash  string    `json:"content_hash"`
+	CanonicalKey string    `json:"canonical_key"`
+	Simhash      *int64    `json:"simhash"`
+	Since        time.Time `json:"since"`
+	MaxDistance  int32     `json:"max_distance"`
+}
+
+type FindDuplicateArticleRow struct {
+	ID     uuid.UUID `json:"id"`
+	RootID uuid.UUID `json:"root_id"`
+	Kind   string    `json:"kind"`
+}
+
+// The earliest stored article this one repeats: the same text, the same canonical URL, or (within the
+// window) a near-identical text. Exact matches win over near ones. root_id is the original, since a
+// duplicate points at the article it copies and never at another copy.
+func (q *Queries) FindDuplicateArticle(ctx context.Context, arg FindDuplicateArticleParams) (FindDuplicateArticleRow, error) {
+	row := q.db.QueryRow(ctx, findDuplicateArticle,
+		arg.ContentHash,
+		arg.CanonicalKey,
+		arg.Simhash,
+		arg.Since,
+		arg.MaxDistance,
+	)
+	var i FindDuplicateArticleRow
+	err := row.Scan(&i.ID, &i.RootID, &i.Kind)
+	return i, err
+}
+
 const getArticle = `-- name: GetArticle :one
-SELECT id, discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author, published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at, created_at FROM articles WHERE id = $1
+SELECT id, discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author, published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at, created_at, canonical_key, simhash, duplicate_of, duplicate_kind FROM articles WHERE id = $1
 `
 
 func (q *Queries) GetArticle(ctx context.Context, id uuid.UUID) (Article, error) {
@@ -37,6 +101,10 @@ func (q *Queries) GetArticle(ctx context.Context, id uuid.UUID) (Article, error)
 		&i.Status,
 		&i.FetchedAt,
 		&i.CreatedAt,
+		&i.CanonicalKey,
+		&i.Simhash,
+		&i.DuplicateOf,
+		&i.DuplicateKind,
 	)
 	return i, err
 }
@@ -68,9 +136,10 @@ func (q *Queries) GetExtraction(ctx context.Context, id uuid.UUID) (ArticleExtra
 
 const insertArticle = `-- name: InsertArticle :one
 INSERT INTO articles (discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author,
-                      published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-RETURNING id, discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author, published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at, created_at
+                      published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at,
+                      canonical_key, simhash, duplicate_of, duplicate_kind)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+RETURNING id, discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author, published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at, created_at, canonical_key, simhash, duplicate_of, duplicate_kind
 `
 
 type InsertArticleParams struct {
@@ -89,6 +158,10 @@ type InsertArticleParams struct {
 	ContentHash     *string    `json:"content_hash"`
 	Status          string     `json:"status"`
 	FetchedAt       time.Time  `json:"fetched_at"`
+	CanonicalKey    *string    `json:"canonical_key"`
+	Simhash         *int64     `json:"simhash"`
+	DuplicateOf     *uuid.UUID `json:"duplicate_of"`
+	DuplicateKind   *string    `json:"duplicate_kind"`
 }
 
 func (q *Queries) InsertArticle(ctx context.Context, arg InsertArticleParams) (Article, error) {
@@ -108,6 +181,10 @@ func (q *Queries) InsertArticle(ctx context.Context, arg InsertArticleParams) (A
 		arg.ContentHash,
 		arg.Status,
 		arg.FetchedAt,
+		arg.CanonicalKey,
+		arg.Simhash,
+		arg.DuplicateOf,
+		arg.DuplicateKind,
 	)
 	var i Article
 	err := row.Scan(
@@ -128,8 +205,55 @@ func (q *Queries) InsertArticle(ctx context.Context, arg InsertArticleParams) (A
 		&i.Status,
 		&i.FetchedAt,
 		&i.CreatedAt,
+		&i.CanonicalKey,
+		&i.Simhash,
+		&i.DuplicateOf,
+		&i.DuplicateKind,
 	)
 	return i, err
+}
+
+const listArticlesWithoutFingerprint = `-- name: ListArticlesWithoutFingerprint :many
+SELECT id, final_url, canonical_url, body_text FROM articles
+WHERE status = 'fetched' AND body_text IS NOT NULL AND canonical_key IS NULL AND id > $1
+ORDER BY id LIMIT $2
+`
+
+type ListArticlesWithoutFingerprintParams struct {
+	ID    uuid.UUID `json:"id"`
+	Limit int32     `json:"limit"`
+}
+
+type ListArticlesWithoutFingerprintRow struct {
+	ID           uuid.UUID `json:"id"`
+	FinalUrl     string    `json:"final_url"`
+	CanonicalUrl *string   `json:"canonical_url"`
+	BodyText     *string   `json:"body_text"`
+}
+
+func (q *Queries) ListArticlesWithoutFingerprint(ctx context.Context, arg ListArticlesWithoutFingerprintParams) ([]ListArticlesWithoutFingerprintRow, error) {
+	rows, err := q.db.Query(ctx, listArticlesWithoutFingerprint, arg.ID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListArticlesWithoutFingerprintRow
+	for rows.Next() {
+		var i ListArticlesWithoutFingerprintRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FinalUrl,
+			&i.CanonicalUrl,
+			&i.BodyText,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const upsertExtraction = `-- name: UpsertExtraction :one

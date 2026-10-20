@@ -6,6 +6,12 @@ import { useRuntimeConfig } from "../RuntimeConfig";
 import { workflowUrl } from "../config";
 import { casualties, label, when, where } from "../format";
 
+const DUPLICATE_LABEL = {
+  content_hash: "identical text to an earlier source",
+  canonical_url: "same page as an earlier source",
+  near_duplicate: "republished copy of an earlier source",
+} as const;
+
 export default function IncidentPage() {
   const { id = "" } = useParams();
   const cfg = useRuntimeConfig();
@@ -39,7 +45,8 @@ export default function IncidentPage() {
       {temporal && <p><a href={temporal} target="_blank" rel="noreferrer">View in Temporal ↗</a></p>}
 
       <section className="card">
-        <h2>Sources ({d.articles.length})</h2>
+        <h2>Sources ({i.article_count})</h2>
+        {d.articles.length > i.article_count && <p className="muted small">{d.articles.length} articles; copies of the same story count once.</p>}
         <ul className="plain">
           {d.articles.map((a) => (
             <li key={a.article_id}>
@@ -47,6 +54,7 @@ export default function IncidentPage() {
               <div className="muted small">
                 {a.publisher ?? "Unknown publisher"}
                 {a.published_at && ` · ${new Date(a.published_at).toLocaleDateString()}`}
+                {a.duplicate_of && ` · ${DUPLICATE_LABEL[a.duplicate_kind ?? "near_duplicate"]}`}
                 {` · matched by ${a.matched_by} (${a.match_status}${a.match_score != null ? `, score ${a.match_score.toFixed(2)}` : ""})`}
               </div>
             </li>

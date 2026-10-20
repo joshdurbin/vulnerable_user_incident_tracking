@@ -55,7 +55,7 @@ func (q *Queries) ExpireArticleText(ctx context.Context) (int64, error) {
 }
 
 const getArticleByDiscoveredURL = `-- name: GetArticleByDiscoveredURL :one
-SELECT id, discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author, published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at, created_at FROM articles WHERE discovered_url_id = $1
+SELECT id, discovered_url_id, requested_url, final_url, canonical_url, title, publisher, author, published_at, language, description, body_text, text_expires_at, content_hash, status, fetched_at, created_at, canonical_key, simhash, duplicate_of, duplicate_kind FROM articles WHERE discovered_url_id = $1
 `
 
 func (q *Queries) GetArticleByDiscoveredURL(ctx context.Context, discoveredUrlID *uuid.UUID) (Article, error) {
@@ -79,6 +79,10 @@ func (q *Queries) GetArticleByDiscoveredURL(ctx context.Context, discoveredUrlID
 		&i.Status,
 		&i.FetchedAt,
 		&i.CreatedAt,
+		&i.CanonicalKey,
+		&i.Simhash,
+		&i.DuplicateOf,
+		&i.DuplicateKind,
 	)
 	return i, err
 }
@@ -195,6 +199,7 @@ func (q *Queries) LatestExtraction(ctx context.Context, articleID uuid.UUID) (Ar
 const listArticlesToReprocess = `-- name: ListArticlesToReprocess :many
 SELECT a.id FROM articles a
 WHERE a.status = 'fetched' AND a.body_text IS NOT NULL AND a.id > $1::uuid
+  AND a.duplicate_kind IS DISTINCT FROM 'content_hash'  -- identical text: the original's extraction stands
   AND NOT EXISTS (SELECT 1 FROM article_extractions x WHERE x.article_id = a.id
                   AND x.model = $2 AND x.prompt_version = $3 AND x.schema_version = $4)
 ORDER BY a.id

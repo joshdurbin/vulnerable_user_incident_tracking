@@ -90,7 +90,8 @@ GROUP BY 1 ORDER BY incidents DESC, 1
 LIMIT sqlc.arg(max_rows)::int;
 
 -- name: ListIncidentArticlesAPI :many
-SELECT ia.article_id, ia.match_status, ia.match_score, ia.matched_by, a.title, a.publisher, a.final_url, a.published_at, a.fetched_at
+SELECT ia.article_id, ia.match_status, ia.match_score, ia.matched_by, a.title, a.publisher, a.final_url, a.published_at, a.fetched_at,
+       a.duplicate_of, a.duplicate_kind
 FROM incident_articles ia JOIN articles a ON a.id = ia.article_id
 WHERE ia.incident_id = $1
 ORDER BY a.published_at NULLS LAST, ia.created_at;

@@ -19,6 +19,7 @@ SELECT * FROM article_extractions WHERE article_id = $1 ORDER BY created_at DESC
 -- Articles with retained text that have no extraction for the current model/prompt/schema.
 SELECT a.id FROM articles a
 WHERE a.status = 'fetched' AND a.body_text IS NOT NULL AND a.id > @after::uuid
+  AND a.duplicate_kind IS DISTINCT FROM 'content_hash'  -- identical text: the original's extraction stands
   AND NOT EXISTS (SELECT 1 FROM article_extractions x WHERE x.article_id = a.id
                   AND x.model = @model AND x.prompt_version = @prompt_version AND x.schema_version = @schema_version)
 ORDER BY a.id

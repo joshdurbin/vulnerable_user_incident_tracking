@@ -116,7 +116,9 @@ UPDATE incident_articles SET incident_id = @to_id WHERE incident_id = @from_id A
 UPDATE incident_observations SET incident_id = @to_id WHERE incident_id = @from_id AND article_id = @article_id;
 
 -- name: CountIncidentArticles :one
-SELECT count(DISTINCT article_id)::int AS n FROM incident_articles WHERE incident_id = $1;
+-- Independent sources: a copy of an article counts as the article it copies.
+SELECT count(DISTINCT COALESCE(a.duplicate_of, a.id))::int AS n
+FROM incident_articles ia JOIN articles a ON a.id = ia.article_id WHERE ia.incident_id = $1;
 
 -- name: ListObservationsForArticle :many
 SELECT * FROM incident_observations WHERE incident_id = $1 AND article_id = $2 ORDER BY candidate_idx;

@@ -13,9 +13,11 @@ import (
 )
 
 const countIncidentArticles = `-- name: CountIncidentArticles :one
-SELECT count(DISTINCT article_id)::int AS n FROM incident_articles WHERE incident_id = $1
+SELECT count(DISTINCT COALESCE(a.duplicate_of, a.id))::int AS n
+FROM incident_articles ia JOIN articles a ON a.id = ia.article_id WHERE ia.incident_id = $1
 `
 
+// Independent sources: a copy of an article counts as the article it copies.
 func (q *Queries) CountIncidentArticles(ctx context.Context, incidentID uuid.UUID) (int32, error) {
 	row := q.db.QueryRow(ctx, countIncidentArticles, incidentID)
 	var n int32

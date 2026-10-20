@@ -28,6 +28,10 @@ type Article struct {
 	Status          string     `json:"status"`
 	FetchedAt       time.Time  `json:"fetched_at"`
 	CreatedAt       time.Time  `json:"created_at"`
+	CanonicalKey    *string    `json:"canonical_key"`
+	Simhash         *int64     `json:"simhash"`
+	DuplicateOf     *uuid.UUID `json:"duplicate_of"`
+	DuplicateKind   *string    `json:"duplicate_kind"`
 }
 
 type ArticleDiscovery struct {

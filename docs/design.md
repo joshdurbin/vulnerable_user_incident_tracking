@@ -214,6 +214,10 @@ sequenceDiagram
     Note over C: SSRF guard, robots.txt, size cap,<br/>per-domain limit, trafilatura
     C-->>W: article (compressed payload)
     W->>DB: StoreArticle (text kept 90 days)
+    Note over DB: mark a copy of an earlier article<br/>(same text, same canonical URL, near-identical text)
+  end
+  alt identical text to an earlier article
+    DB-->>W: stop as duplicate (no model call)
   end
   W->>L: Classify(article id)
   Note over L: reuse stored extraction for same<br/>model + prompt + schema, else call LLM,<br/>validate against schema and evidence quotes
@@ -227,6 +231,27 @@ sequenceDiagram
     end
   end
 ```
+
+### Duplicate articles
+
+URL normalization catches the same link with different tracking parameters. It cannot catch the same story at a different
+address, so `StoreArticle` also compares each fetched article with those already stored (`internal/dedupe`):
+
+| Kind (`duplicate_kind`) | Matches when | Classified? |
+|---|---|---|
+| `content_hash` | the text is byte-identical | no, the original's extraction stands |
+| `canonical_url` | the normalized canonical (else final) URL is the same: AMP pages, redirects, mirrors | yes |
+| `near_duplicate` | the 64-bit SimHash of 3-word shingles is within 3 bits, among articles from the last 14 days, text of at least 80 words | yes |
+
+A copy keeps its own row, so its URL is never fetched again, and points at the original in `duplicate_of` (always the
+original, never another copy). Copies other than exact ones are still classified because a republished story may carry newer
+facts. Corroboration counts **independent sources**: `incidents.article_count` is the number of distinct originals, so three
+outlets running one wire story leave an incident `unverified`. The incident page lists every article and marks the copies.
+
+Limits: this finds copies, not independent reports of one event (that is entity resolution, below). The thresholds are set
+from synthetic edits, not measured on real news, so they need checking against reviewed examples (see the backlog). Two copies
+stored at the same moment can both become originals. Articles stored before fingerprints existed are fingerprinted by
+`collisionctl articles fingerprint`, which does not mark them as duplicates of one another.
 
 Retry policy differs by step: crawl and DB steps retry with backoff; classification retries transient gateway errors
 but treats "invalid output" as a terminal outcome recorded on the workflow, not a failure.
@@ -357,7 +382,11 @@ erDiagram
     text status "fetched, no_content, blocked, failed"
     text body_text "nulled after retention"
     timestamptz text_expires_at
-    text content_hash
+    text content_hash "sha256 of the text"
+    text canonical_key "normalized canonical or final URL"
+    bigint simhash "64-bit SimHash of word shingles"
+    uuid duplicate_of FK "the original this article repeats"
+    text duplicate_kind "content_hash, canonical_url, near_duplicate"
   }
   article_extractions {
     uuid id PK

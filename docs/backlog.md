@@ -9,11 +9,10 @@ Desk research against Mapping Police Violence, the Gun Violence Archive, ACLED, 
 crawler frameworks, LLM extraction tools, entity-resolution libraries and news duplicate detection. The architecture held up;
 the gaps are in how much the numbers can be trusted. Ordered by value.
 
-1. **Count independent sources, not articles.** `verification_status` becomes "corroborated" when an incident has two or more
-   linked articles (`internal/incidents/resolver.go`). Two sites running the same wire story would count. `articles.content_hash`
-   is stored but nothing reads it, and an exact hash misses syndicated copies with new headlines or templates.
-   First step: near-duplicate detection (MinHash or SimHash on word shingles) at article store time, then corroborate on distinct
-   publishers or content clusters.
+1. **Finish counting independent sources.** Copies of one article now count once (`duplicate_of`, see "Duplicate articles" in
+   the design). Still open: tune the SimHash threshold and minimum length on real reviewed examples instead of synthetic edits;
+   treat two different outlets of one owner (a chain's local sites) as one source; close the race where two copies stored at the
+   same moment are both originals; fingerprint-then-mark existing articles as duplicates of each other.
 2. **Measure recall against an official source.** Mapping Police Violence and the Gun Violence Archive publish coverage
    estimates (about 92% and 81%); this project cannot say what fraction of real incidents it captures. First step: pick a region
    and period, load NHTSA FARS (or the state's crash data) for fatal pedestrian and cyclist crashes, and match against incidents.

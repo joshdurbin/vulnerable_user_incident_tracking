@@ -387,3 +387,31 @@ func TestArticleWorkflow_RenderOptionStoresTheRenderedPage(t *testing.T) {
 	require.NoError(t, env.GetWorkflowError())
 	env.AssertNumberOfCalls(t, crawler.ActivityRenderArticle, 0)
 }
+
+// Identical text to an article already classified: the model would say the same thing, so it is not asked.
+func TestArticleWorkflow_SkipsClassifyingExactDuplicates(t *testing.T) {
+	env := newEnv(t)
+	env.OnActivity(act.FindArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: uuid.New(), Status: "fetched", Reused: true,
+		DuplicateOf: uuid.New(), DuplicateKind: "content_hash"}, nil)
+	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})
+	require.NoError(t, env.GetWorkflowError())
+	var r ArticleResult
+	require.NoError(t, env.GetWorkflowResult(&r))
+	assert.Equal(t, "duplicate", r.Status)
+	env.AssertNotCalled(t, "Classify", anyCtx, anyCtx)
+}
+
+// A republished copy with edits may carry newer facts, so it is still classified.
+func TestArticleWorkflow_ClassifiesNearDuplicates(t *testing.T) {
+	env := newEnv(t)
+	aid := uuid.New()
+	env.OnActivity(act.FindArticle, anyCtx, anyCtx).Return(&FetchResult{ArticleID: aid, Status: "fetched", Reused: true,
+		DuplicateOf: uuid.New(), DuplicateKind: "near_duplicate"}, nil)
+	env.OnActivity(act.Classify, anyCtx, ClassifyInput{ArticleID: aid}).Return(&ClassifyResult{ExtractionID: uuid.New(), Verdict: "nonqualifying"}, nil)
+	env.ExecuteWorkflow(ArticleWorkflow, ArticleInput{URL: URLRef{URL: "https://x.test/a"}})
+	require.NoError(t, env.GetWorkflowError())
+	var r ArticleResult
+	require.NoError(t, env.GetWorkflowResult(&r))
+	assert.Equal(t, "nonqualifying", r.Status)
+	env.AssertExpectations(t)
+}

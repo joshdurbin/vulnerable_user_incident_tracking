@@ -366,7 +366,7 @@ components:
         hit_and_run: {type: string, enum: ['yes', 'no', unknown]}
         facts_status: {type: string, enum: [confirmed, alleged, unclear]}
         verification_status: {type: string, enum: [unverified, corroborated, reviewed, withdrawn]}
-        article_count: {type: integer}
+        article_count: {type: integer, description: Independent sources. A syndicated or mirrored copy counts once, with the article it repeats.}
         updated_at: {type: string, format: date-time}
     IncidentList:
       type: object
@@ -401,6 +401,8 @@ components:
         match_status: {type: string}
         match_score: {type: number, format: double, nullable: true}
         matched_by: {type: string}
+        duplicate_of: {type: string, format: uuid, nullable: true, description: The earlier article this one repeats; it counts with that article as one source.}
+        duplicate_kind: {type: string, enum: [content_hash, canonical_url, near_duplicate], nullable: true}
     Observation:
       type: object
       required: [article_id, observed_at, data]

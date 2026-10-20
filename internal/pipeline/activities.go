@@ -16,6 +16,7 @@ import (
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/dedupe"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
@@ -176,7 +177,16 @@ func (a *Activities) FindArticle(ctx context.Context, ref URLRef) (*FetchResult,
 		}
 		return nil, err
 	}
-	return &FetchResult{ArticleID: existing.ID, Status: existing.Status, Reused: true}, nil
+	return fetchResult(existing, true), nil
+}
+
+// fetchResult summarizes a stored article for the workflow.
+func fetchResult(a dbgen.Article, reused bool) *FetchResult {
+	r := &FetchResult{ArticleID: a.ID, Status: a.Status, Reused: reused}
+	if a.DuplicateOf != nil && a.DuplicateKind != nil {
+		r.DuplicateOf, r.DuplicateKind = *a.DuplicateOf, *a.DuplicateKind
+	}
+	return r
 }
 
 // StoreArticle persists what the Python crawler returned, keeping the text for
@@ -202,9 +212,23 @@ func (a *Activities) StoreArticle(ctx context.Context, in StoreInput) (*FetchRes
 		sum := sha256.Sum256([]byte(art.Text))
 		h := hex.EncodeToString(sum[:])
 		p.BodyText, p.TextExpiresAt, p.ContentHash = &art.Text, &exp, &h
+		if key := dedupe.CanonicalKey(art.CanonicalURL, p.FinalUrl); key != "" {
+			p.CanonicalKey = &key
+		}
+		if fp, ok := dedupe.Fingerprint(art.Text); ok {
+			s := int64(fp)
+			p.Simhash = &s
+		}
 	}
 	var res *FetchResult
 	err := a.DB.InTx(ctx, func(tq *dbgen.Queries) error {
+		// Mark a copy of an article we already hold. It is still stored, so its URL is never fetched
+		// again, but corroboration counts it with the original.
+		if status == "fetched" {
+			if err := a.markDuplicate(ctx, tq, &p); err != nil {
+				return err
+			}
+		}
 		row, err := tq.InsertArticle(ctx, p)
 		if err != nil {
 			return err
@@ -216,17 +240,40 @@ func (a *Activities) StoreArticle(ctx context.Context, in StoreInput) (*FetchRes
 		}); err != nil {
 			return err
 		}
-		res = &FetchResult{ArticleID: row.ID, Status: status, Detail: art.ErrorDetail}
+		res = fetchResult(row, false)
+		res.Detail = art.ErrorDetail
 		return nil
 	})
 	if err != nil {
 		// A concurrent attempt may have inserted the same article: return it.
 		if existing, qerr := q.GetArticleByDiscoveredURL(ctx, &ref.ID); qerr == nil {
-			return &FetchResult{ArticleID: existing.ID, Status: existing.Status, Reused: true}, nil
+			return fetchResult(existing, true), nil
 		}
 		return nil, err
 	}
+	if res.DuplicateKind != "" {
+		a.Log.Info().Stringer("article", res.ArticleID).Stringer("duplicate_of", res.DuplicateOf).
+			Str("kind", res.DuplicateKind).Msg("article repeats an earlier one")
+	}
 	return res, nil
+}
+
+// markDuplicate sets p's duplicate fields when an earlier article has the same text or canonical URL,
+// or a near-identical text within dedupe.Window. A lookup error fails the store (and is retried)
+// rather than recording a duplicate as an original.
+func (a *Activities) markDuplicate(ctx context.Context, tq *dbgen.Queries, p *dbgen.InsertArticleParams) error {
+	match, err := tq.FindDuplicateArticle(ctx, dbgen.FindDuplicateArticleParams{
+		ContentHash: deref(p.ContentHash), CanonicalKey: deref(p.CanonicalKey), Simhash: p.Simhash,
+		Since: p.FetchedAt.Add(-dedupe.Window), MaxDistance: dedupe.MaxDistance,
+	})
+	if err != nil {
+		if storage.IsNoRows(err) {
+			return nil
+		}
+		return err
+	}
+	p.DuplicateOf, p.DuplicateKind = &match.RootID, &match.Kind
+	return nil
 }
 
 func articleStatus(s domain.ExtractionStatus) string {

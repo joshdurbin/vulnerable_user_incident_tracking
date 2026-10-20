@@ -12,6 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
@@ -413,4 +415,40 @@ func TestExtractionUpsertIsIdempotent(t *testing.T) {
 	if other.ID == ex || !other.Inserted {
 		t.Fatal("a new prompt version must create a new extraction")
 	}
+}
+
+// A wire story republished by three outlets is one source, not three: it must not make an incident
+// "corroborated" or inflate the source count.
+func TestCopiesOfOneArticleCountAsOneSource(t *testing.T) {
+	r, ctx := setup(t)
+	in1 := input(t, "gazette.example", "2026-10-14T18:00:00Z", pasadena(nil), nil, nil)
+	a, err := r.Resolve(ctx, in1)
+	require.NoError(t, err)
+
+	// Two reprints of the first article, each its own row pointing at it.
+	for _, pub := range []string{"herald.example", "tribune.example"} {
+		in := input(t, pub, "2026-10-14T20:00:00Z", pasadena(nil), nil, nil)
+		kind := "near_duplicate"
+		_, err := store.Pool.Exec(ctx, `UPDATE articles SET duplicate_of = $1, duplicate_kind = $2 WHERE id = $3`, in1.ArticleID, kind, in.ArticleID)
+		require.NoError(t, err)
+		b, err := r.Resolve(ctx, in)
+		require.NoError(t, err)
+		require.Equal(t, a.IncidentID, b.IncidentID)
+	}
+	inc, err := store.Queries().GetIncident(ctx, a.IncidentID)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, inc.ArticleCount, "three articles, one source")
+	assert.Equal(t, "unverified", inc.VerificationStatus)
+
+	arts, err := store.Queries().ListIncidentArticlesAPI(ctx, a.IncidentID)
+	require.NoError(t, err)
+	assert.Len(t, arts, 3, "every article is still listed")
+
+	// A genuinely independent report corroborates it.
+	c, err := r.Resolve(ctx, input(t, "chronicle.example", "2026-10-15T09:00:00Z", pasadena(nil), nil, nil))
+	require.NoError(t, err)
+	require.Equal(t, a.IncidentID, c.IncidentID)
+	inc, _ = store.Queries().GetIncident(ctx, a.IncidentID)
+	assert.EqualValues(t, 2, inc.ArticleCount)
+	assert.Equal(t, "corroborated", inc.VerificationStatus)
 }

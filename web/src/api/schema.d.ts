@@ -352,6 +352,7 @@ export interface components {
             facts_status: "confirmed" | "alleged" | "unclear";
             /** @enum {string} */
             verification_status: "unverified" | "corroborated" | "reviewed" | "withdrawn";
+            /** @description Independent sources. A syndicated or mirrored copy counts once */
             article_count: number;
             /** Format: date-time */
             updated_at: string;
@@ -393,6 +394,13 @@ export interface components {
             /** Format: double */
             match_score?: number | null;
             matched_by: string;
+            /**
+             * Format: uuid
+             * @description The earlier article this one repeats; it counts with that article as one source.
+             */
+            duplicate_of?: string | null;
+            /** @enum {string|null} */
+            duplicate_kind?: "content_hash" | "canonical_url" | "near_duplicate" | null;
         };
         Observation: {
             /** Format: uuid */

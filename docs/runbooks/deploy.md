@@ -29,6 +29,12 @@ If a PreSync Job fails, nothing rolls out and the running version keeps serving.
 - [ ] Start small. Leave most sources disabled, run one with "Run now", and watch an article go through before enabling
       the rest.
 
+## Upgrade from a version without duplicate detection (migration 00009)
+
+The migration only adds columns, so old pods keep working. Articles stored before it have no fingerprint and are never
+matched against. To include those that still hold their text, run `collisionctl articles fingerprint` once after the deploy
+(safe to repeat). It does not change incidents or mark old articles as duplicates.
+
 ## Upgrade
 
 Change the image tags (prefer digests) in the Application values in the infra repo and let Argo sync. Migrations are

@@ -111,6 +111,11 @@ type FetchResult struct {
 	Status    string    `json:"status"` // fetched|no_content|blocked|failed
 	Reused    bool      `json:"reused"`
 	Detail    string    `json:"detail,omitempty"`
+	// DuplicateOf is the original article when this one repeats it. A content_hash duplicate has
+	// identical text, so it is not classified again; the other kinds still are, because a copy may
+	// carry newer facts, but they count as one source with the original.
+	DuplicateOf   uuid.UUID `json:"duplicate_of,omitempty"`
+	DuplicateKind string    `json:"duplicate_kind,omitempty"`
 }
 
 // StoreInput carries the crawler's response from the workflow to the activity
@@ -169,7 +174,7 @@ type NotifyInput struct {
 type ArticleResult struct {
 	URL       string      `json:"url"`
 	ArticleID uuid.UUID   `json:"article_id,omitempty"`
-	Status    string      `json:"status"` // done|not_fetched|nonqualifying|invalid_output
+	Status    string      `json:"status"` // done|not_fetched|duplicate|nonqualifying|invalid_output
 	Verdict   string      `json:"verdict,omitempty"`
 	Incidents []uuid.UUID `json:"incidents,omitempty"`
 	Reused    bool        `json:"reused,omitempty"`

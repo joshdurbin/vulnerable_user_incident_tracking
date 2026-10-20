@@ -268,7 +268,11 @@ func (s *Server) GetIncident(ctx context.Context, req GetIncidentRequestObject) 
 	}
 	for _, a := range arts {
 		ia := IncidentArticle{ArticleId: a.ArticleID, Title: a.Title, Publisher: a.Publisher, Url: a.FinalUrl, PublishedAt: a.PublishedAt,
-			MatchStatus: a.MatchStatus, MatchedBy: a.MatchedBy}
+			MatchStatus: a.MatchStatus, MatchedBy: a.MatchedBy, DuplicateOf: a.DuplicateOf}
+		if a.DuplicateKind != nil {
+			k := IncidentArticleDuplicateKind(*a.DuplicateKind)
+			ia.DuplicateKind = &k
+		}
 		fa := a.FetchedAt
 		ia.FetchedAt = &fa
 		if a.MatchScore != nil {
