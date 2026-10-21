@@ -4,7 +4,12 @@ export PATH := $(PATH):$(GOBIN)
 IMAGE_PREFIX ?= ghcr.io/joshdurbin/vulnerable_user_incident_tracking
 TAG ?= dev
 
-.PHONY: helm-check test-web web-dev generate lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
+.PHONY: helm-check test-web web-dev generate lint test test-go test-py test-integration build docker-build dev-up dev-down migrate clean
+
+clean: ## remove build output and locally installed dependencies (npm and uv reinstall them on the next run)
+	rm -rf bin web/dist web/node_modules crawler/.venv crawler/.pytest_cache
+	find crawler -name __pycache__ -type d -prune -exec rm -rf {} +
+	go clean -testcache
 
 generate: ## regenerate sqlc queries and the API server from api/openapi.yaml
 	sqlc generate
