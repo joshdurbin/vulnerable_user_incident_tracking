@@ -78,29 +78,6 @@ func TestUnknownYAMLKeysRejected(t *testing.T) {
 	}
 }
 
-func TestMarshalRoundTrips(t *testing.T) {
-	f := Sorted(examples(t))
-	b, err := Marshal(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	back, err := Parse(b)
-	if err != nil {
-		t.Fatalf("exported file does not parse: %v\n%s", err, b)
-	}
-	if len(back.Sources) != len(f.Sources) || len(back.Queries) != len(f.Queries) || back.Sources[0].PollInterval != f.Sources[0].PollInterval {
-		t.Fatalf("round trip changed the file: %+v vs %+v", back.Sources[0], f.Sources[0])
-	}
-}
-
-func TestMergeOverridesBySlugAndName(t *testing.T) {
-	base := File{Sources: []SourceSpec{{Slug: "a", Name: "old"}}, Queries: []QuerySpec{{Name: "q", Text: "old"}}}
-	out := Merge(base, File{Sources: []SourceSpec{{Slug: "a", Name: "new"}, {Slug: "b"}}, Queries: []QuerySpec{{Name: "q", Text: "new"}}})
-	if len(out.Sources) != 2 || out.Sources[0].Name != "new" || out.Queries[0].Text != "new" || base.Sources[0].Name != "old" {
-		t.Fatalf("%+v", out)
-	}
-}
-
 func TestToSourceDefaultsEnabled(t *testing.T) {
 	off := false
 	if !(SourceSpec{Slug: "a"}).ToSource().Enabled || (SourceSpec{Slug: "a", Enabled: &off}).ToSource().Enabled {

@@ -37,8 +37,8 @@ export default function OverviewPage() {
         {sources.isError && <ErrorNote error={sources.error} />}
         {sources.data?.length === 0 && (
           <p>
-            No sources are configured, so nothing is being collected. <Link to="/admin/sources/new">Add a source</Link>, or import a starter set with{" "}
-            <code>collisionctl sources import --file docs/examples/sources.yaml</code>.
+            No sources are configured, so nothing is being collected. <Link to="/admin/sources/new">Add a source</Link>. (The API loads its configured seed list when it starts with no
+            sources; if you expected one, check that <code>COLLISION_SOURCES_SEED_FILE</code> is set.)
           </p>
         )}
         {summary && sources.data && sources.data.length > 0 && (

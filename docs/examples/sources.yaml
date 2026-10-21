@@ -1,5 +1,5 @@
-# Example discovery sources. They are not loaded automatically: sources live in the database and are managed in the
-# admin UI. Import these with `collisionctl sources import --file docs/examples/sources.yaml`.
+# The starter list of discovery sources, baked into the container image. The API loads it on start only when the database
+# has no sources (COLLISION_SOURCES_SEED_FILE); after that the database is the source of truth and this file is ignored.
 # Feed URLs below were verified to return RSS on 2026-10-16.
 sources:
   - slug: gdelt-us

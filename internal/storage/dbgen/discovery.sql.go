@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countSources = `-- name: CountSources :one
+SELECT count(*) FROM discovery_sources
+`
+
+func (q *Queries) CountSources(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countSources)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteQuery = `-- name: DeleteQuery :execrows
 DELETE FROM discovery_queries WHERE name = $1
 `

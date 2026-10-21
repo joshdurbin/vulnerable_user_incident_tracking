@@ -45,7 +45,12 @@ configured they are disabled. Read routes work even if Temporal is unreachable.`
 			}
 			defer tc.Close()
 
-			h, err := api.NewServer(st, api.TemporalWorkflows{C: tc, Options: a.pipelineOptions()},
+			wf := api.TemporalWorkflows{C: tc, Options: a.pipelineOptions()}
+			// Checked on every start; writes only when the database has no sources.
+			if err := api.SeedSources(ctx, st, wf, nil, a.cfg.Sources.SeedFile, a.log); err != nil {
+				return err
+			}
+			h, err := api.NewServer(st, wf,
 				api.Config{AdminToken: a.cfg.API.AdminToken, Log: a.log, Metrics: api.NewHTTPMetrics(reg)}).Handler()
 			if err != nil {
 				return err
@@ -71,6 +76,7 @@ configured they are disabled. Read routes work even if Temporal is unreachable.`
 	cmd.Flags().String("database-url", "", "PostgreSQL DSN (COLLISION_DATABASE_URL)")
 	cmd.Flags().String("listen", "", "listen address (COLLISION_API_LISTEN, default :8080)")
 	cmd.Flags().String("metrics-listen", "", "address for /metrics (COLLISION_METRICS_LISTEN, default :9100)")
+	cmd.Flags().String("seed-file", "", "YAML of sources to load when the database has none (COLLISION_SOURCES_SEED_FILE)")
 	cmd.Flags().String("admin-token", "", "bearer token for admin routes (prefer COLLISION_API_ADMIN_TOKEN)")
 	addTemporalFlags(cmd)
 	return cmd

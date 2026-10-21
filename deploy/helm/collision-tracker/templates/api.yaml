@@ -32,6 +32,13 @@ spec:
               value: ":8080"
             - name: COLLISION_METRICS_LISTEN
               value: ":9100"
+            {{- if .Values.sources.seed }}
+            - name: COLLISION_SOURCES_SEED_FILE
+              value: /etc/collision-seed/sources.yaml
+            {{- else }}
+            - name: COLLISION_SOURCES_SEED_FILE
+              value: {{ .Values.sources.seedFile | quote }}
+            {{- end }}
             - name: COLLISION_API_ADMIN_TOKEN
               valueFrom: { secretKeyRef: { name: {{ .Values.secrets.adminToken.name }}, key: {{ .Values.secrets.adminToken.key }}, optional: true } }
           ports:
@@ -47,6 +54,27 @@ spec:
             {{- toYaml .Values.api.resources | nindent 12 }}
           securityContext:
             {{- include "ct.containerSecurity" . | nindent 12 }}
+          {{- if .Values.sources.seed }}
+          volumeMounts:
+            - { name: seed, mountPath: /etc/collision-seed, readOnly: true }
+          {{- end }}
+      {{- if .Values.sources.seed }}
+      volumes:
+        - name: seed
+          configMap: { name: {{ include "ct.fullname" . }}-sources }
+      {{- end }}
+{{- if .Values.sources.seed }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ct.fullname" . }}-sources
+  labels:
+    {{- include "ct.labels" . | nindent 4 }}
+data:
+  sources.yaml: |
+    {{- .Values.sources.seed | nindent 4 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

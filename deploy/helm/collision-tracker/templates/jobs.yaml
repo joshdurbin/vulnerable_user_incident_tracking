@@ -126,7 +126,7 @@ spec:
 ---
 # After a sync: make sure every configured source has a Temporal Schedule with the current
 # interval (keeping any pause an operator set). Sources themselves live in the database and
-# are managed in the admin UI; nothing is seeded here.
+# are managed in the admin UI; nothing is seeded here (the API seeds an empty database when it starts).
 apiVersion: batch/v1
 kind: Job
 metadata:

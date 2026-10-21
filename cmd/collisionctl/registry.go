@@ -1,13 +1,11 @@
 package main
 
 import (
-	"errors"
 	"time"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/googlenews"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/registry"
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/sourcefile"
 )
 
 // discoveryRegistry returns the injected registry or all real providers.
@@ -29,13 +27,4 @@ func (a *app) discoveryRegistry() (*discovery.Registry, func(), error) {
 		deps.GoogleResolvers = []googlenews.Resolver{googlenews.LegacyDecoder{}, googlenews.NewBatchExecuteResolver(search)}
 	}
 	return registry.New(deps), c.close, nil
-}
-
-// loadSourceFile reads a sources/queries YAML file. There are no built-in sources: they live
-// in the database, so running without one needs a file.
-func loadSourceFile(path string) (sourcefile.File, error) {
-	if path == "" {
-		return sourcefile.File{}, errors.New("no database configured: give --file with the sources to use, or --database-url / COLLISION_DATABASE_URL")
-	}
-	return sourcefile.Load(path)
 }

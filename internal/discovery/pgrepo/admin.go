@@ -270,49 +270,80 @@ func (r *Repo) DeleteQuery(ctx context.Context, name string) error {
 // already exist are left exactly as they are. It returns how many rows were written.
 func (r *Repo) Import(ctx context.Context, f sourcefile.File, overwrite bool) (sources, queries int, err error) {
 	err = r.store.InTx(ctx, func(q *dbgen.Queries) error {
-		for _, sp := range f.Sources {
-			c, err := encodeSource(sp.ToSource())
-			if err != nil {
-				return fmt.Errorf("source %s: %w", sp.Slug, err)
-			}
-			var n int64
-			if overwrite {
-				if _, err = q.UpsertSource(ctx, dbgen.UpsertSourceParams{
-					Slug: sp.Slug, Name: sp.Name, SourceType: sp.Type, Url: c.url, Coverage: c.coverage,
-					PollIntervalSeconds: c.interval, Enabled: sp.IsEnabled(), CrawlPolicy: c.crawl,
-				}); err == nil {
-					n = 1
-				}
-			} else {
-				n, err = q.InsertSourceIfMissing(ctx, dbgen.InsertSourceIfMissingParams{
-					Slug: sp.Slug, Name: sp.Name, SourceType: sp.Type, Url: c.url, Coverage: c.coverage,
-					PollIntervalSeconds: c.interval, Enabled: sp.IsEnabled(), CrawlPolicy: c.crawl,
-				})
-			}
-			if err != nil {
-				return fmt.Errorf("source %s: %w", sp.Slug, err)
-			}
-			sources += int(n)
-		}
-		for _, qs := range f.Queries {
-			var n int64
-			if overwrite {
-				if _, err = q.UpsertQuery(ctx, dbgen.UpsertQueryParams{
-					Family: qs.Family, Name: qs.Name, QueryText: qs.Text, Providers: providersOrEmpty(qs.Providers), Region: regionPtr(qs.Region), Enabled: qs.IsEnabled(),
-				}); err == nil {
-					n = 1
-				}
-			} else {
-				n, err = q.InsertQueryIfMissing(ctx, dbgen.InsertQueryIfMissingParams{
-					Family: qs.Family, Name: qs.Name, QueryText: qs.Text, Providers: providersOrEmpty(qs.Providers), Region: regionPtr(qs.Region), Enabled: qs.IsEnabled(),
-				})
-			}
-			if err != nil {
-				return fmt.Errorf("query %s: %w", qs.Name, err)
-			}
-			queries += int(n)
-		}
-		return nil
+		var err error
+		sources, queries, err = importFile(ctx, q, f, overwrite)
+		return err
 	})
 	return
+}
+
+// seedLock serializes seeding across API replicas that start together.
+const seedLock = "discovery:seed"
+
+// SeedIfEmpty writes the file's sources and queries when, and only when, no source exists. The check
+// and the writes share one transaction under an advisory lock, so replicas starting at once seed
+// once. seeded is false, and nothing is written, when any source exists.
+func (r *Repo) SeedIfEmpty(ctx context.Context, f sourcefile.File) (sources, queries int, seeded bool, err error) {
+	err = r.store.InTx(ctx, func(q *dbgen.Queries) error {
+		if err := q.LockKey(ctx, seedLock); err != nil {
+			return err
+		}
+		n, err := q.CountSources(ctx)
+		if err != nil || n > 0 {
+			return err
+		}
+		sources, queries, err = importFile(ctx, q, f, false)
+		seeded = err == nil
+		return err
+	})
+	if err != nil {
+		return 0, 0, false, err
+	}
+	return sources, queries, seeded, nil
+}
+
+func importFile(ctx context.Context, q *dbgen.Queries, f sourcefile.File, overwrite bool) (sources, queries int, err error) {
+	for _, sp := range f.Sources {
+		c, err := encodeSource(sp.ToSource())
+		if err != nil {
+			return 0, 0, fmt.Errorf("source %s: %w", sp.Slug, err)
+		}
+		var n int64
+		if overwrite {
+			if _, err = q.UpsertSource(ctx, dbgen.UpsertSourceParams{
+				Slug: sp.Slug, Name: sp.Name, SourceType: sp.Type, Url: c.url, Coverage: c.coverage,
+				PollIntervalSeconds: c.interval, Enabled: sp.IsEnabled(), CrawlPolicy: c.crawl,
+			}); err == nil {
+				n = 1
+			}
+		} else {
+			n, err = q.InsertSourceIfMissing(ctx, dbgen.InsertSourceIfMissingParams{
+				Slug: sp.Slug, Name: sp.Name, SourceType: sp.Type, Url: c.url, Coverage: c.coverage,
+				PollIntervalSeconds: c.interval, Enabled: sp.IsEnabled(), CrawlPolicy: c.crawl,
+			})
+		}
+		if err != nil {
+			return 0, 0, fmt.Errorf("source %s: %w", sp.Slug, err)
+		}
+		sources += int(n)
+	}
+	for _, qs := range f.Queries {
+		var n int64
+		if overwrite {
+			if _, err = q.UpsertQuery(ctx, dbgen.UpsertQueryParams{
+				Family: qs.Family, Name: qs.Name, QueryText: qs.Text, Providers: providersOrEmpty(qs.Providers), Region: regionPtr(qs.Region), Enabled: qs.IsEnabled(),
+			}); err == nil {
+				n = 1
+			}
+		} else {
+			n, err = q.InsertQueryIfMissing(ctx, dbgen.InsertQueryIfMissingParams{
+				Family: qs.Family, Name: qs.Name, QueryText: qs.Text, Providers: providersOrEmpty(qs.Providers), Region: regionPtr(qs.Region), Enabled: qs.IsEnabled(),
+			})
+		}
+		if err != nil {
+			return 0, 0, fmt.Errorf("query %s: %w", qs.Name, err)
+		}
+		queries += int(n)
+	}
+	return sources, queries, nil
 }

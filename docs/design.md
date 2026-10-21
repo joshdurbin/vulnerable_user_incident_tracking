@@ -134,14 +134,19 @@ classDiagram
 ### Managing sources
 
 Sources (`discovery_sources`) and search queries (`discovery_queries`) are rows in the database, managed in the `/admin`
-UI. Nothing is built in and nothing is seeded on deploy: an empty database collects nothing until a source is added
-(or `collisionctl sources import --file docs/examples/sources.yaml` loads a starter set).
+UI. Nothing is compiled in. On every start the API checks whether the database has any source, and only if it has none
+loads the configured seed file (`COLLISION_SOURCES_SEED_FILE`, a YAML list of sources and queries; the image carries
+`docs/examples/sources.yaml` as the default and the chart can replace it with `sources.seed`). The check, the writes and an
+advisory lock share one transaction, so API replicas starting together seed once. Once any source exists the file is
+never read again, so edits and deletions in the admin UI stick. The one consequence: deleting every source and then
+restarting the API loads the seed list again. An invalid or missing seed file stops the API from starting, so a bad rollout
+keeps the old pods serving instead of coming up empty.
 
 ### Bulk jobs and corrections
 
 Backfills, reprocess runs and incident splits are admin actions too, not CLI commands. The CLI keeps only what has to run
-without the API: the services, `migrate`, the deploy-time `schedules sync`, file import and export of sources, and
-debugging commands (`fetch`, `classify`, `eval`).
+without the API: the services, `migrate`, the deploy-time `schedules sync`, and debugging commands (`fetch`, `classify`, `eval`).
+There is no source import or export command; the seed file covers a new install and the admin UI covers the rest.
 
 - **Jobs are the workflows themselves.** `POST /admin/backfills` and `/admin/reprocesses` start `BackfillWorkflow` and
   `ReprocessWorkflow`; `GET /admin/jobs` lists them from Temporal's visibility store (nothing is copied into PostgreSQL)

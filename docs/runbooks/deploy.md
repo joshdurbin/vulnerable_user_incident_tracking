@@ -23,8 +23,10 @@ If a PreSync Job fails, nothing rolls out and the running version keeps serving.
 - [ ] In Bifrost: an OpenRouter provider and key, and the model you will use. Set `llm.model` in the Application values.
 - [ ] Images exist in ghcr.io (built by CI on `main`) and the cluster can pull them. If the packages are private, Zot and
       the nodes need credentials; the simplest fix is to make the packages public.
-- [ ] Sync the Application. Nothing is collected yet: no sources are built in. Open `/admin`, enter the admin token and add
-      sources (or `collisionctl sources import --file docs/examples/sources.yaml` for a starter set, then "Sync schedules").
+- [ ] Sync the Application. On its first start the API finds no sources and loads the seed list (the image's starter set, or
+      `sources.seed` from the values), then creates their schedules; look for "database had no sources; seeded from file" in
+      the API log. Set `sources.seedFile: ""` for an install that should start empty. If Temporal was unreachable at that
+      moment the sources are saved but unscheduled: open `/admin` and use "Sync schedules".
 - [ ] Check the Admin page: sources are listed, each shows a next run time, and "Test" on a source returns articles.
 - [ ] Start small. Leave most sources disabled, run one with "Run now", and watch an article go through before enabling
       the rest.

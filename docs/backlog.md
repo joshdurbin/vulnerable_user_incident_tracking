@@ -52,8 +52,5 @@ NuExtract (worth testing only once item 3 exists; published results are vendor-r
   exported today).
 - An audit trail of who edited sources in the admin UI (edits are authorised by the shared token only).
 - A "re-fetch no-content pages with rendering" command; pages stored as `NO_CONTENT` before rendering was enabled are not retried.
-- Make `collisionctl sources import`/`export` thin clients of the admin API. They write to PostgreSQL directly today, which bypasses
-  the API's schedule handling (an import needs a following "Sync schedules"). Needs bulk import and export endpoints and a way for
-  the CLI to hold the admin token.
 - Show who did what in the admin UI. The shared token carries no identity, so source edits, job controls and incident splits are
   attributed only to a typed name (splits) or nobody (the rest). Per-user login would fix both this and the audit-trail item above.

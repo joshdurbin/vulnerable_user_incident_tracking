@@ -42,12 +42,11 @@ export COLLISION_TEMPORAL_ADDRESS=localhost:7233 COLLISION_TEMPORAL_NAMESPACE=de
 export COLLISION_DATABASE_URL=postgres://... COLLISION_LLM_MODEL=... COLLISION_LLM_BASE_URL=...
 go run ./cmd/collisionctl migrate
 go run ./cmd/collisionctl worker &                      # hosts the workflows and Go activities
-go run ./cmd/collisionctl sources import --file docs/examples/sources.yaml   # optional starter set
 go run ./cmd/collisionctl schedules sync                # deploy step; afterwards the admin UI keeps schedules in line
-go run ./cmd/collisionctl api &                         # REST API on :8080
+COLLISION_SOURCES_SEED_FILE=docs/examples/sources.yaml go run ./cmd/collisionctl api &   # REST API on :8080; seeds an empty database
 go run ./cmd/collisionctl fetch https://example.org/article --json
 ```
-Backfills, reprocessing, schedule control and incident corrections (splitting a wrongly merged article) are in the `/admin` UI, not the CLI. The CLI is for running the services (`api`, `worker`, `migrate`, `schedules sync` at deploy), importing and exporting sources (`sources`), and debugging one step (`fetch`, `classify`, `eval`).
+Backfills, reprocessing, schedule control and incident corrections (splitting a wrongly merged article) are in the `/admin` UI, not the CLI. The CLI is for running the services (`api`, `worker`, `migrate`, `schedules sync` at deploy), and debugging one step (`fetch`, `classify`, `eval`).
 
 ## API
 `collisionctl api` serves the REST API described in `api/openapi.yaml` (regenerate server code with
@@ -58,10 +57,11 @@ Backfills, reprocessing, schedule control and incident corrections (splitting a 
 ## Sources
 Discovery sources and search queries are configured in the database, in the `/admin` UI (type, URL, interval, coverage,
 crawl limits, a Test button that runs a configuration once without saving it, per-source health and run history).
-No sources are built in, so a new install collects nothing until some are added. `collisionctl sources import --file
-docs/examples/sources.yaml` loads a starter set; `sources export`, `validate` and `list` are there for scripting. A new
-source type is one provider package that describes its own fields (`Provider.Describe`); see
-`docs/decisions/0005-sources-are-configuration.md`.
+Nothing is compiled in. When the API starts and the database has no sources, it loads the seed file named by
+`COLLISION_SOURCES_SEED_FILE` (`--seed-file`); it checks on every start and never touches a database that already has
+sources. The container image carries `docs/examples/sources.yaml` as a starter list, and the Helm chart can replace it
+(`sources.seed`) or turn seeding off (`sources.seedFile: ""`). A new source type is one provider package that describes
+its own fields (`Provider.Describe`); see `docs/decisions/0005-sources-are-configuration.md`.
 
 ## Web UI
 `web/` is a React + Vite + TypeScript app (map, trends, incident detail, review queue, and an admin area for sources and queries). Types come from

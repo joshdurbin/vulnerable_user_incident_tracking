@@ -1,13 +1,11 @@
-// Package sourcefile reads and writes discovery sources and queries as YAML. It is the
-// import/export format for the sources held in the database (`collisionctl sources
-// import|export`); nothing is embedded or loaded implicitly, so what runs is exactly what
-// is configured in the datastore.
+// Package sourcefile reads discovery sources and queries from YAML. It is the format of the seed
+// list the API loads when the database has no sources; after that the database is the only
+// source of truth, and nothing here is consulted again.
 package sourcefile
 
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -70,9 +68,6 @@ func Load(path string) (File, error) {
 	return f, nil
 }
 
-// Marshal writes a file in the same form Parse reads.
-func Marshal(f File) ([]byte, error) { return yaml.Marshal(f) }
-
 // ToSource converts a spec to a discovery.Source.
 func (s SourceSpec) ToSource() discovery.Source {
 	return discovery.Source{
@@ -81,22 +76,9 @@ func (s SourceSpec) ToSource() discovery.Source {
 	}
 }
 
-// FromSource converts a source to a spec, for export.
-func FromSource(s discovery.Source) SourceSpec {
-	en := s.Enabled
-	return SourceSpec{Slug: s.Slug, Name: s.Name, Type: s.Type, URL: s.URL, Coverage: s.Coverage,
-		PollInterval: s.PollInterval, Crawl: s.Crawl, Enabled: &en}
-}
-
 // ToSpec converts a query spec to the stored form.
 func (q QuerySpec) ToSpec() discovery.QuerySpec {
 	return discovery.QuerySpec{Family: q.Family, Name: q.Name, Text: q.Text, Providers: q.Providers, Region: q.Region, Enabled: q.IsEnabled()}
-}
-
-// QueryFromSpec converts a stored query to a file entry, for export.
-func QueryFromSpec(q discovery.QuerySpec) QuerySpec {
-	en := q.Enabled
-	return QuerySpec{Family: q.Family, Name: q.Name, Text: q.Text, Providers: q.Providers, Region: q.Region, Enabled: &en}
 }
 
 // Validate returns every problem in the file (not just the first), using the registered
@@ -124,45 +106,4 @@ func Validate(reg *discovery.Registry, f File) []error {
 		qseen[q.Name] = true
 	}
 	return errs
-}
-
-// Merge returns base with over applied: entries match by slug (sources) or name (queries).
-func Merge(base, over File) File {
-	out := File{Sources: append([]SourceSpec(nil), base.Sources...), Queries: append([]QuerySpec(nil), base.Queries...)}
-	for _, s := range over.Sources {
-		replaced := false
-		for i := range out.Sources {
-			if out.Sources[i].Slug == s.Slug {
-				out.Sources[i], replaced = s, true
-			}
-		}
-		if !replaced {
-			out.Sources = append(out.Sources, s)
-		}
-	}
-	for _, q := range over.Queries {
-		replaced := false
-		for i := range out.Queries {
-			if out.Queries[i].Name == q.Name {
-				out.Queries[i], replaced = q, true
-			}
-		}
-		if !replaced {
-			out.Queries = append(out.Queries, q)
-		}
-	}
-	return out
-}
-
-// Sorted returns f with sources by slug and queries by family then name, for stable exports.
-func Sorted(f File) File {
-	out := File{Sources: append([]SourceSpec(nil), f.Sources...), Queries: append([]QuerySpec(nil), f.Queries...)}
-	sort.Slice(out.Sources, func(i, j int) bool { return out.Sources[i].Slug < out.Sources[j].Slug })
-	sort.Slice(out.Queries, func(i, j int) bool {
-		if out.Queries[i].Family != out.Queries[j].Family {
-			return out.Queries[i].Family < out.Queries[j].Family
-		}
-		return out.Queries[i].Name < out.Queries[j].Name
-	})
-	return out
 }

@@ -13,5 +13,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/app /app
+# The starter list of sources. The API loads it only into a database that has none (see COLLISION_SOURCES_SEED_FILE).
+COPY --from=build /src/docs/examples/sources.yaml /etc/collision/sources.yaml
 USER 65532:65532
 ENTRYPOINT ["/app"]

@@ -42,6 +42,14 @@ api:
 # One entry per worker deployment. All queues in one pod is fine at this scale; split queues
 # across entries (e.g. one for collision-llm) to scale or isolate them.
 # collision-discovery must stay a single replica: provider rate limits are per process.
+# Sources the API loads when its database has none. It checks on every start and does nothing once any
+# source exists, so edits made in the admin UI are never overwritten.
+sources:
+  # File read by the API. The default is the starter list inside the image. "" turns seeding off.
+  seedFile: /etc/collision/sources.yaml
+  # YAML text (same format as docs/examples/sources.yaml). When set it replaces the image's list.
+  seed: ""
+
 workers:
   main:
     replicas: 1

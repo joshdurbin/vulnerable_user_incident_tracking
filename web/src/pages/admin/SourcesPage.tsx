@@ -61,8 +61,7 @@ export default function SourcesPage() {
       {sources.isError && <ErrorNote error={sources.error} />}
       {sources.data?.length === 0 && (
         <p className="card">
-          No sources yet. <Link to="/admin/sources/new">Add one</Link>, or import a starter set with{" "}
-          <code>collisionctl sources import --file docs/examples/sources.yaml</code>.
+          No sources yet. <Link to="/admin/sources/new">Add one</Link>. The API fills an empty database from its seed list when it starts.
         </p>
       )}
       {sources.data && sources.data.length > 0 && (

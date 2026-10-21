@@ -148,3 +148,6 @@ RETURNING *;
 
 -- name: DeleteQuery :execrows
 DELETE FROM discovery_queries WHERE name = $1;
+
+-- name: CountSources :one
+SELECT count(*) FROM discovery_sources;

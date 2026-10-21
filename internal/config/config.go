@@ -34,7 +34,15 @@ type API struct {
 	AdminToken string // guards POST routes; empty disables them
 }
 
+// Sources configures where discovery sources come from.
+type Sources struct {
+	// SeedFile is a YAML file of sources and queries. The API loads it on every start, and only
+	// writes it when the database has no sources at all. Empty disables seeding.
+	SeedFile string
+}
+
 type Config struct {
+	Sources       Sources
 	MetricsListen string // address for /metrics, separate from any public listener
 	API           API
 	Temporal      Temporal
@@ -62,6 +70,7 @@ func NewViper() *viper.Viper {
 	v.SetDefault("discovery.resolve_google_news", false)
 	v.SetDefault("crawler.render_fallback", false)
 	v.SetDefault("metrics.listen", ":9100")
+	v.SetDefault("sources.seed_file", "")
 	v.SetDefault("api.listen", ":8080")
 	v.SetDefault("api.admin_token", "")
 	v.SetDefault("temporal.address", "temporal-frontend.temporal.svc.cluster.local:7233")
@@ -102,6 +111,7 @@ func Load(v *viper.Viper) (Config, error) {
 		ResolveGoogleNews: v.GetBool("discovery.resolve_google_news"),
 		RenderFallback:    v.GetBool("crawler.render_fallback"),
 		MetricsListen:     v.GetString("metrics.listen"),
+		Sources:           Sources{SeedFile: v.GetString("sources.seed_file")},
 		API:               API{Listen: v.GetString("api.listen"), AdminToken: v.GetString("api.admin_token")},
 		Temporal: Temporal{
 			Address: v.GetString("temporal.address"), Namespace: v.GetString("temporal.namespace"),

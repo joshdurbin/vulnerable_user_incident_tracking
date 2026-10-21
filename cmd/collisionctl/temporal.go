@@ -153,7 +153,7 @@ func newSchedulesCmd(a *app) *cobra.Command {
 				return err
 			}
 			if len(srcs) == 0 {
-				fmt.Fprintln(a.out, "no sources are configured: add some in the admin UI or with `collisionctl sources import`")
+				fmt.Fprintln(a.out, "no sources are configured: add some in the admin UI, or start the API with a seed file (COLLISION_SOURCES_SEED_FILE)")
 			}
 			fmt.Fprintf(a.out, "schedules: %d created, %d updated, %d removed (plus the retention schedule)\n", c, u, removed)
 			return nil

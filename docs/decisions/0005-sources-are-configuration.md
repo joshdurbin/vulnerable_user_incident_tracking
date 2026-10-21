@@ -12,8 +12,10 @@ one stored setting (`rate_limit_per_minute`) was never read by any provider.
 
 ## Decision
 - **Sources and queries are data.** They are created, edited, tested and deleted in the admin UI over an admin API. Nothing
-  is embedded and nothing is seeded; `collisionctl sources import|export` move them as YAML, and the former examples live
-  in `docs/examples/sources.yaml`. Existing rows are untouched by this change.
+  is compiled in. The API loads a configured seed file (`docs/examples/sources.yaml` is the starter list) on start, but only
+  when the database has no sources at all, so the database stays the single source of truth afterwards. This replaced this
+  decision's first version, which had import and export commands and no seeding: a command someone has to remember is a worse
+  default than a file that applies itself. Existing rows are untouched by this change.
 - **A provider describes its types.** `Provider.Describe(sourceType) Descriptor` says whether a type takes a URL, runs
   queries and which crawl limits it reads. Validation and the admin form are generated from descriptors. The registry,
   not the database, decides which types exist (the `CHECK` is dropped), so a new type is one provider plus one registry
@@ -42,6 +44,7 @@ one stored setting (`rate_limit_per_minute`) was never read by any provider.
 - The deploy hook can no longer fix a source; it only keeps schedules in step with what is configured.
 - Deleting a source deletes its run history; the sightings it produced stay, unattributed, so their articles keep their
   provenance by provider but lose the source slug.
-- A source edited in the UI is not reflected in `docs/examples`; use `sources export` for a copy of what is configured.
+- A source edited in the UI is not reflected in `docs/examples`, and there is no export command. The seed file is a starting point, not a record of what is configured.
+- Deleting every source and restarting the API seeds again. Anything short of that, including deleting all but one, is left alone.
 - Per-run metrics are in the database and the admin UI. They are not exported to Prometheus beyond the existing
   per-source failure count, last success and interval.

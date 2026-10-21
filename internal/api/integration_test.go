@@ -91,6 +91,7 @@ type fakeWF struct {
 	deleteErr  error
 	synced     []string // slugs passed to SyncSchedules
 	syncRes    [3]int
+	syncErr    error
 	testRes    *pipeline.SourceTestResult
 	testErr    error
 	testedWith []discovery.Source
@@ -140,7 +141,7 @@ func (f *fakeWF) SyncSchedules(_ context.Context, srcs []discovery.Source) (int,
 	for _, s := range srcs {
 		f.synced = append(f.synced, s.Slug)
 	}
-	return f.syncRes[0], f.syncRes[1], f.syncRes[2], nil
+	return f.syncRes[0], f.syncRes[1], f.syncRes[2], f.syncErr
 }
 func (f *fakeWF) TestSource(_ context.Context, src discovery.Source) (*pipeline.SourceTestResult, error) {
 	f.testedWith = append(f.testedWith, src)

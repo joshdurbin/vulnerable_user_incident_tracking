@@ -138,7 +138,7 @@ func (s *Service) Run(ctx context.Context, rr RunRequest) (*Report, error) {
 			return nil, fmt.Errorf("load queries: %w", err)
 		}
 		if len(qs) == 0 {
-			return nil, fmt.Errorf("no enabled queries for provider %s; add one in the admin UI or with `collisionctl sources import`", src.Type)
+			return nil, fmt.Errorf("no enabled queries for provider %s; add one in the admin UI", src.Type)
 		}
 		if len(rr.QueryNames) > 0 {
 			var keep []Query
