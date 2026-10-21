@@ -539,6 +539,12 @@ func (a *Activities) PruneDiscoveryRuns(ctx context.Context) (int64, error) {
 	return a.DB.Queries().PruneDiscoveryRuns(ctx, a.now().AddDate(0, 0, -RunHistoryDays))
 }
 
+// FingerprintArticles gives articles stored before duplicate detection existed their fingerprints, a
+// bounded amount per run, so new articles can be matched against them. It reports how many it did.
+func (a *Activities) FingerprintArticles(ctx context.Context) (int, error) {
+	return FingerprintArticles(ctx, a.DB.Queries(), FingerprintBatchSize, FingerprintPerRun)
+}
+
 // ---- reprocess ----
 
 // ListReprocessBatch returns the next batch of articles that lack an extraction

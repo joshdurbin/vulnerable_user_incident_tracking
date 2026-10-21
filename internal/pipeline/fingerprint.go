@@ -9,17 +9,25 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
+// FingerprintBatchSize and FingerprintPerRun bound the daily catch-up of articles stored before
+// duplicate detection existed.
+const (
+	FingerprintBatchSize = 200
+	FingerprintPerRun    = 5000
+)
+
 // FingerprintArticles walks the articles that have text but no canonical key, in id order, and returns
-// how many it updated. Articles whose URL is unusable keep a NULL key and are skipped by the cursor.
-func FingerprintArticles(ctx context.Context, q *dbgen.Queries, batch int32) (int, error) {
+// how many it updated, stopping after max. Articles whose URL is unusable keep a NULL key and are
+// skipped by the cursor. It only fills in fingerprints; it does not mark old articles as duplicates.
+func FingerprintArticles(ctx context.Context, q *dbgen.Queries, batch int32, max int) (int, error) {
 	done, after := 0, uuid.Nil
-	for {
+	for done < max {
 		rows, err := q.ListArticlesWithoutFingerprint(ctx, dbgen.ListArticlesWithoutFingerprintParams{ID: after, Limit: batch})
 		if err != nil {
 			return done, err
 		}
 		if len(rows) == 0 {
-			return done, nil
+			break
 		}
 		for _, r := range rows {
 			after = r.ID
@@ -42,4 +50,5 @@ func FingerprintArticles(ctx context.Context, q *dbgen.Queries, batch int32) (in
 			done++
 		}
 	}
+	return done, nil
 }

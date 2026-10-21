@@ -43,11 +43,11 @@ export COLLISION_DATABASE_URL=postgres://... COLLISION_LLM_MODEL=... COLLISION_L
 go run ./cmd/collisionctl migrate
 go run ./cmd/collisionctl worker &                      # hosts the workflows and Go activities
 go run ./cmd/collisionctl sources import --file docs/examples/sources.yaml   # optional starter set
-go run ./cmd/collisionctl schedules sync
+go run ./cmd/collisionctl schedules sync                # deploy step; afterwards the admin UI keeps schedules in line
 go run ./cmd/collisionctl api &                         # REST API on :8080
 go run ./cmd/collisionctl fetch https://example.org/article --json
 ```
-Backfills and reprocessing: `collisionctl backfill start|status|pause|resume|cancel`, `collisionctl reprocess start|status`.
+Backfills, reprocessing, schedule control and incident corrections (splitting a wrongly merged article) are in the `/admin` UI, not the CLI. The CLI is for running the services (`api`, `worker`, `migrate`, `schedules sync` at deploy), importing and exporting sources (`sources`), and debugging one step (`fetch`, `classify`, `eval`).
 
 ## API
 `collisionctl api` serves the REST API described in `api/openapi.yaml` (regenerate server code with

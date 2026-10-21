@@ -67,6 +67,13 @@ type Result struct {
 // ErrNotPending is returned when a review was already decided.
 var ErrNotPending = errors.New("review is not pending")
 
+var (
+	// ErrSplitSingle is returned when an incident has only one article, so there is nothing to split off.
+	ErrSplitSingle = errors.New("cannot split: incident has fewer than two articles")
+	// ErrNotLinked is returned when the article is not linked to the incident.
+	ErrNotLinked = errors.New("article is not linked to this incident")
+)
+
 func lockKey(state string) string {
 	if state == "" {
 		state = "unknown"
@@ -403,14 +410,14 @@ func (r *Resolver) SplitArticle(ctx context.Context, incidentID, articleID uuid.
 		if n, err := q.CountIncidentArticles(ctx, incidentID); err != nil {
 			return err
 		} else if n < 2 {
-			return errors.New("cannot split: incident has fewer than two articles")
+			return ErrSplitSingle
 		}
 		moving, err := q.ListObservationsForArticle(ctx, dbgen.ListObservationsForArticleParams{IncidentID: incidentID, ArticleID: articleID})
 		if err != nil {
 			return err
 		}
 		if len(moving) == 0 {
-			return errors.New("article is not linked to this incident")
+			return ErrNotLinked
 		}
 		var o Observation
 		if err := json.Unmarshal(moving[0].Data, &o); err != nil {

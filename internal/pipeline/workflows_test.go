@@ -286,6 +286,7 @@ func TestRetentionWorkflowReportsHowManyBodiesWereRemoved(t *testing.T) {
 	env.RegisterWorkflow(RetentionWorkflow)
 	env.OnActivity(act.ExpireArticleText, anyCtx).Return(int64(7), nil)
 	env.OnActivity(act.PruneDiscoveryRuns, anyCtx).Return(int64(40), nil).Once()
+	env.OnActivity(act.FingerprintArticles, anyCtx).Return(12, nil).Once()
 	env.ExecuteWorkflow(RetentionWorkflow)
 	require.NoError(t, env.GetWorkflowError())
 	var n int64
@@ -294,12 +295,13 @@ func TestRetentionWorkflowReportsHowManyBodiesWereRemoved(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-// Trimming run history is housekeeping: if it fails, the retention run still succeeds.
+// Trimming run history and fingerprinting old articles are housekeeping: if they fail, the retention run still succeeds.
 func TestRetentionWorkflowIgnoresRunHistoryPruneFailure(t *testing.T) {
 	env := newEnv(t)
 	env.RegisterWorkflow(RetentionWorkflow)
 	env.OnActivity(act.ExpireArticleText, anyCtx).Return(int64(3), nil)
 	env.OnActivity(act.PruneDiscoveryRuns, anyCtx).Return(int64(0), temporal.NewNonRetryableApplicationError("db busy", "Busy", nil))
+	env.OnActivity(act.FingerprintArticles, anyCtx).Return(0, temporal.NewNonRetryableApplicationError("db busy", "Busy", nil))
 	env.ExecuteWorkflow(RetentionWorkflow)
 	require.NoError(t, env.GetWorkflowError())
 	var n int64

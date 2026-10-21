@@ -1,16 +1,12 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"go.temporal.io/sdk/client"
 
@@ -117,7 +113,7 @@ func newWorkerCmd(a *app) *cobra.Command {
 // ---- schedules ----
 
 func newSchedulesCmd(a *app) *cobra.Command {
-	cmd := &cobra.Command{Use: "schedules", Short: "Manage the per-source discovery Schedules in Temporal"}
+	cmd := &cobra.Command{Use: "schedules", Short: "Deploy-time scheduling setup (the admin UI manages individual sources' schedules)"}
 	addTemporalFlags(cmd)
 
 	sync := &cobra.Command{
@@ -164,212 +160,6 @@ func newSchedulesCmd(a *app) *cobra.Command {
 		},
 	}
 	sync.Flags().String("database-url", "", "PostgreSQL DSN (COLLISION_DATABASE_URL)")
-
-	byslug := func(use, short string, do func(ctx context.Context, h client.ScheduleHandle) error) *cobra.Command {
-		return &cobra.Command{
-			Use: use + " <source-slug>", Short: short, Args: cobra.ExactArgs(1),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				tc, err := a.temporal()
-				if err != nil {
-					return err
-				}
-				defer tc.Close()
-				return do(cmd.Context(), tc.ScheduleClient().GetHandle(cmd.Context(), pipeline.DiscoveryScheduleID(args[0])))
-			},
-		}
-	}
-	list := &cobra.Command{
-		Use: "list", Short: "List discovery Schedules with state and next run",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			tc, err := a.temporal()
-			if err != nil {
-				return err
-			}
-			defer tc.Close()
-			it, err := tc.ScheduleClient().List(cmd.Context(), client.ScheduleListOptions{})
-			if err != nil {
-				return err
-			}
-			for it.HasNext() {
-				e, err := it.Next()
-				if err != nil {
-					return err
-				}
-				if !strings.HasPrefix(e.ID, "discover-") {
-					continue
-				}
-				state := "active"
-				if e.Paused {
-					state = "paused"
-				}
-				next := "-"
-				if e.NextActionTimes != nil && len(e.NextActionTimes) > 0 {
-					next = e.NextActionTimes[0].Format(time.RFC3339)
-				}
-				fmt.Fprintf(a.out, "%-28s %-7s next=%s\n", strings.TrimPrefix(e.ID, "discover-"), state, next)
-			}
-			return nil
-		},
-	}
-	cmd.AddCommand(sync, list,
-		byslug("pause", "Pause a source's Schedule", func(ctx context.Context, h client.ScheduleHandle) error {
-			return h.Pause(ctx, client.SchedulePauseOptions{Note: "paused via collisionctl"})
-		}),
-		byslug("resume", "Resume a source's Schedule", func(ctx context.Context, h client.ScheduleHandle) error {
-			return h.Unpause(ctx, client.ScheduleUnpauseOptions{Note: "resumed via collisionctl"})
-		}),
-		byslug("trigger", "Run a source now", func(ctx context.Context, h client.ScheduleHandle) error {
-			return h.Trigger(ctx, client.ScheduleTriggerOptions{})
-		}),
-	)
-	return cmd
-}
-
-// ---- backfill ----
-
-func newBackfillCmd(a *app) *cobra.Command {
-	cmd := &cobra.Command{Use: "backfill", Short: "Start and control historical backfills"}
-	addTemporalFlags(cmd)
-
-	start := &cobra.Command{
-		Use:   "start",
-		Short: "Start a backfill over a date range",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			fl := cmd.Flags()
-			slugs, _ := fl.GetStringSlice("source")
-			fromS, _ := fl.GetString("from")
-			toS, _ := fl.GetString("to")
-			window, _ := fl.GetDuration("window")
-			max, _ := fl.GetInt("max-articles")
-			id, _ := fl.GetString("id")
-			from, err := time.Parse("2006-01-02", fromS)
-			if err != nil {
-				return fmt.Errorf("--from must be YYYY-MM-DD: %w", err)
-			}
-			to, err := time.Parse("2006-01-02", toS)
-			if err != nil {
-				return fmt.Errorf("--to must be YYYY-MM-DD: %w", err)
-			}
-			if len(slugs) == 0 {
-				return errors.New("--source is required (repeatable)")
-			}
-			if !to.After(from) {
-				return errors.New("--to must be after --from")
-			}
-			if id == "" {
-				id = "backfill-" + time.Now().UTC().Format("20060102-150405")
-			}
-			tc, err := a.temporal()
-			if err != nil {
-				return err
-			}
-			defer tc.Close()
-			run, err := tc.ExecuteWorkflow(cmd.Context(), client.StartWorkflowOptions{ID: id, TaskQueue: pipeline.TQWorkflow},
-				pipeline.BackfillWorkflow, pipeline.BackfillInput{
-					Slugs: slugs, From: from, To: to, WindowSize: window, MaxArticles: max, CorrelationID: id, Options: a.pipelineOptions(),
-				})
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(a.out, "started %s (run %s)\nwatch: collisionctl backfill status %s\n", run.GetID(), run.GetRunID(), run.GetID())
-			return nil
-		},
-	}
-	start.Flags().StringSlice("source", nil, "source slug (repeatable)")
-	start.Flags().String("from", "", "start date YYYY-MM-DD")
-	start.Flags().String("to", "", "end date YYYY-MM-DD (exclusive)")
-	start.Flags().Duration("window", 24*time.Hour, "size of each discovery window")
-	start.Flags().Int("max-articles", 1000, "stop after starting this many article workflows (volume bound)")
-	start.Flags().String("id", "", "workflow ID (default backfill-<timestamp>)")
-
-	status := &cobra.Command{
-		Use: "status <workflow-id>", Short: "Show backfill progress", Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			tc, err := a.temporal()
-			if err != nil {
-				return err
-			}
-			defer tc.Close()
-			v, err := tc.QueryWorkflow(cmd.Context(), args[0], "", pipeline.QueryProgress)
-			if err != nil {
-				return err
-			}
-			var p pipeline.BackfillProgress
-			if err := v.Get(&p); err != nil {
-				return err
-			}
-			fmt.Fprintf(a.out, "%s  steps %d/%d  found=%d  articles started=%d/%d  %s\n", p.Phase, p.StepsDone, p.TotalSteps, p.Found, p.Started, p.MaxArticles, p.Current)
-			return nil
-		},
-	}
-	signalCmd := func(name, short, sig string) *cobra.Command {
-		return &cobra.Command{
-			Use: name + " <workflow-id>", Short: short, Args: cobra.ExactArgs(1),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				tc, err := a.temporal()
-				if err != nil {
-					return err
-				}
-				defer tc.Close()
-				return tc.SignalWorkflow(cmd.Context(), args[0], "", sig, nil)
-			},
-		}
-	}
-	cmd.AddCommand(start, status, signalCmd("pause", "Pause a backfill", pipeline.SignalPause),
-		signalCmd("resume", "Resume a backfill", pipeline.SignalResume), signalCmd("cancel", "Cancel a backfill", pipeline.SignalCancel))
-	return cmd
-}
-
-// ---- reprocess ----
-
-func newReprocessCmd(a *app) *cobra.Command {
-	cmd := &cobra.Command{Use: "reprocess", Short: "Re-classify retained articles with the current model, prompt and schema"}
-	addTemporalFlags(cmd)
-	start := &cobra.Command{
-		Use: "start", Short: "Start a reprocess run",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			fl := cmd.Flags()
-			limit, _ := fl.GetInt("limit")
-			batch, _ := fl.GetInt("batch-size")
-			conc, _ := fl.GetInt("concurrency")
-			id := "reprocess-" + uuid.NewString()[:8]
-			tc, err := a.temporal()
-			if err != nil {
-				return err
-			}
-			defer tc.Close()
-			run, err := tc.ExecuteWorkflow(cmd.Context(), client.StartWorkflowOptions{ID: id, TaskQueue: pipeline.TQWorkflow},
-				pipeline.ReprocessWorkflow, pipeline.ReprocessInput{Limit: limit, BatchSize: batch, MaxConcurrent: conc, CorrelationID: id, Options: a.pipelineOptions()})
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(a.out, "started %s\n", run.GetID())
-			return nil
-		},
-	}
-	start.Flags().Int("limit", 100, "maximum articles to reprocess in this run (cost bound), 0 = all")
-	start.Flags().Int("batch-size", 20, "articles per batch")
-	start.Flags().Int("concurrency", 4, "articles in flight at once")
-	status := &cobra.Command{
-		Use: "status <workflow-id>", Short: "Show reprocess progress", Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			tc, err := a.temporal()
-			if err != nil {
-				return err
-			}
-			defer tc.Close()
-			v, err := tc.QueryWorkflow(cmd.Context(), args[0], "", pipeline.QueryProgress)
-			if err != nil {
-				return err
-			}
-			var p pipeline.ReprocessResult
-			if err := v.Get(&p); err != nil {
-				return err
-			}
-			fmt.Fprintf(a.out, "examined=%d changed=%d failed=%d\n", p.Examined, p.Changed, p.Failed)
-			return nil
-		},
-	}
-	cmd.AddCommand(start, status)
+	cmd.AddCommand(sync)
 	return cmd
 }

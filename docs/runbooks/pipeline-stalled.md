@@ -33,6 +33,6 @@ Work flows: Schedule, discovery, fetch (crawler), classify (LLM), resolve, incid
 ## Recovering a backlog
 
 After an outage, run discovery again with a window that covers it:
-`collisionctl backfill start --source <slug> --from <date> --to <date> --max-articles 500`. Duplicates are ignored by
-URL, so overlapping windows are safe. Watch progress with `collisionctl backfill status <id>`; pause, resume or cancel
-as needed.
+Admin, Backfill & reprocess, "Start a backfill": pick the source, the dates and an article limit (500 is a sensible
+start). Duplicates are ignored by URL, so overlapping windows are safe. The table shows progress and offers pause,
+resume and cancel.

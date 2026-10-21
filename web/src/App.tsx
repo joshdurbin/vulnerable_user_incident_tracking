@@ -4,6 +4,7 @@ import { api, unwrap } from "./api/client";
 import IncidentPage from "./pages/IncidentPage";
 import MapPage from "./pages/MapPage";
 import AdminLayout from "./pages/admin/AdminLayout";
+import JobsPage from "./pages/admin/JobsPage";
 import OverviewPage from "./pages/admin/OverviewPage";
 import QueriesPage from "./pages/admin/QueriesPage";
 import SourceDetailPage from "./pages/admin/SourceDetailPage";
@@ -50,6 +51,7 @@ export default function App() {
             <Route path="sources/:slug" element={<SourceDetailPage />} />
             <Route path="sources/:slug/edit" element={<SourceFormPage />} />
             <Route path="queries" element={<QueriesPage />} />
+            <Route path="jobs" element={<JobsPage />} />
           </Route>
           <Route path="/ops" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<p>Page not found.</p>} />

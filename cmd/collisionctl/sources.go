@@ -3,14 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/pgrepo"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/sourcefile"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
@@ -19,7 +15,7 @@ import (
 func newSourcesCmd(a *app) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sources",
-		Short: "Inspect, import and export discovery sources and queries",
+		Short: "Import, export and check discovery sources and queries",
 		Long: `Sources and queries live in the database and are managed in the admin UI. These commands
 are for scripting around that: import a YAML file (for example docs/examples/sources.yaml on a
 new install), export what is configured, and check a file before importing it.`,
@@ -64,7 +60,7 @@ new install), export what is configured, and check a file before importing it.`,
 		Long: `Writes the sources and queries in FILE to the database. By default an entry replaces the
 configured one with the same slug (sources) or name (queries); with --only-new, entries that
 already exist are left exactly as they are. Temporal Schedules follow on the next
-` + "`collisionctl schedules sync`" + ` or when a source is saved in the admin UI.`,
+"Sync schedules" in the admin UI or when a source is saved there.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			file, _ := cmd.Flags().GetString("file")
@@ -143,82 +139,6 @@ already exist are left exactly as they are. Temporal Schedules follow on the nex
 	}
 	dbFlag(export)
 
-	list := &cobra.Command{
-		Use:   "list",
-		Short: "List sources with their status (from the database, or from --file without one)",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			file, _ := cmd.Flags().GetString("file")
-			asJSON, _ := cmd.Flags().GetBool("json")
-			repo, closeRepo, err := a.discoveryRepo(cmd.Context(), file, true)
-			if err != nil {
-				return err
-			}
-			defer closeRepo()
-			srcs, err := repo.Sources(cmd.Context(), false)
-			if err != nil {
-				return err
-			}
-			if asJSON {
-				return writeJSON(a.out, srcs)
-			}
-			if len(srcs) == 0 {
-				fmt.Fprintln(a.out, "no sources configured; add one in the admin UI or run `collisionctl sources import --file docs/examples/sources.yaml`")
-				return nil
-			}
-			now := time.Now()
-			fmt.Fprintf(a.out, "%-18s %-13s %-9s %-9s %-11s %s\n", "SLUG", "TYPE", "ENABLED", "INTERVAL", "HEALTH", "LAST SUCCESS")
-			for _, s := range srcs {
-				last := "never"
-				if s.LastSuccessAt != nil {
-					last = s.LastSuccessAt.Local().Format("01-02 15:04")
-				}
-				h := discovery.AssessHealth(s, false, now)
-				fmt.Fprintf(a.out, "%-18s %-13s %-9v %-9s %-11s %s\n", s.Slug, s.Type, s.Enabled, s.PollInterval, h.State, last)
-			}
-			return nil
-		},
-	}
-	fileFlag(list, "read sources from this file instead of the database")
-	list.Flags().Bool("json", false, "machine-readable output")
-	dbFlag(list)
-
-	stats := &cobra.Command{
-		Use:   "stats",
-		Short: "Show which discovery sources are actually valuable",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			since, _ := cmd.Flags().GetDuration("since")
-			asJSON, _ := cmd.Flags().GetBool("json")
-			repo, closeRepo, err := a.discoveryRepo(cmd.Context(), "", false)
-			if err != nil {
-				return err
-			}
-			defer closeRepo()
-			rows, err := repo.Stats(cmd.Context(), time.Now().Add(-since))
-			if err != nil {
-				return err
-			}
-			if asJSON {
-				return writeJSON(a.out, rows)
-			}
-			printStats(a.out, rows)
-			return nil
-		},
-	}
-	stats.Flags().Duration("since", 7*24*time.Hour, "look-back window")
-	stats.Flags().Bool("json", false, "machine-readable output")
-	dbFlag(stats)
-
-	cmd.AddCommand(validate, importCmd, export, list, stats)
+	cmd.AddCommand(validate, importCmd, export)
 	return cmd
-}
-
-func printStats(w io.Writer, rows []discovery.SourceStats) {
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Incidents > rows[j].Incidents })
-	fmt.Fprintf(w, "%-12s %-18s %6s %6s %6s %7s %7s %8s %9s %5s\n", "PROVIDER", "SOURCE", "SEEN", "UNIQ", "ONLY", "DUP%", "FETCH%", "RELEVANT", "DELAY", "INC")
-	for _, r := range rows {
-		fmt.Fprintf(w, "%-12s %-18.18s %6d %6d %6d %6.0f%% %6.0f%% %7.0f%% %9s %5d\n", r.Provider, r.SourceSlug, r.Discoveries, r.UniqueURLs, r.ExclusiveURLs,
-			100*r.DuplicateRate(), 100*r.FetchSuccessRate(), 100*r.RelevantRate(), (time.Duration(r.AvgDelaySeconds) * time.Second).Round(time.Minute), r.Incidents)
-	}
 }

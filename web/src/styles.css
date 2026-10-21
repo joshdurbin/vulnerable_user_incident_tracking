@@ -90,14 +90,20 @@ button.danger { color: var(--danger); border-color: var(--danger); }
 .health-failing, .run-failed { background: #ffe3e3; color: #a61e1e; }
 .health-stale { background: #ffe8cc; color: #8a3b00; }
 .health-paused, .health-waiting { background: #e7f5ff; color: #0b5394; }
-.health-disabled { background: #e9ecef; color: #495057; }
+.health-disabled, .job-cancelled, .job-terminated { background: #e9ecef; color: #495057; }
+.job-running, .job-paused { background: #e7f5ff; color: #0b5394; }
+.job-completed { background: #d3f9d8; color: #1b5e20; }
+.job-failed, .job-timed_out { background: #ffe3e3; color: #a61e1e; }
 @media (prefers-color-scheme: dark) {
   .health-healthy, .run-success { background: #1e3a24; color: #a9e7b4; }
   .health-degraded, .run-partial { background: #4a4215; color: #ffe066; }
   .health-failing, .run-failed { background: #4a1d1d; color: #ffa8a8; }
   .health-stale { background: #4a2d12; color: #ffc078; }
   .health-paused, .health-waiting { background: #12324d; color: #a5d8ff; }
-  .health-disabled { background: #2b2f33; color: #ced4da; }
+  .health-disabled, .job-cancelled, .job-terminated { background: #2b2f33; color: #ced4da; }
+  .job-running, .job-paused { background: #12324d; color: #a5d8ff; }
+  .job-completed { background: #1e3a24; color: #a9e7b4; }
+  .job-failed, .job-timed_out { background: #4a1d1d; color: #ffa8a8; }
 }
 .health-counts { list-style: none; display: flex; gap: 1.25rem; flex-wrap: wrap; padding: 0; margin: 0 0 1rem; }
 .health-counts li { display: flex; align-items: center; gap: 0.35rem; }

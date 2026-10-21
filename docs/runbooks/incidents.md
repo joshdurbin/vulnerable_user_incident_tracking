@@ -15,9 +15,9 @@ work, retry later.
 Open the incident page: sources, what each article reported, and the history (including logged conflicts). The record is
 derived from those observations, so a wrong value usually means one article said it.
 
-- **Wrong merge.** `collisionctl incidents split <incident-id> <article-id> --actor <you>` moves that article's
-  observations to a new incident and recomputes both. The ids are on the incident page (sources list). There is no UI
-  button for this yet.
+- **Wrong merge.** On the incident page, with the admin token entered, each source has "Not the same collision: move to a
+  new incident". It moves that article's observations to a new incident and recomputes both, recording your name in the
+  history of both. It is offered only when the incident has two or more independent sources.
 - **Bad extraction.** Fix the prompt or model and reprocess (`model-and-prompt-changes.md`).
 - **An article that should not count.** Withdrawing is done by reprocessing; there is no manual delete by design.
 

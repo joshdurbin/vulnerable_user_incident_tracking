@@ -276,7 +276,7 @@ func SourceTestWorkflow(ctx workflow.Context, in SourceTestInput) (*SourceTestRe
 
 // RetentionWorkflow enforces the article text retention period and trims old discovery run
 // history. A daily Schedule runs it. Its result is how many article bodies were removed; a
-// failure to prune history is logged and does not fail the run.
+// failure to prune history or to fingerprint older articles is logged and does not fail the run.
 func RetentionWorkflow(ctx workflow.Context) (int64, error) {
 	var n int64
 	if err := workflow.ExecuteActivity(dbCtx(ctx), act.ExpireArticleText).Get(ctx, &n); err != nil {
@@ -285,6 +285,10 @@ func RetentionWorkflow(ctx workflow.Context) (int64, error) {
 	var pruned int64
 	if err := workflow.ExecuteActivity(dbCtx(ctx), act.PruneDiscoveryRuns).Get(ctx, &pruned); err != nil {
 		workflow.GetLogger(ctx).Warn("pruning discovery run history failed", "error", err)
+	}
+	var fingerprinted int
+	if err := workflow.ExecuteActivity(dbCtx(ctx), act.FingerprintArticles).Get(ctx, &fingerprinted); err != nil {
+		workflow.GetLogger(ctx).Warn("fingerprinting older articles failed", "error", err)
 	}
 	return n, nil
 }

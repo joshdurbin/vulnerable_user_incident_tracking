@@ -31,9 +31,9 @@ If a PreSync Job fails, nothing rolls out and the running version keeps serving.
 
 ## Upgrade from a version without duplicate detection (migration 00009)
 
-The migration only adds columns, so old pods keep working. Articles stored before it have no fingerprint and are never
-matched against. To include those that still hold their text, run `collisionctl articles fingerprint` once after the deploy
-(safe to repeat). It does not change incidents or mark old articles as duplicates.
+The migration only adds columns, so old pods keep working. Articles stored before it have no fingerprint and are not
+matched against. The daily retention run fingerprints up to 5000 of those that still hold their text, so a backlog clears
+over a few days without anyone doing anything. It does not change incidents or mark old articles as duplicates.
 
 ## Upgrade
 
@@ -51,11 +51,11 @@ Revert the image change in git and sync. If a migration has run, the old version
 Workflow code must stay deterministic for workflows already running. Before changing a workflow's steps, run the replay
 tests (`make test-integration` replays recorded histories) and use Temporal's `workflow.GetVersion` for the change. The
 article workflow is short-lived, so a draining deploy is also an option: pause the schedules
-(`collisionctl schedules pause <slug>`), wait for open workflows to finish, deploy, resume.
+(Pause on the Sources page), wait for open workflows to finish, deploy, resume.
 
 ## Backups
 
 All state is in PostgreSQL (CloudNativePG backups cover it). Temporal history is disposable: it is kept for the namespace
 retention period (72 hours by default) and everything durable is in the application database. Losing Temporal loses
-schedules and open workflows only; `collisionctl schedules sync` recreates the schedules, and unfinished articles are
+schedules and open workflows only; `collisionctl schedules sync` (or "Sync schedules" in the admin UI) recreates the schedules, and unfinished articles are
 re-listed as pending by the next discovery run.

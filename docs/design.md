@@ -137,6 +137,23 @@ Sources (`discovery_sources`) and search queries (`discovery_queries`) are rows 
 UI. Nothing is built in and nothing is seeded on deploy: an empty database collects nothing until a source is added
 (or `collisionctl sources import --file docs/examples/sources.yaml` loads a starter set).
 
+### Bulk jobs and corrections
+
+Backfills, reprocess runs and incident splits are admin actions too, not CLI commands. The CLI keeps only what has to run
+without the API: the services, `migrate`, the deploy-time `schedules sync`, file import and export of sources, and
+debugging commands (`fetch`, `classify`, `eval`).
+
+- **Jobs are the workflows themselves.** `POST /admin/backfills` and `/admin/reprocesses` start `BackfillWorkflow` and
+  `ReprocessWorkflow`; `GET /admin/jobs` lists them from Temporal's visibility store (nothing is copied into PostgreSQL)
+  and asks each for its progress through its query handler, which also answers for finished runs. Pause and resume are
+  signals, only for backfills; cancel is a signal for a backfill and a Temporal cancel for a reprocess run. The logic is in
+  `internal/pipeline/jobs.go`, where it is tested against a real Temporal server.
+- **Bounded by construction.** A backfill needs sources that exist, a range under ten years, and an article limit
+  (default 1000); a reprocess run has a limit (default 100, 0 means all and the UI asks first).
+- **Splitting an article** (`POST /admin/incidents/{id}/split`) runs the same resolver code as before, under the same
+  per-state advisory lock, and records the name given in both incidents' histories. The shared admin token does not say who
+  is acting, so the name is typed in and is an audit label, not an identity.
+
 - **The provider is the contract for what a source needs.** `Descriptor` says whether a type takes a URL, runs
   queries, and which crawl limits it reads. Validation (`ValidateSource`, `ValidateQuery`) and the admin form are driven
   by descriptors, so a new source type is one provider package plus one registry line, with no migration (the database
@@ -251,7 +268,7 @@ outlets running one wire story leave an incident `unverified`. The incident page
 Limits: this finds copies, not independent reports of one event (that is entity resolution, below). The thresholds are set
 from synthetic edits, not measured on real news, so they need checking against reviewed examples (see the backlog). Two copies
 stored at the same moment can both become originals. Articles stored before fingerprints existed are fingerprinted by
-`collisionctl articles fingerprint`, which does not mark them as duplicates of one another.
+the daily retention run (up to 5000 per run), which does not mark them as duplicates of one another.
 
 Retry policy differs by step: crawl and DB steps retry with backoff; classification retries transient gateway errors
 but treats "invalid output" as a terminal outcome recorded on the workflow, not a failure.
@@ -478,9 +495,9 @@ flowchart LR
 |---|---|---|
 | Map | clustered incidents with filters kept in the URL | none |
 | Trends | summary, time series, breakdowns | none |
-| Incident detail | sources, per-article observations, audit trail | link to the incident's workflow |
+| Incident detail | sources (copies marked), per-article observations, audit trail; admins can split an article off | link to the incident's workflow |
 | Review queue | side-by-side pairs with differences highlighted | decision as a validated Update |
-| Admin (token) | pipeline counters; per-source health, run history, quality; queries | schedule pause, resume, run now, sync; test run through a workflow |
+| Admin (token) | pipeline counters; per-source health, run history, quality; queries; backfill and reprocess runs | schedule pause, resume, run now, sync; test run through a workflow; backfill signals and queries; listing runs from visibility |
 
 ## Security
 

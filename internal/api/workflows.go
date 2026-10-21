@@ -38,6 +38,12 @@ type Workflows interface {
 	DeleteSchedule(ctx context.Context, slug string) error
 	// SyncSchedules makes the Schedules match the sources, and removes those of deleted sources.
 	SyncSchedules(ctx context.Context, srcs []discovery.Source) (created, updated, removed int, err error)
+	// Bulk jobs: backfills and reprocess runs.
+	StartBackfill(ctx context.Context, in pipeline.BackfillInput) (string, error)
+	StartReprocess(ctx context.Context, in pipeline.ReprocessInput) (string, error)
+	ListJobs(ctx context.Context, kind string, limit int) ([]pipeline.Job, error)
+	GetJob(ctx context.Context, id string) (*pipeline.Job, error)
+	ControlJob(ctx context.Context, id, action string) error
 	// TestSource runs a source configuration once through the discovery worker, saving nothing.
 	TestSource(ctx context.Context, src discovery.Source) (*pipeline.SourceTestResult, error)
 }
@@ -145,7 +151,35 @@ func (t TemporalWorkflows) SyncSchedules(ctx context.Context, srcs []discovery.S
 	if removed, err = pipeline.PruneSchedules(ctx, t.C, keep); err != nil {
 		return created, updated, removed, mapTemporalErr(err)
 	}
+	// The daily retention schedule belongs to no source; syncing here is what a first deploy needs.
+	if _, err = pipeline.SyncMaintenanceSchedules(ctx, t.C); err != nil {
+		return created, updated, removed, mapTemporalErr(err)
+	}
 	return created, updated, removed, nil
+}
+
+func (t TemporalWorkflows) StartBackfill(ctx context.Context, in pipeline.BackfillInput) (string, error) {
+	id, err := pipeline.StartBackfill(ctx, t.C, in, t.Options)
+	return id, mapTemporalErr(err)
+}
+
+func (t TemporalWorkflows) StartReprocess(ctx context.Context, in pipeline.ReprocessInput) (string, error) {
+	id, err := pipeline.StartReprocess(ctx, t.C, in, t.Options)
+	return id, mapTemporalErr(err)
+}
+
+func (t TemporalWorkflows) ListJobs(ctx context.Context, kind string, limit int) ([]pipeline.Job, error) {
+	jobs, err := pipeline.ListJobs(ctx, t.C, kind, limit)
+	return jobs, mapTemporalErr(err)
+}
+
+func (t TemporalWorkflows) GetJob(ctx context.Context, id string) (*pipeline.Job, error) {
+	j, err := pipeline.GetJob(ctx, t.C, id)
+	return j, mapTemporalErr(err)
+}
+
+func (t TemporalWorkflows) ControlJob(ctx context.Context, id, action string) error {
+	return mapTemporalErr(pipeline.ControlJob(ctx, t.C, id, action))
 }
 
 // testRunTimeout bounds one test run end to end; the HTTP server's write timeout is longer.

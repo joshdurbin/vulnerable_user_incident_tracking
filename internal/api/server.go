@@ -23,6 +23,7 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/pgrepo"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/registry"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
@@ -43,6 +44,7 @@ type Config struct {
 type Server struct {
 	store *storage.Store
 	repo  *pgrepo.Repo
+	res   *incidents.Resolver
 	reg   *discovery.Registry
 	wf    Workflows
 	cfg   Config
@@ -54,7 +56,7 @@ func NewServer(st *storage.Store, wf Workflows, cfg Config) *Server {
 	if reg == nil {
 		reg = registry.New(registry.Deps{})
 	}
-	return &Server{store: st, repo: pgrepo.New(st), reg: reg, wf: wf, cfg: cfg, now: time.Now}
+	return &Server{store: st, repo: pgrepo.New(st), res: incidents.NewResolver(st, incidents.DefaultConfig(), cfg.Log), reg: reg, wf: wf, cfg: cfg, now: time.Now}
 }
 
 var _ StrictServerInterface = (*Server)(nil)
@@ -445,7 +447,7 @@ func (s *Server) ControlSchedule(ctx context.Context, req ControlScheduleRequest
 	}
 	if err := s.wf.ControlSchedule(ctx, req.Slug, string(req.Body.Action)); err != nil {
 		if errors.Is(err, ErrNoSchedule) {
-			return ControlSchedule404JSONResponse{NotFoundJSONResponse{Error: "no schedule for this source yet; run `collisionctl schedules sync`"}}, nil
+			return ControlSchedule404JSONResponse{NotFoundJSONResponse{Error: "no schedule for this source yet; use Sync schedules in the admin UI"}}, nil
 		}
 		return nil, err
 	}

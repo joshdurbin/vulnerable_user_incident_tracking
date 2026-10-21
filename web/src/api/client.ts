@@ -19,6 +19,8 @@ export type SourceType = components["schemas"]["SourceType"];
 export type SourceRun = components["schemas"]["SourceRun"];
 export type SourceTestResult = components["schemas"]["SourceTestResult"];
 export type Query = components["schemas"]["Query"];
+export type Job = components["schemas"]["Job"];
+export type BackfillRequest = components["schemas"]["BackfillRequest"];
 export type HealthState = components["schemas"]["Health"]["state"];
 
 /** An API failure: the message the server gave, the HTTP status, and every validation problem when it listed them. */

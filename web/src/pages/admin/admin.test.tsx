@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import App from "../../App";
-import { adminToken, type Query, type SourceDetail, type SourceType } from "../../api/client";
+import { adminToken, type Job, type Query, type SourceDetail, type SourceType } from "../../api/client";
 
 const crawlNone = { allowed_domains: false, require_domains: false, url_patterns: false, max_pages: false, max_depth: false, render: false };
 const TYPES: SourceType[] = [
@@ -320,5 +320,115 @@ describe("Queries", () => {
     await userEvent.click(await screen.findByLabelText("ped-struck enabled"));
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
     expect(calls.find((c) => c.method === "PUT")?.body).toMatchObject({ name: "ped-struck", enabled: false });
+  });
+});
+
+describe("Backfill and reprocess", () => {
+  const running: Job = {
+    id: "backfill-20261018-100000-ab12", kind: "backfill", status: "running", started_at: new Date(Date.now() - 120_000).toISOString(),
+    backfill: { phase: "running", steps_done: 2, total_steps: 7, found: 30, articles_started: 12, max_articles: 100, current: "oaklandside 2026-01-03..2026-01-04" },
+  };
+  const done: Job = {
+    id: "reprocess-20261017-090000-cd34", kind: "reprocess", status: "completed", started_at: "2026-10-17T09:00:00Z", closed_at: "2026-10-17T09:10:00Z",
+    reprocess: { examined: 9, changed: 2, failed: 1 },
+  };
+  const jobsFor = (jobs: Job[]): Handler => (r, p) => {
+    const url = new URL(r.url);
+    if (p === "/v1/admin/jobs") return Response.json(jobs.filter((j) => j.kind === url.searchParams.get("kind")));
+    if (p === "/v1/admin/sources") return Response.json([source(), source({ slug: "off", name: "Dormant", enabled: false })]);
+  };
+
+  it("lists runs with their progress and offers the controls that apply", async () => {
+    renderAt("/admin/jobs", jobsFor([running, done]));
+    const bf = (await screen.findByText(running.id)).closest("tr") as HTMLElement;
+    expect(within(bf).getByText("Running")).toBeInTheDocument();
+    expect(within(bf).getByText(/2 of 7 windows · 12 of 100 articles started/)).toBeInTheDocument();
+    expect(within(bf).getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    expect(within(bf).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+
+    const rp = (await screen.findByText(done.id)).closest("tr") as HTMLElement;
+    expect(within(rp).getByText("Finished")).toBeInTheDocument();
+    expect(within(rp).getByText("9 examined · 2 changed · 1 failed")).toBeInTheDocument();
+    expect(within(rp).queryByRole("button")).toBeNull();
+  });
+
+  it("pauses a run, and cancels only after confirming", async () => {
+    const calls = renderAt("/admin/jobs", (r, p) => {
+      if (p.startsWith("/v1/admin/jobs/") && r.method === "POST") return new Response(null, { status: 204 });
+      return jobsFor([running])(r, p);
+    });
+    const bf = (await screen.findByText(running.id)).closest("tr") as HTMLElement;
+    await userEvent.click(within(bf).getByRole("button", { name: "Pause" }));
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/control"))).toBe(true));
+    const pause = calls.find((c) => c.path.endsWith("/control"));
+    expect(pause?.path).toBe(`/v1/admin/jobs/${running.id}/control`);
+    expect(pause?.body).toEqual({ action: "pause" });
+    expect(pause?.auth).toBe("Bearer tok");
+
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await userEvent.click(within(bf).getByRole("button", { name: "Cancel" }));
+    expect(calls.filter((c) => c.path.endsWith("/control"))).toHaveLength(1);
+    await userEvent.click(within(bf).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/control"))).toHaveLength(2));
+    expect(calls.filter((c) => c.path.endsWith("/control"))[1].body).toEqual({ action: "cancel" });
+    confirm.mockRestore();
+  });
+
+  it("shows a paused backfill as paused and offers Resume", async () => {
+    const paused: Job = { ...running, backfill: { ...running.backfill!, phase: "paused" } };
+    renderAt("/admin/jobs", jobsFor([paused]));
+    const bf = (await screen.findByText(paused.id)).closest("tr") as HTMLElement;
+    expect(within(bf).getByText("Paused", { selector: ".health" })).toBeInTheDocument();
+    expect(within(bf).getByRole("button", { name: "Resume" })).toBeInTheDocument();
+  });
+
+  it("starts a backfill with the chosen sources and dates", async () => {
+    const calls = renderAt("/admin/jobs", (r, p) => {
+      if (p === "/v1/admin/backfills" && r.method === "POST") return Response.json({ ...running, id: "backfill-new" }, { status: 201 });
+      return jobsFor([])(r, p);
+    });
+    const form = await screen.findByRole("form", { name: /start a backfill/i });
+    const start = within(form).getByRole("button", { name: /start backfill/i });
+    expect(start).toBeDisabled();
+    await userEvent.click(await within(form).findByRole("checkbox", { name: /Oaklandside/ }));
+    expect(within(form).getByRole("checkbox", { name: /Dormant/ })).toBeInTheDocument();
+    await userEvent.type(within(form).getByLabelText("From"), "2026-01-01");
+    await userEvent.type(within(form).getByLabelText(/^To/), "2026-01-08");
+    expect(start).toBeEnabled();
+    await userEvent.click(start);
+    expect(await screen.findByText(/Started backfill-new/)).toBeInTheDocument();
+    const post = calls.find((c) => c.path === "/v1/admin/backfills");
+    expect(post?.body).toEqual({ sources: ["oaklandside"], from: "2026-01-01", to: "2026-01-08", window_hours: 24, max_articles: 1000 });
+  });
+
+  it("shows the server's reason when a backfill is refused", async () => {
+    renderAt("/admin/jobs", (r, p) => {
+      if (p === "/v1/admin/backfills" && r.method === "POST") return Response.json({ error: 'source "oaklandside" does not exist' }, { status: 400 });
+      return jobsFor([])(r, p);
+    });
+    const form = await screen.findByRole("form", { name: /start a backfill/i });
+    await userEvent.click(await within(form).findByRole("checkbox", { name: /Oaklandside/ }));
+    await userEvent.type(within(form).getByLabelText("From"), "2026-01-01");
+    await userEvent.type(within(form).getByLabelText(/^To/), "2026-01-08");
+    await userEvent.click(within(form).getByRole("button", { name: /start backfill/i }));
+    expect(await screen.findByText(/does not exist/)).toBeInTheDocument();
+  });
+
+  it("asks before reprocessing everything", async () => {
+    const calls = renderAt("/admin/jobs", (r, p) => {
+      if (p === "/v1/admin/reprocesses" && r.method === "POST") return Response.json({ ...done, id: "reprocess-new", status: "running" }, { status: 201 });
+      return jobsFor([])(r, p);
+    });
+    const form = await screen.findByRole("form", { name: /start a reprocess run/i });
+    const limit = within(form).getByLabelText(/article limit/i);
+    await userEvent.clear(limit);
+    await userEvent.type(limit, "0");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await userEvent.click(within(form).getByRole("button", { name: /start reprocess/i }));
+    expect(calls.some((c) => c.path === "/v1/admin/reprocesses")).toBe(false);
+    await userEvent.click(within(form).getByRole("button", { name: /start reprocess/i }));
+    expect(await screen.findByText(/Started reprocess-new/)).toBeInTheDocument();
+    expect(calls.find((c) => c.path === "/v1/admin/reprocesses")?.body).toEqual({ limit: 0, batch_size: 20, concurrency: 4 });
+    confirm.mockRestore();
   });
 });

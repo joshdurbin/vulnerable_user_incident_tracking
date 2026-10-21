@@ -94,6 +94,13 @@ type fakeWF struct {
 	testRes    *pipeline.SourceTestResult
 	testErr    error
 	testedWith []discovery.Source
+
+	// bulk jobs
+	backfills  []pipeline.BackfillInput
+	reprocess  []pipeline.ReprocessInput
+	jobs       []pipeline.Job
+	jobErr     error
+	controlled []string // "id:action"
 }
 
 type applyCall struct {
@@ -138,6 +145,36 @@ func (f *fakeWF) SyncSchedules(_ context.Context, srcs []discovery.Source) (int,
 func (f *fakeWF) TestSource(_ context.Context, src discovery.Source) (*pipeline.SourceTestResult, error) {
 	f.testedWith = append(f.testedWith, src)
 	return f.testRes, f.testErr
+}
+
+func (f *fakeWF) StartBackfill(_ context.Context, in pipeline.BackfillInput) (string, error) {
+	f.backfills = append(f.backfills, in)
+	return "backfill-fake", f.jobErr
+}
+func (f *fakeWF) StartReprocess(_ context.Context, in pipeline.ReprocessInput) (string, error) {
+	f.reprocess = append(f.reprocess, in)
+	return "reprocess-fake", f.jobErr
+}
+func (f *fakeWF) ListJobs(_ context.Context, kind string, _ int) ([]pipeline.Job, error) {
+	var out []pipeline.Job
+	for _, j := range f.jobs {
+		if j.Kind == kind {
+			out = append(out, j)
+		}
+	}
+	return out, f.jobErr
+}
+func (f *fakeWF) GetJob(_ context.Context, id string) (*pipeline.Job, error) {
+	for _, j := range f.jobs {
+		if j.ID == id {
+			return &j, f.jobErr
+		}
+	}
+	return nil, pipeline.ErrJobNotFound
+}
+func (f *fakeWF) ControlJob(_ context.Context, id, action string) error {
+	f.controlled = append(f.controlled, id+":"+action)
+	return f.jobErr
 }
 
 const token = "s3cret"

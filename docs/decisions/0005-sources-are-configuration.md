@@ -27,7 +27,7 @@ one stored setting (`rate_limit_per_minute`) was never read by any provider.
   tested function. History is trimmed after 90 days.
 - **The API owns the schedule lifecycle.** Saving a source applies its Temporal Schedule. `enabled` drives the pause
   state only when it changes, so an operator's pause survives other edits. A Temporal failure never loses a save; it is
-  reported on the saved source. Delete removes the schedule first. `Sync schedules` (and `collisionctl schedules sync`,
+  reported on the saved source. Delete removes the schedule first. `Sync schedules` (the same code as `collisionctl schedules sync`,
   which the deploy hook runs) reconciles everything and removes schedules of deleted sources.
 - **Test goes through Temporal.** The API makes no outbound requests (its network policy allows only Postgres and
   Temporal), so "Test" starts a `SourceTestWorkflow` whose activity runs the provider as a dry run on the discovery worker.

@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { api, unwrap } from "../api/client";
+import { actorName } from "../actor";
+import { adminToken, api, authHeaders, unwrap } from "../api/client";
 import { ErrorNote, Loading, SeverityBadge } from "../components/bits";
 import { useRuntimeConfig } from "../RuntimeConfig";
 import { workflowUrl } from "../config";
@@ -15,10 +16,25 @@ const DUPLICATE_LABEL = {
 export default function IncidentPage() {
   const { id = "" } = useParams();
   const cfg = useRuntimeConfig();
+  const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["incident", id],
     queryFn: async () => unwrap(await api.GET("/incidents/{id}", { params: { path: { id } } })),
   });
+  const split = useMutation({
+    mutationFn: async (v: { articleId: string; actor: string }) =>
+      unwrap(await api.POST("/admin/incidents/{id}/split", { params: { path: { id } }, body: { article_id: v.articleId, actor: v.actor }, headers: authHeaders() })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["incident", id] }),
+  });
+  // Splitting is an admin correction: offer it only to someone who has entered the admin token, and only
+  // when there is more than one independent source to separate.
+  const canSplit = adminToken.get() !== "";
+  const askSplit = (articleId: string, title: string) => {
+    const actor = actorName.get().trim() || (window.prompt("Your name (recorded in the incident's history)") ?? "").trim();
+    if (!actor) return;
+    actorName.set(actor);
+    if (window.confirm(`Move "${title}" out of this incident into a new one?`)) split.mutate({ articleId, actor });
+  };
   if (q.isPending) return <Loading what="incident" />;
   if (q.isError) return <ErrorNote error={q.error} />;
   const d = q.data;
@@ -57,9 +73,16 @@ export default function IncidentPage() {
                 {a.duplicate_of && ` · ${DUPLICATE_LABEL[a.duplicate_kind ?? "near_duplicate"]}`}
                 {` · matched by ${a.matched_by} (${a.match_status}${a.match_score != null ? `, score ${a.match_score.toFixed(2)}` : ""})`}
               </div>
+              {canSplit && i.article_count >= 2 && (
+                <button type="button" className="small" disabled={split.isPending} onClick={() => askSplit(a.article_id, a.title || a.url)}>
+                  Not the same collision: move to a new incident
+                </button>
+              )}
             </li>
           ))}
         </ul>
+        {split.isError && <ErrorNote error={split.error} />}
+        {split.isSuccess && <p className="notice" role="status">Moved. <Link to={`/incidents/${split.data.new_incident_id}`}>Open the new incident</Link>.</p>}
       </section>
 
       <section className="card">

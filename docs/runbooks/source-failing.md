@@ -4,7 +4,7 @@ Alerts: `CollisionSourceFailing` (several runs failed in a row), `CollisionSourc
 intervals).
 
 1. **Which source and why.** Admin, Sources: the Health column says failing or stale and why; open the source for its
-   run history (each failed run shows its error). `collisionctl sources list` shows the same state from the command line.
+   run history (each failed run shows its error).
 2. **Is its schedule running?** A source shows as Paused when its schedule is paused. That is deliberate and survives
    deploys; "Resume" on the Sources page undoes it. A source with no schedule at all (saved while Temporal was down)
    shows "no schedule": use "Sync schedules".

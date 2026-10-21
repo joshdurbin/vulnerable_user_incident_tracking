@@ -17,10 +17,9 @@ import (
 // deps are the process-level collaborators; tests inject fakes.
 type deps struct {
 	out, err  io.Writer
-	fetcher   crawler.Fetcher      // nil = the Python crawler worker, via Temporal
-	completer llm.Completer        // nil = build the gateway client from config
-	registry  *discovery.Registry  // nil = all real providers
-	repo      discovery.Repository // nil = PostgreSQL from config (or --sources-file for --dry-run)
+	fetcher   crawler.Fetcher     // nil = the Python crawler worker, via Temporal
+	completer llm.Completer       // nil = build the gateway client from config
+	registry  *discovery.Registry // nil = all real providers
 }
 
 // app is resolved once per invocation, after flags and config are bound.
@@ -70,7 +69,7 @@ func newRootCmd(d deps) *cobra.Command {
 	pf.String("log-format", "json", "log format: json|console")
 	pf.Bool("json", false, "machine-readable JSON output")
 
-	root.AddCommand(newFetchCmd(a), newClassifyCmd(a), newEvalCmd(a), newMigrateCmd(a), newDiscoverCmd(a), newSourcesCmd(a), newWorkerCmd(a), newSchedulesCmd(a), newBackfillCmd(a), newReprocessCmd(a), newAPICmd(a), newIncidentsCmd(a), newArticlesCmd(a))
+	root.AddCommand(newFetchCmd(a), newClassifyCmd(a), newEvalCmd(a), newMigrateCmd(a), newSourcesCmd(a), newWorkerCmd(a), newSchedulesCmd(a), newAPICmd(a))
 	return root
 }
 

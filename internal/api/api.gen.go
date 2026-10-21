@@ -23,6 +23,33 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for BackfillProgressPhase.
+const (
+	BackfillProgressPhaseCancelled    BackfillProgressPhase = "cancelled"
+	BackfillProgressPhaseDone         BackfillProgressPhase = "done"
+	BackfillProgressPhaseLimitReached BackfillProgressPhase = "limit_reached"
+	BackfillProgressPhasePaused       BackfillProgressPhase = "paused"
+	BackfillProgressPhaseRunning      BackfillProgressPhase = "running"
+)
+
+// Valid indicates whether the value is a known member of the BackfillProgressPhase enum.
+func (e BackfillProgressPhase) Valid() bool {
+	switch e {
+	case BackfillProgressPhaseCancelled:
+		return true
+	case BackfillProgressPhaseDone:
+		return true
+	case BackfillProgressPhaseLimitReached:
+		return true
+	case BackfillProgressPhasePaused:
+		return true
+	case BackfillProgressPhaseRunning:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CrawlPolicyRender.
 const (
 	Always   CrawlPolicyRender = "always"
@@ -46,31 +73,31 @@ func (e CrawlPolicyRender) Valid() bool {
 
 // Defines values for HealthState.
 const (
-	Degraded HealthState = "degraded"
-	Disabled HealthState = "disabled"
-	Failing  HealthState = "failing"
-	Healthy  HealthState = "healthy"
-	Paused   HealthState = "paused"
-	Stale    HealthState = "stale"
-	Waiting  HealthState = "waiting"
+	HealthStateDegraded HealthState = "degraded"
+	HealthStateDisabled HealthState = "disabled"
+	HealthStateFailing  HealthState = "failing"
+	HealthStateHealthy  HealthState = "healthy"
+	HealthStatePaused   HealthState = "paused"
+	HealthStateStale    HealthState = "stale"
+	HealthStateWaiting  HealthState = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the HealthState enum.
 func (e HealthState) Valid() bool {
 	switch e {
-	case Degraded:
+	case HealthStateDegraded:
 		return true
-	case Disabled:
+	case HealthStateDisabled:
 		return true
-	case Failing:
+	case HealthStateFailing:
 		return true
-	case Healthy:
+	case HealthStateHealthy:
 		return true
-	case Paused:
+	case HealthStatePaused:
 		return true
-	case Stale:
+	case HealthStateStale:
 		return true
-	case Waiting:
+	case HealthStateWaiting:
 		return true
 	default:
 		return false
@@ -209,6 +236,54 @@ func (e IncidentArticleDuplicateKind) Valid() bool {
 	}
 }
 
+// Defines values for JobKind.
+const (
+	JobKindBackfill  JobKind = "backfill"
+	JobKindReprocess JobKind = "reprocess"
+)
+
+// Valid indicates whether the value is a known member of the JobKind enum.
+func (e JobKind) Valid() bool {
+	switch e {
+	case JobKindBackfill:
+		return true
+	case JobKindReprocess:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for JobStatus.
+const (
+	JobStatusCancelled  JobStatus = "cancelled"
+	JobStatusCompleted  JobStatus = "completed"
+	JobStatusFailed     JobStatus = "failed"
+	JobStatusRunning    JobStatus = "running"
+	JobStatusTerminated JobStatus = "terminated"
+	JobStatusTimedOut   JobStatus = "timed_out"
+)
+
+// Valid indicates whether the value is a known member of the JobStatus enum.
+func (e JobStatus) Valid() bool {
+	switch e {
+	case JobStatusCancelled:
+		return true
+	case JobStatusCompleted:
+		return true
+	case JobStatusFailed:
+		return true
+	case JobStatusRunning:
+		return true
+	case JobStatusTerminated:
+		return true
+	case JobStatusTimedOut:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReviewStatus.
 const (
 	ReviewStatusApproved ReviewStatus = "approved"
@@ -232,19 +307,19 @@ func (e ReviewStatus) Valid() bool {
 
 // Defines values for SourceRunStatus.
 const (
-	Failed  SourceRunStatus = "failed"
-	Partial SourceRunStatus = "partial"
-	Success SourceRunStatus = "success"
+	SourceRunStatusFailed  SourceRunStatus = "failed"
+	SourceRunStatusPartial SourceRunStatus = "partial"
+	SourceRunStatusSuccess SourceRunStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the SourceRunStatus enum.
 func (e SourceRunStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case SourceRunStatusFailed:
 		return true
-	case Partial:
+	case SourceRunStatusPartial:
 		return true
-	case Success:
+	case SourceRunStatusSuccess:
 		return true
 	default:
 		return false
@@ -335,21 +410,60 @@ func (e Verification) Valid() bool {
 	}
 }
 
+// Defines values for ListJobsParamsKind.
+const (
+	ListJobsParamsKindBackfill  ListJobsParamsKind = "backfill"
+	ListJobsParamsKindReprocess ListJobsParamsKind = "reprocess"
+)
+
+// Valid indicates whether the value is a known member of the ListJobsParamsKind enum.
+func (e ListJobsParamsKind) Valid() bool {
+	switch e {
+	case ListJobsParamsKindBackfill:
+		return true
+	case ListJobsParamsKindReprocess:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ControlJobJSONBodyAction.
+const (
+	ControlJobJSONBodyActionCancel ControlJobJSONBodyAction = "cancel"
+	ControlJobJSONBodyActionPause  ControlJobJSONBodyAction = "pause"
+	ControlJobJSONBodyActionResume ControlJobJSONBodyAction = "resume"
+)
+
+// Valid indicates whether the value is a known member of the ControlJobJSONBodyAction enum.
+func (e ControlJobJSONBodyAction) Valid() bool {
+	switch e {
+	case ControlJobJSONBodyActionCancel:
+		return true
+	case ControlJobJSONBodyActionPause:
+		return true
+	case ControlJobJSONBodyActionResume:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ControlScheduleJSONBodyAction.
 const (
-	Pause   ControlScheduleJSONBodyAction = "pause"
-	Resume  ControlScheduleJSONBodyAction = "resume"
-	Trigger ControlScheduleJSONBodyAction = "trigger"
+	ControlScheduleJSONBodyActionPause   ControlScheduleJSONBodyAction = "pause"
+	ControlScheduleJSONBodyActionResume  ControlScheduleJSONBodyAction = "resume"
+	ControlScheduleJSONBodyActionTrigger ControlScheduleJSONBodyAction = "trigger"
 )
 
 // Valid indicates whether the value is a known member of the ControlScheduleJSONBodyAction enum.
 func (e ControlScheduleJSONBodyAction) Valid() bool {
 	switch e {
-	case Pause:
+	case ControlScheduleJSONBodyActionPause:
 		return true
-	case Resume:
+	case ControlScheduleJSONBodyActionResume:
 		return true
-	case Trigger:
+	case ControlScheduleJSONBodyActionTrigger:
 		return true
 	default:
 		return false
@@ -857,6 +971,39 @@ func (e StatsTimeseriesParamsHitAndRun) Valid() bool {
 	}
 }
 
+// BackfillProgress defines model for BackfillProgress.
+type BackfillProgress struct {
+	ArticlesStarted int `json:"articles_started"`
+
+	// Current The source and window being worked on.
+	Current     *string               `json:"current,omitempty"`
+	Found       int                   `json:"found"`
+	MaxArticles int                   `json:"max_articles"`
+	Phase       BackfillProgressPhase `json:"phase"`
+	StepsDone   int                   `json:"steps_done"`
+	TotalSteps  int                   `json:"total_steps"`
+}
+
+// BackfillProgressPhase defines model for BackfillProgress.Phase.
+type BackfillProgressPhase string
+
+// BackfillRequest defines model for BackfillRequest.
+type BackfillRequest struct {
+	From openapi_types.Date `json:"from"`
+
+	// MaxArticles Stop after starting this many article workflows.
+	MaxArticles *int `json:"max_articles,omitempty"`
+
+	// Sources Source slugs.
+	Sources []string `json:"sources"`
+
+	// To Exclusive.
+	To openapi_types.Date `json:"to"`
+
+	// WindowHours Size of each discovery window.
+	WindowHours *int `json:"window_hours,omitempty"`
+}
+
 // BreakdownRow defines model for BreakdownRow.
 type BreakdownRow struct {
 	Fatalities int64  `json:"fatalities"`
@@ -997,6 +1144,23 @@ type IncidentList struct {
 	Total int64 `json:"total"`
 }
 
+// Job defines model for Job.
+type Job struct {
+	Backfill  *BackfillProgress  `json:"backfill,omitempty"`
+	ClosedAt  *time.Time         `json:"closed_at,omitempty"`
+	Id        string             `json:"id"`
+	Kind      JobKind            `json:"kind"`
+	Reprocess *ReprocessProgress `json:"reprocess,omitempty"`
+	StartedAt time.Time          `json:"started_at"`
+	Status    JobStatus          `json:"status"`
+}
+
+// JobKind defines model for Job.Kind.
+type JobKind string
+
+// JobStatus defines model for Job.Status.
+type JobStatus string
+
 // Observation defines model for Observation.
 type Observation struct {
 	ArticleId openapi_types.UUID `json:"article_id"`
@@ -1033,6 +1197,24 @@ type Query struct {
 
 	// Text GDELT/Google News syntax: OR groups must be parenthesized.
 	Text string `json:"text"`
+}
+
+// ReprocessProgress defines model for ReprocessProgress.
+type ReprocessProgress struct {
+	Changed  int `json:"changed"`
+	Examined int `json:"examined"`
+	Failed   int `json:"failed"`
+}
+
+// ReprocessRequest defines model for ReprocessRequest.
+type ReprocessRequest struct {
+	BatchSize *int `json:"batch_size,omitempty"`
+
+	// Concurrency Articles in flight at once.
+	Concurrency *int `json:"concurrency,omitempty"`
+
+	// Limit Most articles to reprocess in this run (a cost bound). 0 means all.
+	Limit *int `json:"limit,omitempty"`
 }
 
 // Review defines model for Review.
@@ -1264,6 +1446,30 @@ type NotFound = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
+// SplitIncidentJSONBody defines parameters for SplitIncident.
+type SplitIncidentJSONBody struct {
+	// Actor Who made the change; recorded in the audit trail.
+	Actor     string             `json:"actor"`
+	ArticleId openapi_types.UUID `json:"article_id"`
+}
+
+// ListJobsParams defines parameters for ListJobs.
+type ListJobsParams struct {
+	Kind  ListJobsParamsKind `form:"kind" json:"kind"`
+	Limit *int               `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListJobsParamsKind defines parameters for ListJobs.
+type ListJobsParamsKind string
+
+// ControlJobJSONBody defines parameters for ControlJob.
+type ControlJobJSONBody struct {
+	Action ControlJobJSONBodyAction `json:"action"`
+}
+
+// ControlJobJSONBodyAction defines parameters for ControlJob.
+type ControlJobJSONBodyAction string
+
 // ListAdminSourcesParams defines parameters for ListAdminSources.
 type ListAdminSourcesParams struct {
 	Days *int `form:"days,omitempty" json:"days,omitempty"`
@@ -1417,11 +1623,23 @@ type StatsTimeseriesParamsVerification string
 // StatsTimeseriesParamsHitAndRun defines parameters for StatsTimeseries.
 type StatsTimeseriesParamsHitAndRun string
 
+// StartBackfillJSONRequestBody defines body for StartBackfill for application/json ContentType.
+type StartBackfillJSONRequestBody = BackfillRequest
+
+// SplitIncidentJSONRequestBody defines body for SplitIncident for application/json ContentType.
+type SplitIncidentJSONRequestBody SplitIncidentJSONBody
+
+// ControlJobJSONRequestBody defines body for ControlJob for application/json ContentType.
+type ControlJobJSONRequestBody ControlJobJSONBody
+
 // CreateQueryJSONRequestBody defines body for CreateQuery for application/json ContentType.
 type CreateQueryJSONRequestBody = Query
 
 // UpdateQueryJSONRequestBody defines body for UpdateQuery for application/json ContentType.
 type UpdateQueryJSONRequestBody = Query
+
+// StartReprocessJSONRequestBody defines body for StartReprocess for application/json ContentType.
+type StartReprocessJSONRequestBody = ReprocessRequest
 
 // TestSourceJSONRequestBody defines body for TestSource for application/json ContentType.
 type TestSourceJSONRequestBody = SourceInput
@@ -1440,6 +1658,21 @@ type DecideReviewJSONRequestBody = ReviewDecision
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// StartBackfill Discover articles from the given sources over a past date range
+	// (POST /admin/backfills)
+	StartBackfill(w http.ResponseWriter, r *http.Request)
+	// SplitIncident Move one article's reports out of an incident into a new incident
+	// (POST /admin/incidents/{id}/split)
+	SplitIncident(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	// ListJobs Recent backfills or reprocess runs, newest first, with their progress
+	// (GET /admin/jobs)
+	ListJobs(w http.ResponseWriter, r *http.Request, params ListJobsParams)
+
+	// (GET /admin/jobs/{id})
+	GetJob(w http.ResponseWriter, r *http.Request, id string)
+	// ControlJob Pause, resume or cancel a run
+	// (POST /admin/jobs/{id}/control)
+	ControlJob(w http.ResponseWriter, r *http.Request, id string)
 	// ListQueries Search queries used by search-style sources
 	// (GET /admin/queries)
 	ListQueries(w http.ResponseWriter, r *http.Request)
@@ -1452,6 +1685,9 @@ type ServerInterface interface {
 
 	// (PUT /admin/queries/{name})
 	UpdateQuery(w http.ResponseWriter, r *http.Request, name string)
+	// StartReprocess Re-classify stored articles that have no extraction for the current model, prompt and schema
+	// (POST /admin/reprocesses)
+	StartReprocess(w http.ResponseWriter, r *http.Request)
 	// SyncSchedules Make every source's Temporal Schedule match its configuration, and remove schedules of deleted sources
 	// (POST /admin/schedules/sync)
 	SyncSchedules(w http.ResponseWriter, r *http.Request)
@@ -1512,6 +1748,35 @@ type ServerInterface interface {
 
 type Unimplemented struct{}
 
+// StartBackfill Discover articles from the given sources over a past date range
+// (POST /admin/backfills)
+func (_ Unimplemented) StartBackfill(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SplitIncident Move one article's reports out of an incident into a new incident
+// (POST /admin/incidents/{id}/split)
+func (_ Unimplemented) SplitIncident(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListJobs Recent backfills or reprocess runs, newest first, with their progress
+// (GET /admin/jobs)
+func (_ Unimplemented) ListJobs(w http.ResponseWriter, r *http.Request, params ListJobsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /admin/jobs/{id})
+func (_ Unimplemented) GetJob(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ControlJob Pause, resume or cancel a run
+// (POST /admin/jobs/{id}/control)
+func (_ Unimplemented) ControlJob(w http.ResponseWriter, r *http.Request, id string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ListQueries Search queries used by search-style sources
 // (GET /admin/queries)
 func (_ Unimplemented) ListQueries(w http.ResponseWriter, r *http.Request) {
@@ -1530,6 +1795,12 @@ func (_ Unimplemented) DeleteQuery(w http.ResponseWriter, r *http.Request, name 
 
 // (PUT /admin/queries/{name})
 func (_ Unimplemented) UpdateQuery(w http.ResponseWriter, r *http.Request, name string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StartReprocess Re-classify stored articles that have no extraction for the current model, prompt and schema
+// (POST /admin/reprocesses)
+func (_ Unimplemented) StartReprocess(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1646,6 +1917,144 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
+// StartBackfill operation middleware
+func (siw *ServerInterfaceWrapper) StartBackfill(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartBackfill(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SplitIncident operation middleware
+func (siw *ServerInterfaceWrapper) SplitIncident(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SplitIncident(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListJobs operation middleware
+func (siw *ServerInterfaceWrapper) ListJobs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListJobsParams
+
+	// ------------- Required query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJobs(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetJob operation middleware
+func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetJob(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ControlJob operation middleware
+func (siw *ServerInterfaceWrapper) ControlJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ControlJob(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListQueries operation middleware
 func (siw *ServerInterfaceWrapper) ListQueries(w http.ResponseWriter, r *http.Request) {
 
@@ -1717,6 +2126,20 @@ func (siw *ServerInterfaceWrapper) UpdateQuery(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateQuery(w, r, name)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartReprocess operation middleware
+func (siw *ServerInterfaceWrapper) StartReprocess(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartReprocess(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2864,6 +3287,24 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/admin/schedules/sync", wrapper.SyncSchedules)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/jobs", wrapper.ListJobs)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/jobs/{id}", wrapper.GetJob)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/jobs/{id}/control", wrapper.ControlJob)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/backfills", wrapper.StartBackfill)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/reprocesses", wrapper.StartReprocess)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/admin/incidents/{id}/split", wrapper.SplitIncident)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/admin/queries", wrapper.ListQueries)
 	})
 	r.Group(func(r chi.Router) {
@@ -2887,6 +3328,310 @@ type BadRequestJSONResponse Error
 type NotFoundJSONResponse Error
 
 type UnauthorizedJSONResponse Error
+
+type StartBackfillRequestObject struct {
+	Body *StartBackfillJSONRequestBody
+}
+
+type StartBackfillResponseObject interface {
+	VisitStartBackfillResponse(w http.ResponseWriter) error
+}
+
+type StartBackfill201JSONResponse Job
+
+func (response StartBackfill201JSONResponse) VisitStartBackfillResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartBackfill400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response StartBackfill400JSONResponse) VisitStartBackfillResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartBackfill401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StartBackfill401JSONResponse) VisitStartBackfillResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SplitIncidentRequestObject struct {
+	Id   openapi_types.UUID `json:"id"`
+	Body *SplitIncidentJSONRequestBody
+}
+
+type SplitIncidentResponseObject interface {
+	VisitSplitIncidentResponse(w http.ResponseWriter) error
+}
+
+type SplitIncident200JSONResponse struct {
+	NewIncidentId openapi_types.UUID `json:"new_incident_id"`
+}
+
+func (response SplitIncident200JSONResponse) VisitSplitIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SplitIncident400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response SplitIncident400JSONResponse) VisitSplitIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SplitIncident401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response SplitIncident401JSONResponse) VisitSplitIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SplitIncident404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SplitIncident404JSONResponse) VisitSplitIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SplitIncident409JSONResponse Error
+
+func (response SplitIncident409JSONResponse) VisitSplitIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListJobsRequestObject struct {
+	Params ListJobsParams
+}
+
+type ListJobsResponseObject interface {
+	VisitListJobsResponse(w http.ResponseWriter) error
+}
+
+type ListJobs200JSONResponse []Job
+
+func (response ListJobs200JSONResponse) VisitListJobsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListJobs400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListJobs400JSONResponse) VisitListJobsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListJobs401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListJobs401JSONResponse) VisitListJobsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetJobRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetJobResponseObject interface {
+	VisitGetJobResponse(w http.ResponseWriter) error
+}
+
+type GetJob200JSONResponse Job
+
+func (response GetJob200JSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetJob401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetJob401JSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetJob404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetJob404JSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ControlJobRequestObject struct {
+	Id   string `json:"id"`
+	Body *ControlJobJSONRequestBody
+}
+
+type ControlJobResponseObject interface {
+	VisitControlJobResponse(w http.ResponseWriter) error
+}
+
+type ControlJob204Response struct {
+}
+
+func (response ControlJob204Response) VisitControlJobResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ControlJob400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ControlJob400JSONResponse) VisitControlJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ControlJob401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ControlJob401JSONResponse) VisitControlJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ControlJob404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ControlJob404JSONResponse) VisitControlJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ControlJob409JSONResponse Error
+
+func (response ControlJob409JSONResponse) VisitControlJobResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type ListQueriesRequestObject struct {
 }
@@ -3092,6 +3837,56 @@ func (response UpdateQuery404JSONResponse) VisitUpdateQueryResponse(w http.Respo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartReprocessRequestObject struct {
+	Body *StartReprocessJSONRequestBody
+}
+
+type StartReprocessResponseObject interface {
+	VisitStartReprocessResponse(w http.ResponseWriter) error
+}
+
+type StartReprocess201JSONResponse Job
+
+func (response StartReprocess201JSONResponse) VisitStartReprocessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartReprocess400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response StartReprocess400JSONResponse) VisitStartReprocessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartReprocess401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StartReprocess401JSONResponse) VisitStartReprocessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -3907,6 +4702,21 @@ func (response StatsTimeseries400JSONResponse) VisitStatsTimeseriesResponse(w ht
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// StartBackfill Discover articles from the given sources over a past date range
+	// (POST /admin/backfills)
+	StartBackfill(ctx context.Context, request StartBackfillRequestObject) (StartBackfillResponseObject, error)
+	// SplitIncident Move one article's reports out of an incident into a new incident
+	// (POST /admin/incidents/{id}/split)
+	SplitIncident(ctx context.Context, request SplitIncidentRequestObject) (SplitIncidentResponseObject, error)
+	// ListJobs Recent backfills or reprocess runs, newest first, with their progress
+	// (GET /admin/jobs)
+	ListJobs(ctx context.Context, request ListJobsRequestObject) (ListJobsResponseObject, error)
+
+	// (GET /admin/jobs/{id})
+	GetJob(ctx context.Context, request GetJobRequestObject) (GetJobResponseObject, error)
+	// ControlJob Pause, resume or cancel a run
+	// (POST /admin/jobs/{id}/control)
+	ControlJob(ctx context.Context, request ControlJobRequestObject) (ControlJobResponseObject, error)
 	// ListQueries Search queries used by search-style sources
 	// (GET /admin/queries)
 	ListQueries(ctx context.Context, request ListQueriesRequestObject) (ListQueriesResponseObject, error)
@@ -3919,6 +4729,9 @@ type StrictServerInterface interface {
 
 	// (PUT /admin/queries/{name})
 	UpdateQuery(ctx context.Context, request UpdateQueryRequestObject) (UpdateQueryResponseObject, error)
+	// StartReprocess Re-classify stored articles that have no extraction for the current model, prompt and schema
+	// (POST /admin/reprocesses)
+	StartReprocess(ctx context.Context, request StartReprocessRequestObject) (StartReprocessResponseObject, error)
 	// SyncSchedules Make every source's Temporal Schedule match its configuration, and remove schedules of deleted sources
 	// (POST /admin/schedules/sync)
 	SyncSchedules(ctx context.Context, request SyncSchedulesRequestObject) (SyncSchedulesResponseObject, error)
@@ -4012,6 +4825,155 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// StartBackfill operation middleware
+func (sh *strictHandler) StartBackfill(w http.ResponseWriter, r *http.Request) {
+	var request StartBackfillRequestObject
+
+	var body StartBackfillJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartBackfill(ctx, request.(StartBackfillRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartBackfill")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartBackfillResponseObject); ok {
+		if err := validResponse.VisitStartBackfillResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SplitIncident operation middleware
+func (sh *strictHandler) SplitIncident(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+	var request SplitIncidentRequestObject
+
+	request.Id = id
+
+	var body SplitIncidentJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SplitIncident(ctx, request.(SplitIncidentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SplitIncident")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SplitIncidentResponseObject); ok {
+		if err := validResponse.VisitSplitIncidentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListJobs operation middleware
+func (sh *strictHandler) ListJobs(w http.ResponseWriter, r *http.Request, params ListJobsParams) {
+	var request ListJobsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListJobs(ctx, request.(ListJobsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListJobs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListJobsResponseObject); ok {
+		if err := validResponse.VisitListJobsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetJob operation middleware
+func (sh *strictHandler) GetJob(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetJobRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetJob(ctx, request.(GetJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetJobResponseObject); ok {
+		if err := validResponse.VisitGetJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ControlJob operation middleware
+func (sh *strictHandler) ControlJob(w http.ResponseWriter, r *http.Request, id string) {
+	var request ControlJobRequestObject
+
+	request.Id = id
+
+	var body ControlJobJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ControlJob(ctx, request.(ControlJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ControlJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ControlJobResponseObject); ok {
+		if err := validResponse.VisitControlJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListQueries operation middleware
@@ -4121,6 +5083,37 @@ func (sh *strictHandler) UpdateQuery(w http.ResponseWriter, r *http.Request, nam
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateQueryResponseObject); ok {
 		if err := validResponse.VisitUpdateQueryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartReprocess operation middleware
+func (sh *strictHandler) StartReprocess(w http.ResponseWriter, r *http.Request) {
+	var request StartReprocessRequestObject
+
+	var body StartReprocessJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartReprocess(ctx, request.(StartReprocessRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartReprocess")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartReprocessResponseObject); ok {
+		if err := validResponse.VisitStartReprocessResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -4627,95 +5620,112 @@ func (sh *strictHandler) StatsTimeseries(w http.ResponseWriter, r *http.Request,
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"5bq1vlJF56OHgG8+3fzvAA==",
+	"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",
+	"W/CVLDsfXQj45sPN/w0A",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

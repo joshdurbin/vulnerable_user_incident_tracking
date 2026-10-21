@@ -70,6 +70,12 @@ func TestEveryAdminRouteNeedsTheToken(t *testing.T) {
 		{"GET", "/v1/admin/sources/x/runs"},
 		{"POST", "/v1/admin/source-tests"},
 		{"POST", "/v1/admin/schedules/sync"},
+		{"GET", "/v1/admin/jobs?kind=backfill"},
+		{"GET", "/v1/admin/jobs/x"},
+		{"POST", "/v1/admin/jobs/x/control"},
+		{"POST", "/v1/admin/backfills"},
+		{"POST", "/v1/admin/reprocesses"},
+		{"POST", "/v1/admin/incidents/6f1c1f8e-2d7a-4a55-9d0e-8a3f7d1c2b11/split"},
 		{"GET", "/v1/admin/queries"},
 		{"POST", "/v1/admin/queries"},
 		{"PUT", "/v1/admin/queries/x"},
@@ -114,7 +120,7 @@ func TestCreateUpdateDeleteSource(t *testing.T) {
 	var created SourceDetail
 	require.Equal(t, 201, call(t, ts, "POST", "/v1/admin/sources", token, feedSource("alpha"), &created))
 	assert.Equal(t, "alpha", created.Slug)
-	assert.Equal(t, Waiting, created.Health.State, "a source that never ran is waiting, not healthy")
+	assert.Equal(t, HealthStateWaiting, created.Health.State, "a source that never ran is waiting, not healthy")
 	assert.Equal(t, "US", *created.Coverage.Country)
 	assert.Nil(t, created.ScheduleError)
 	assert.Equal(t, []applyCall{{"alpha", false}}, wf.applied, "creating a source creates its schedule")
@@ -150,7 +156,7 @@ func TestCreateUpdateDeleteSource(t *testing.T) {
 	wf.applied = nil
 	edit["enabled"] = false
 	require.Equal(t, 200, call(t, ts, "PUT", "/v1/admin/sources/alpha", token, edit, &updated))
-	assert.Equal(t, Disabled, updated.Health.State)
+	assert.Equal(t, HealthStateDisabled, updated.Health.State)
 	assert.Equal(t, []applyCall{{"alpha", true}}, wf.applied)
 
 	assert.Equal(t, 400, call(t, ts, "PUT", "/v1/admin/sources/alpha", token, feedSource("other"), nil), "the slug cannot change")
@@ -213,13 +219,13 @@ func TestSourceDetailShowsHealthRunsAndSchedule(t *testing.T) {
 	for _, d := range list {
 		by[d.Slug] = d
 	}
-	assert.Equal(t, Failing, by["sick"].Health.State)
+	assert.Equal(t, HealthStateFailing, by["sick"].Health.State)
 	assert.Contains(t, by["sick"].Health.Reason, "http 503")
 	assert.EqualValues(t, 3, by["sick"].RunStats.Failures)
 	assert.Equal(t, 0.0, by["sick"].RunStats.SuccessRate)
 	assert.Equal(t, 3, by["sick"].ConsecutiveFailures)
 
-	assert.Equal(t, Healthy, by["fine"].Health.State)
+	assert.Equal(t, HealthStateHealthy, by["fine"].Health.State)
 	assert.EqualValues(t, 2, by["fine"].RunStats.Runs)
 	assert.EqualValues(t, 10, by["fine"].RunStats.NewUrls)
 	assert.Equal(t, 1.0, by["fine"].RunStats.SuccessRate)
@@ -240,7 +246,7 @@ func TestSourceDetailShowsHealthRunsAndSchedule(t *testing.T) {
 	wf.schedule = &ScheduleState{Paused: &paused}
 	var one SourceDetail
 	require.Equal(t, 200, call(t, ts, "GET", "/v1/admin/sources/held", token, nil, &one))
-	assert.Equal(t, Paused, one.Health.State)
+	assert.Equal(t, HealthStatePaused, one.Health.State)
 	require.NotNil(t, one.Schedule)
 }
 

@@ -256,6 +256,92 @@ paths:
       responses:
         '200': {description: Done, content: {application/json: {schema: {type: object, required: [created, updated, removed], properties: {created: {type: integer}, updated: {type: integer}, removed: {type: integer}}}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+  /admin/jobs:
+    get:
+      tags: [admin]
+      operationId: listJobs
+      summary: Recent backfills or reprocess runs, newest first, with their progress
+      security: [{adminToken: []}]
+      parameters:
+        - {name: kind, in: query, required: true, schema: {type: string, enum: [backfill, reprocess]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Job'}}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /admin/jobs/{id}:
+    get:
+      tags: [admin]
+      operationId: getJob
+      security: [{adminToken: []}]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /admin/jobs/{id}/control:
+    post:
+      tags: [admin]
+      operationId: controlJob
+      summary: Pause, resume or cancel a run
+      description: Only backfills can be paused and resumed; either kind can be cancelled. A finished run cannot be controlled.
+      security: [{adminToken: []}]
+      parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [action], properties: {action: {type: string, enum: [pause, resume, cancel]}}}}}
+      responses:
+        '204': {description: Done}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: That action does not apply to this run, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  /admin/backfills:
+    post:
+      tags: [admin]
+      operationId: startBackfill
+      summary: Discover articles from the given sources over a past date range
+      description: >
+        Runs discovery window by window and starts an article workflow for each new URL, up to
+        max_articles in total (a volume bound). Safe to repeat: URLs already known are not fetched again.
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/BackfillRequest'}}}
+      responses:
+        '201': {description: Started, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /admin/reprocesses:
+    post:
+      tags: [admin]
+      operationId: startReprocess
+      summary: Re-classify stored articles that have no extraction for the current model, prompt and schema
+      security: [{adminToken: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ReprocessRequest'}}}
+      responses:
+        '201': {description: Started, content: {application/json: {schema: {$ref: '#/components/schemas/Job'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /admin/incidents/{id}/split:
+    post:
+      tags: [admin]
+      operationId: splitIncident
+      summary: Move one article's reports out of an incident into a new incident
+      description: The fix for an article that was merged into the wrong incident. Both incidents are recomputed and the change is recorded in both audit trails.
+      security: [{adminToken: []}]
+      parameters: [{name: id, in: path, required: true, schema: {type: string, format: uuid}}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [article_id, actor], properties: {article_id: {type: string, format: uuid}, actor: {type: string, minLength: 1, description: Who made the change; recorded in the audit trail.}}}}}
+      responses:
+        '200': {description: Split, content: {application/json: {schema: {type: object, required: [new_incident_id], properties: {new_incident_id: {type: string, format: uuid}}}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {description: The article cannot be split off, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
   /admin/queries:
     get:
       tags: [admin]
@@ -343,6 +429,50 @@ components:
       properties:
         error: {type: string}
         problems: {type: array, items: {type: string}, description: Every validation problem, when there is more than one.}
+    BackfillRequest:
+      type: object
+      required: [sources, from, to]
+      properties:
+        sources: {type: array, minItems: 1, maxItems: 50, items: {type: string}, description: Source slugs.}
+        from: {type: string, format: date}
+        to: {type: string, format: date, description: Exclusive.}
+        window_hours: {type: integer, minimum: 1, maximum: 720, default: 24, description: Size of each discovery window.}
+        max_articles: {type: integer, minimum: 1, maximum: 100000, default: 1000, description: Stop after starting this many article workflows.}
+    ReprocessRequest:
+      type: object
+      properties:
+        limit: {type: integer, minimum: 0, maximum: 1000000, default: 100, description: Most articles to reprocess in this run (a cost bound). 0 means all.}
+        batch_size: {type: integer, minimum: 1, maximum: 100, default: 20}
+        concurrency: {type: integer, minimum: 1, maximum: 16, default: 4, description: Articles in flight at once.}
+    Job:
+      type: object
+      required: [id, kind, status, started_at]
+      properties:
+        id: {type: string}
+        kind: {type: string, enum: [backfill, reprocess]}
+        status: {type: string, enum: [running, completed, failed, cancelled, timed_out, terminated]}
+        started_at: {type: string, format: date-time}
+        closed_at: {type: string, format: date-time, nullable: true}
+        backfill: {$ref: '#/components/schemas/BackfillProgress'}
+        reprocess: {$ref: '#/components/schemas/ReprocessProgress'}
+    BackfillProgress:
+      type: object
+      required: [phase, steps_done, total_steps, found, articles_started, max_articles]
+      properties:
+        phase: {type: string, enum: [running, paused, cancelled, limit_reached, done]}
+        steps_done: {type: integer}
+        total_steps: {type: integer}
+        found: {type: integer}
+        articles_started: {type: integer}
+        max_articles: {type: integer}
+        current: {type: string, description: The source and window being worked on.}
+    ReprocessProgress:
+      type: object
+      required: [examined, changed, failed]
+      properties:
+        examined: {type: integer}
+        changed: {type: integer}
+        failed: {type: integer}
     Incident:
       type: object
       required: [id, occurred_precision, location_precision, vru_categories, vehicle_categories, severity, hit_and_run, facts_status, verification_status, article_count, updated_at]

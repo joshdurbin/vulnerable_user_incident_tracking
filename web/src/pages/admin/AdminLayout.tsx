@@ -58,6 +58,7 @@ export default function AdminLayout() {
           <NavLink to="/admin" end>Overview</NavLink>
           <NavLink to="/admin/sources">Sources</NavLink>
           <NavLink to="/admin/queries">Queries</NavLink>
+          <NavLink to="/admin/jobs">Backfill &amp; reprocess</NavLink>
         </nav>
         <button type="button" className="linklike small" onClick={() => save("")}>Forget token</button>
       </div>

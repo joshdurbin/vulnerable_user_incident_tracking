@@ -258,6 +258,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent backfills or reprocess runs, newest first, with their progress */
+        get: operations["listJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/{id}/control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause, resume or cancel a run
+         * @description Only backfills can be paused and resumed; either kind can be cancelled. A finished run cannot be controlled.
+         */
+        post: operations["controlJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backfills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discover articles from the given sources over a past date range
+         * @description Runs discovery window by window and starts an article workflow for each new URL, up to max_articles in total (a volume bound). Safe to repeat: URLs already known are not fetched again.
+         */
+        post: operations["startBackfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reprocesses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-classify stored articles that have no extraction for the current model, prompt and schema */
+        post: operations["startReprocess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/incidents/{id}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move one article's reports out of an incident into a new incident
+         * @description The fix for an article that was merged into the wrong incident. Both incidents are recomputed and the change is recorded in both audit trails.
+         */
+        post: operations["splitIncident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/queries": {
         parameters: {
             query?: never;
@@ -318,6 +428,70 @@ export interface components {
             error: string;
             /** @description Every validation problem */
             problems?: string[];
+        };
+        BackfillRequest: {
+            /** @description Source slugs. */
+            sources: string[];
+            /** Format: date */
+            from: string;
+            /**
+             * Format: date
+             * @description Exclusive.
+             */
+            to: string;
+            /**
+             * @description Size of each discovery window.
+             * @default 24
+             */
+            window_hours: number;
+            /**
+             * @description Stop after starting this many article workflows.
+             * @default 1000
+             */
+            max_articles: number;
+        };
+        ReprocessRequest: {
+            /**
+             * @description Most articles to reprocess in this run (a cost bound). 0 means all.
+             * @default 100
+             */
+            limit: number;
+            /** @default 20 */
+            batch_size: number;
+            /**
+             * @description Articles in flight at once.
+             * @default 4
+             */
+            concurrency: number;
+        };
+        Job: {
+            id: string;
+            /** @enum {string} */
+            kind: "backfill" | "reprocess";
+            /** @enum {string} */
+            status: "running" | "completed" | "failed" | "cancelled" | "timed_out" | "terminated";
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            closed_at?: string | null;
+            backfill?: components["schemas"]["BackfillProgress"];
+            reprocess?: components["schemas"]["ReprocessProgress"];
+        };
+        BackfillProgress: {
+            /** @enum {string} */
+            phase: "running" | "paused" | "cancelled" | "limit_reached" | "done";
+            steps_done: number;
+            total_steps: number;
+            found: number;
+            articles_started: number;
+            max_articles: number;
+            /** @description The source and window being worked on. */
+            current?: string;
+        };
+        ReprocessProgress: {
+            examined: number;
+            changed: number;
+            failed: number;
         };
         Incident: {
             /** Format: uuid */
@@ -1209,6 +1383,192 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listJobs: {
+        parameters: {
+            query: {
+                kind: "backfill" | "reprocess";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    controlJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "pause" | "resume" | "cancel";
+                };
+            };
+        };
+        responses: {
+            /** @description Done */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description That action does not apply to this run */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    startBackfill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackfillRequest"];
+            };
+        };
+        responses: {
+            /** @description Started */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    startReprocess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReprocessRequest"];
+            };
+        };
+        responses: {
+            /** @description Started */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    splitIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    article_id: string;
+                    /** @description Who made the change; recorded in the audit trail. */
+                    actor: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Split */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        new_incident_id: string;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description The article cannot be split off */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     listQueries: {

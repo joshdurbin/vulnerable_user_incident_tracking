@@ -129,7 +129,7 @@ func TestFingerprintArticlesFillsInOlderArticlesAndIsRepeatable(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, old.CanonicalKey)
 
-	n, err := FingerprintArticles(ctx, q, 1)
+	n, err := FingerprintArticles(ctx, q, 1, 100)
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
 	got, err := q.GetArticle(ctx, old.ID)
@@ -138,11 +138,28 @@ func TestFingerprintArticlesFillsInOlderArticlesAndIsRepeatable(t *testing.T) {
 	assert.Equal(t, "https://old.test/s", *got.CanonicalKey)
 	require.NotNil(t, got.Simhash)
 
-	n, err = FingerprintArticles(ctx, q, 10)
+	n, err = FingerprintArticles(ctx, q, 10, 100)
 	require.NoError(t, err)
 	assert.Zero(t, n, "nothing left to do")
 
 	// Now a new copy of it is recognised.
 	r := store1(t, newActivities(&fakeClassifier{}), "https://copy.test/s", "", text)
 	assert.Equal(t, old.ID, r.DuplicateOf)
+}
+
+func TestFingerprintArticlesStopsAtItsLimit(t *testing.T) {
+	reset(t)
+	ctx := context.Background()
+	q := store.Queries()
+	for i := 0; i < 3; i++ {
+		text, u := wire("limit"), fmt.Sprintf("https://old.test/%d", i)
+		_, err := q.InsertArticle(ctx, dbgen.InsertArticleParams{RequestedUrl: u, FinalUrl: u, BodyText: &text, Status: "fetched", FetchedAt: time.Now()})
+		require.NoError(t, err)
+	}
+	n, err := FingerprintArticles(ctx, q, 2, 2)
+	require.NoError(t, err)
+	assert.Equal(t, 2, n, "a run does a bounded amount")
+	n, err = FingerprintArticles(ctx, q, 2, 100)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n, "the next run finishes the rest")
 }

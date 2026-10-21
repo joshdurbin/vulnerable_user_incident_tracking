@@ -1,12 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { actorName } from "../actor";
 import { adminToken, api, authHeaders, unwrap, type Incident, type Review } from "../api/client";
 import { ErrorNote, Loading, SeverityBadge } from "../components/bits";
 import { casualties, label, when, where } from "../format";
 
-const ACTOR_KEY = "collision.actor";
-const getActor = () => { try { return localStorage.getItem(ACTOR_KEY) ?? ""; } catch { return ""; } };
 
 /** Fields shown side by side; differing values are highlighted so the reviewer sees what to judge. */
 export function comparison(a: Incident, b: Incident): { field: string; a: string; b: string; differs: boolean }[] {
@@ -24,7 +23,7 @@ export function comparison(a: Incident, b: Incident): { field: string; a: string
 export default function ReviewsPage() {
   const qc = useQueryClient();
   const [token, setToken] = useState(adminToken.get());
-  const [actor, setActor] = useState(getActor());
+  const [actor, setActor] = useState(actorName.get());
   const q = useQuery({
     queryKey: ["reviews"],
     queryFn: async () => unwrap(await api.GET("/reviews", { params: { query: { status: "pending", limit: 50 } } })),
@@ -38,7 +37,7 @@ export default function ReviewsPage() {
         keeps both sets of sources; keeping them separate leaves both as they are. Either way the decision is recorded.
       </p>
       <div className="filters">
-        <label>Your name <input value={actor} onChange={(e) => { setActor(e.target.value); try { localStorage.setItem(ACTOR_KEY, e.target.value); } catch { /* ignore */ } }} placeholder="recorded with each decision" /></label>
+        <label>Your name <input value={actor} onChange={(e) => { setActor(e.target.value); actorName.set(e.target.value); }} placeholder="recorded with each decision" /></label>
         <label>Admin token <input type="password" value={token} onChange={(e) => { setToken(e.target.value); adminToken.set(e.target.value); }} autoComplete="off" /></label>
       </div>
       {q.isPending && <Loading what="reviews" />}
