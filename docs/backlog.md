@@ -19,8 +19,9 @@ the gaps are in how much the numbers can be trusted. Ordered by value.
    Then show counts as lower bounds with the measured coverage beside them. Official crash records could later be a source type
    of their own, as Streetsblog uses police notifications.
 3. **Replace the 15 author-written eval cases with real labelled articles.** ACLED's quality rests on coder-reliability checks;
-   the bundled cases cannot show whether a model or prompt change helps. A few hundred real, labelled articles would let
-   `collisionctl eval` gate changes and give a fair test of any small extraction model.
+   the bundled cases cannot show whether a model or prompt change helps. A few hundred real, labelled articles, plus a rebuilt
+   harness (the old one, `internal/eval` and `collisionctl eval`, was removed and is in git history), would let changes be gated
+   and give a fair test of any small extraction model.
 4. **Review extractions, not only merges.** Humans currently see only possible duplicates. A random sample of confirmed
    extractions, plus low-confidence ones, would catch systematic errors the evidence-quote check cannot (a real quote supporting
    the wrong road-user category).

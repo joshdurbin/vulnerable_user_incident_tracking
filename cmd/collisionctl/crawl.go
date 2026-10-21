@@ -10,19 +10,6 @@ import (
 	"go.temporal.io/sdk/client"
 )
 
-// articleFetcher returns the injected fetcher (tests) or one that calls the
-// Python crawler worker through Temporal.
-func (a *app) articleFetcher() (crawler.Fetcher, func(), error) {
-	if a.fetcher != nil {
-		return a.fetcher, func() {}, nil
-	}
-	tc, err := a.temporal()
-	if err != nil {
-		return nil, nil, err
-	}
-	return crawler.New(tc, pipeline.TQWorkflow), tc.Close, nil
-}
-
 // lazyCrawler connects to Temporal on first use.
 type lazyCrawler struct {
 	a    *app

@@ -18,8 +18,9 @@ the article limit on a backfill and on a reprocess run (Admin, Backfill & reproc
 A new model, prompt version or schema version creates new extractions beside the old ones. Nothing is overwritten until
 you reprocess.
 
-1. Evaluate first: `collisionctl eval` against the labelled cases (`tests/evaluations/cases`). The bundled cases are
-   author-written; add real, labelled articles before trusting the scores.
+1. There is no evaluation command (the one that scored 15 author-written cases was removed, see the backlog). Judge a new
+   model on real articles: step 3 with a small limit shows how many extractions change, and the Admin page and the review
+   queue show what the new model does to real incidents.
 2. Roll out the new model for new articles only (change `llm.model`, sync).
 3. Reprocess history in a bounded run: Admin, Backfill & reprocess, "Start a reprocess run" with a limit of 100. Each article is re-classified, compared
    with its previous extraction, the old contribution is withdrawn, and the new one is resolved. Check the result in the same

@@ -4,7 +4,7 @@ export PATH := $(PATH):$(GOBIN)
 IMAGE_PREFIX ?= ghcr.io/joshdurbin/vulnerable_user_incident_tracking
 TAG ?= dev
 
-.PHONY: helm-check test-web web-dev generate eval eval-replay lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
+.PHONY: helm-check test-web web-dev generate lint test test-go test-py test-integration build docker-build dev-up dev-down migrate
 
 generate: ## regenerate sqlc queries and the API server from api/openapi.yaml
 	sqlc generate
@@ -30,12 +30,6 @@ test-web:
 
 test-py:
 	cd crawler && uv run pytest -q
-
-eval-replay: ## harness check only; scores are NOT model quality
-	go run ./cmd/collisionctl eval --replay
-
-eval: ## score a real model: COLLISION_LLM_MODEL=... COLLISION_LLM_BASE_URL=... make eval
-	go run ./cmd/collisionctl eval
 
 test-integration: ## needs docker (postgres, temporal); added in Milestone 3
 	TESTCONTAINERS_RYUK_DISABLED=true go test -tags=integration -count=1 ./internal/...

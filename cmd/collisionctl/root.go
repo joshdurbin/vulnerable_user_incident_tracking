@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/config"
-	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/llm"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/logging"
@@ -17,7 +16,6 @@ import (
 // deps are the process-level collaborators; tests inject fakes.
 type deps struct {
 	out, err  io.Writer
-	fetcher   crawler.Fetcher     // nil = the Python crawler worker, via Temporal
 	completer llm.Completer       // nil = build the gateway client from config
 	registry  *discovery.Registry // nil = all real providers
 }
@@ -69,7 +67,7 @@ func newRootCmd(d deps) *cobra.Command {
 	pf.String("log-format", "json", "log format: json|console")
 	pf.Bool("json", false, "machine-readable JSON output")
 
-	root.AddCommand(newFetchCmd(a), newClassifyCmd(a), newEvalCmd(a), newMigrateCmd(a), newWorkerCmd(a), newSchedulesCmd(a), newAPICmd(a))
+	root.AddCommand(newMigrateCmd(a), newWorkerCmd(a), newSchedulesCmd(a), newAPICmd(a))
 	return root
 }
 

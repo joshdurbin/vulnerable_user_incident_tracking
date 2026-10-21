@@ -44,7 +44,6 @@ go run ./cmd/collisionctl migrate
 go run ./cmd/collisionctl worker &                      # hosts the workflows and Go activities
 go run ./cmd/collisionctl schedules sync                # deploy step; afterwards the admin UI keeps schedules in line
 COLLISION_SOURCES_SEED_FILE=docs/examples/sources.yaml go run ./cmd/collisionctl api &   # REST API on :8080; seeds an empty database
-go run ./cmd/collisionctl fetch https://example.org/article --json
 ```
 Backfills, reprocessing, schedule control and incident corrections (splitting a wrongly merged article) are in the `/admin` UI, not the CLI. The CLI is for running the services (`api`, `worker`, `migrate`, `schedules sync` at deploy), and debugging one step (`fetch`, `classify`, `eval`).
 
@@ -88,13 +87,12 @@ flowchart LR
   spec --> web[web/<br/>React + Vite]
   deploy[deploy/<br/>Dockerfiles, compose]
 ```
-`docs/` design, decisions and plan; `tests/evaluations/` labeled cases for the eval harness.
+`docs/` design, decisions and plan; `tests/evaluations/` holds 15 author-written labelled cases (their harness was removed; it is in git history).
 
 ## Tests
 ```bash
 make test               # Go + Python unit tests, no network or Docker needed
 make test-integration   # PostGIS integration tests (needs Docker; uses the CNPG PostGIS image)
-make eval-replay        # eval harness check only (author-written responses, not model quality)
 ```
 Configuration is viper-based: flags > `COLLISION_*` env vars > `collisionctl.yaml` > defaults
 (e.g. `COLLISION_LLM_MODEL`, `COLLISION_LLM_BASE_URL`, `COLLISION_DATABASE_URL`, `COLLISION_TEMPORAL_ADDRESS`).

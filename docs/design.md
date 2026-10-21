@@ -145,7 +145,7 @@ keeps the old pods serving instead of coming up empty.
 ### Bulk jobs and corrections
 
 Backfills, reprocess runs and incident splits are admin actions too, not CLI commands. The CLI keeps only what has to run
-without the API: the services, `migrate`, the deploy-time `schedules sync`, and debugging commands (`fetch`, `classify`, `eval`).
+without the API: the services, `migrate`, the deploy-time `schedules sync`, and nothing else: there are no debugging or evaluation commands.
 There is no source import or export command; the seed file covers a new install and the admin UI covers the rest.
 
 - **Jobs are the workflows themselves.** `POST /admin/backfills` and `/admin/reprocesses` start `BackfillWorkflow` and
