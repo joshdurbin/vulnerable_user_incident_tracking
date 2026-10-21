@@ -102,6 +102,9 @@ type fakeWF struct {
 	jobs       []pipeline.Job
 	jobErr     error
 	controlled []string // "id:action"
+
+	searchTriggers int
+	searchErr      error
 }
 
 type applyCall struct {
@@ -148,6 +151,10 @@ func (f *fakeWF) TestSource(_ context.Context, src discovery.Source) (*pipeline.
 	return f.testRes, f.testErr
 }
 
+func (f *fakeWF) TriggerSearchIndex(context.Context) error {
+	f.searchTriggers++
+	return f.searchErr
+}
 func (f *fakeWF) StartBackfill(_ context.Context, in pipeline.BackfillInput) (string, error) {
 	f.backfills = append(f.backfills, in)
 	return "backfill-fake", f.jobErr

@@ -25,6 +25,7 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery/registry"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/search"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
@@ -39,6 +40,14 @@ type Config struct {
 	// Registry describes and validates source types. The API runs no providers, so it needs
 	// no HTTP clients or crawler; nil means all known types.
 	Registry *discovery.Registry
+	// Search ranks incidents for `q`. Nil means search is not configured.
+	Search Searcher
+}
+
+// Searcher is the part of the search client the API uses.
+type Searcher interface {
+	Search(ctx context.Context, q string, limit int) ([]search.Hit, error)
+	Count(ctx context.Context) (int64, error)
 }
 
 type Server struct {
@@ -156,6 +165,16 @@ func (s *Server) ListIncidents(ctx context.Context, req ListIncidentsRequestObje
 	f, err := newFilter(p.Bbox, dateP(p.From), dateP(p.To), p.State, p.City, vru, str(p.Severity), str(p.Verification), str(p.HitAndRun))
 	if err != nil {
 		return ListIncidents400JSONResponse{BadRequestJSONResponse{Error: err.Error()}}, nil
+	}
+	if p.Q != nil && strings.TrimSpace(*p.Q) != "" {
+		ids, msg, ok := s.rankedIDs(ctx, *p.Q)
+		if !ok {
+			return ListIncidents503JSONResponse{Error: msg}, nil
+		}
+		if len(ids) == 0 {
+			return ListIncidents200JSONResponse(IncidentList{Items: []Incident{}}), nil
+		}
+		f.ids = ids
 	}
 	limit, offset := 100, 0
 	if p.Limit != nil {

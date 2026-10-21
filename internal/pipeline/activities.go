@@ -20,6 +20,7 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/discovery"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/search"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
@@ -72,6 +73,7 @@ type Activities struct {
 	Resolver   IncidentResolver
 	Temporal   client.Client // for SignalWithStart from NotifyIncident
 	Log        zerolog.Logger
+	Search     *search.Indexer // nil when search is not configured
 
 	TextRetention  time.Duration // how long article text is kept (0 = 90 days)
 	FollowUpSource string        // search source used for follow-up queries (default googlenews-us)
@@ -543,6 +545,23 @@ func (a *Activities) PruneDiscoveryRuns(ctx context.Context) (int64, error) {
 // bounded amount per run, so new articles can be matched against them. It reports how many it did.
 func (a *Activities) FingerprintArticles(ctx context.Context) (int, error) {
 	return FingerprintArticles(ctx, a.DB.Queries(), FingerprintBatchSize, FingerprintPerRun)
+}
+
+// IndexIncidents copies incidents changed since the last run into the search index. With no search
+// configured it does nothing, so a stray schedule is harmless.
+func (a *Activities) IndexIncidents(ctx context.Context) (search.Result, error) {
+	if a.Search == nil {
+		return search.Result{}, nil
+	}
+	res, err := a.Search.Run(ctx)
+	if err != nil {
+		return res, err
+	}
+	if res.Indexed+res.Removed > 0 {
+		l := a.logger(ctx)
+		l.Info().Int("indexed", res.Indexed).Int("removed", res.Removed).Bool("more", res.More).Msg("search index updated")
+	}
+	return res, nil
 }
 
 // ---- reprocess ----

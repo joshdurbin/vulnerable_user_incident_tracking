@@ -16,6 +16,7 @@ import (
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/incidents"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/metrics"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/pipeline"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/search"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage"
 )
 
@@ -93,6 +94,14 @@ func newWorkerCmd(a *app) *cobra.Command {
 				Geocoder: pipeline.NoopGeocoder{}, Resolver: incidents.NewResolver(st, incidents.DefaultConfig(), a.log),
 				Temporal: tc, Log: a.log,
 			}
+			sc, err := a.searchClient()
+			if err != nil {
+				return fmt.Errorf("search: %w", err)
+			}
+			if sc != nil {
+				acts.Search = &search.Indexer{Store: st, Index: sc}
+				a.log.Info().Str("url", a.cfg.Search.URL).Msg("search indexing enabled")
+			}
 			wc := pipeline.DefaultWorkerConfig()
 			if qs, _ := cmd.Flags().GetStringSlice("queues"); len(qs) > 0 {
 				wc.Queues = qs
@@ -149,13 +158,17 @@ func newSchedulesCmd(a *app) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := pipeline.SyncMaintenanceSchedules(cmd.Context(), tc); err != nil {
+			if _, err := pipeline.SyncMaintenanceSchedules(cmd.Context(), tc, a.cfg.Search.URL != ""); err != nil {
 				return err
 			}
 			if len(srcs) == 0 {
 				fmt.Fprintln(a.out, "no sources are configured: add some in the admin UI, or start the API with a seed file (COLLISION_SOURCES_SEED_FILE)")
 			}
-			fmt.Fprintf(a.out, "schedules: %d created, %d updated, %d removed (plus the retention schedule)\n", c, u, removed)
+			extra := ""
+			if a.cfg.Search.URL != "" {
+				extra = " and the search-index schedule"
+			}
+			fmt.Fprintf(a.out, "schedules: %d created, %d updated, %d removed (plus the retention schedule%s)\n", c, u, removed, extra)
 			return nil
 		},
 	}

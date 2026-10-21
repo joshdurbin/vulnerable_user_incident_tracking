@@ -16,6 +16,9 @@ spec:
     {{- include "ct.dns" . | nindent 4 }}
     {{- include "ct.toNamespace" (dict "ns" $np.postgresNamespace "port" 5432) | nindent 4 }}
     {{- include "ct.toNamespace" (dict "ns" $np.temporalNamespace "port" 7233) | nindent 4 }}
+    {{- if .Values.search.enabled }}
+    {{- include "ct.toNamespace" (dict "ns" $np.opensearchNamespace "port" 9200) | nindent 4 }}
+    {{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -33,6 +36,9 @@ spec:
     {{- include "ct.toNamespace" (dict "ns" $np.postgresNamespace "port" 5432) | nindent 4 }}
     {{- include "ct.toNamespace" (dict "ns" $np.temporalNamespace "port" 7233) | nindent 4 }}
     {{- include "ct.toNamespace" (dict "ns" $np.bifrostNamespace "port" 8080) | nindent 4 }}
+    {{- if .Values.search.enabled }}
+    {{- include "ct.toNamespace" (dict "ns" $np.opensearchNamespace "port" 9200) | nindent 4 }}
+    {{- end }}
     {{- include "ct.toInternet" (dict "ranges" $np.privateRanges) | nindent 4 }}
 ---
 apiVersion: networking.k8s.io/v1

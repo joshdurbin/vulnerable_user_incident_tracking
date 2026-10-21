@@ -14,7 +14,9 @@ WHERE v.merged_into IS NULL AND v.verification_status <> 'withdrawn'
   AND (sqlc.narg(severity)::text IS NULL OR v.severity = sqlc.narg(severity)::text)
   AND (sqlc.narg(verification)::text IS NULL OR v.verification_status = sqlc.narg(verification)::text)
   AND (sqlc.narg(hit_and_run)::text IS NULL OR v.hit_and_run = sqlc.narg(hit_and_run)::text)
-ORDER BY v.occurred_on DESC NULLS LAST, v.id
+  AND (sqlc.narg(ids)::uuid[] IS NULL OR v.id = ANY(sqlc.narg(ids)::uuid[]))
+-- With ids (search results, best first) the order is theirs; without, array_position is NULL for every row.
+ORDER BY array_position(sqlc.narg(ids)::uuid[], v.id), v.occurred_on DESC NULLS LAST, v.id
 LIMIT sqlc.arg(max_rows)::int OFFSET sqlc.arg(skip_rows)::int;
 
 -- name: StatsSummaryAPI :one

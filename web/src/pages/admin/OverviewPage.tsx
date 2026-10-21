@@ -1,9 +1,50 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api, authHeaders, unwrap } from "../../api/client";
 import { HealthBadge } from "../../components/admin";
 import { ErrorNote, Loading, StatCard } from "../../components/bits";
 import { HEALTH_LABEL, HEALTH_ORDER, ago, healthSummary, needsAttention } from "./adminForm";
+
+/** How the search index is doing, and a way to rewrite it from scratch. */
+function SearchIndexCard() {
+  const qc = useQueryClient();
+  const status = useQuery({
+    queryKey: ["admin", "search"],
+    queryFn: async () => unwrap(await api.GET("/admin/search", { headers: authHeaders() })),
+    refetchInterval: 30_000,
+  });
+  const reindex = useMutation({
+    mutationFn: async () => unwrap(await api.POST("/admin/search/reindex", { headers: authHeaders() })),
+    onSuccess: (s) => qc.setQueryData(["admin", "search"], s),
+  });
+  const s = status.data;
+  return (
+    <section className="card">
+      <h2>Search index</h2>
+      {status.isPending && <Loading what="search status" />}
+      {status.isError && <ErrorNote error={status.error} />}
+      {s && !s.enabled && <p className="muted">Search is not configured, so the search box on the map is off. Set <code>COLLISION_SEARCH_URL</code> to turn it on.</p>}
+      {s?.enabled && (
+        <>
+          {s.error && <p className="error" role="alert">{s.error}. Searches fail until it is back.</p>}
+          <dl className="facts">
+            <dt>Incidents indexed</dt><dd>{s.documents == null ? "unknown" : s.documents.toLocaleString()}</dd>
+            <dt>Waiting to be indexed</dt><dd>{s.pending.toLocaleString()}</dd>
+            <dt>Last written</dt><dd>{ago(s.indexed_at)}</dd>
+          </dl>
+          <p className="muted small">New and changed incidents are searchable about a minute after they are saved.</p>
+          {reindex.isError && <ErrorNote error={reindex.error} />}
+          <div className="actions">
+            <button
+              type="button" disabled={reindex.isPending}
+              onClick={() => { if (window.confirm("Rewrite every incident into the search index? Search keeps working meanwhile.")) reindex.mutate(); }}
+            >Rebuild index</button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
 
 export default function OverviewPage() {
   const pipe = useQuery({
@@ -64,6 +105,8 @@ export default function OverviewPage() {
           </>
         )}
       </section>
+
+      <SearchIndexCard />
     </>
   );
 }

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/storage/dbgen"
 )
 
@@ -16,6 +18,7 @@ type filter struct {
 	state, city                    *string
 	vru                            []string
 	severity, verification, hitRun *string
+	ids                            []uuid.UUID // search results, best first; nil = no text search
 }
 
 type badRequest string
@@ -75,7 +78,7 @@ func (f filter) list(limit, offset int) dbgen.ListIncidentsAPIParams {
 	return dbgen.ListIncidentsAPIParams{
 		MinLon: f.minLon, MinLat: f.minLat, MaxLon: f.maxLon, MaxLat: f.maxLat, FromDate: f.from, ToDate: f.to,
 		State: f.state, City: f.city, Vru: f.vru, Severity: f.severity, Verification: f.verification, HitAndRun: f.hitRun,
-		MaxRows: int32(limit), SkipRows: int32(offset),
+		Ids: f.ids, MaxRows: int32(limit), SkipRows: int32(offset),
 	}
 }
 

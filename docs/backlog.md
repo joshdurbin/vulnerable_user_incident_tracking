@@ -62,3 +62,6 @@ NuExtract (worth testing only once item 3 exists; published results are vendor-r
   inference server (Bifrost likely does not route it, and the worker's network policy blocks private addresses). First step: a
   comparison tool that scores stored articles with Jev and lists where it disagrees with the stored chat extractions. Then, if it
   holds up, a relevance gate before extraction and a category/severity cross-check that routes disagreements to review.
+- Search health in Prometheus and the Grafana dashboard: pending-incident count, last successful index time, and an alert when the
+  indexer has not written for 15 minutes. Today the numbers are only on the Admin page.
+- Tune search ranking on real queries and incidents, and consider indexing article text (needs a decision about the 90-day retention).

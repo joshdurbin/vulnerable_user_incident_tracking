@@ -159,6 +159,7 @@ spec:
           args: ["schedules", "sync"]
           env:
             {{- include "ct.env" . | nindent 12 }}
+            {{- include "ct.searchEnv" . | nindent 12 }}
           resources:
             requests: { cpu: 10m, memory: 32Mi }
             limits: { memory: 128Mi }

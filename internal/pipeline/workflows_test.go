@@ -18,6 +18,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/crawler"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/search"
 )
 
 func newEnv(t *testing.T) *testsuite.TestWorkflowEnvironment {
@@ -416,4 +417,21 @@ func TestArticleWorkflow_ClassifiesNearDuplicates(t *testing.T) {
 	require.NoError(t, env.GetWorkflowResult(&r))
 	assert.Equal(t, "nonqualifying", r.Status)
 	env.AssertExpectations(t)
+}
+
+func TestSearchIndexWorkflowRunsTheIndexerAndReportsItsResult(t *testing.T) {
+	env := newEnv(t)
+	env.RegisterWorkflow(SearchIndexWorkflow)
+	env.OnActivity(act.IndexIncidents, anyCtx).Return(search.Result{Indexed: 12, Removed: 1, More: true}, nil)
+	env.ExecuteWorkflow(SearchIndexWorkflow)
+	require.NoError(t, env.GetWorkflowError())
+	var r search.Result
+	require.NoError(t, env.GetWorkflowResult(&r))
+	assert.Equal(t, search.Result{Indexed: 12, Removed: 1, More: true}, r)
+}
+
+func TestIndexIncidentsDoesNothingWithoutSearchConfigured(t *testing.T) {
+	res, err := (&Activities{}).IndexIncidents(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, search.Result{}, res)
 }

@@ -62,6 +62,13 @@ sources. The container image carries `docs/examples/sources.yaml` as a starter l
 (`sources.seed`) or turn seeding off (`sources.seedFile: ""`). A new source type is one provider package that describes
 its own fields (`Provider.Describe`); see `docs/decisions/0005-sources-are-configuration.md`.
 
+## Search
+The map page has a search box (street, city, "fatal cyclist", a headline). It needs an OpenSearch cluster:
+`COLLISION_SEARCH_URL` (plus `COLLISION_SEARCH_USERNAME`, `COLLISION_SEARCH_PASSWORD`, and
+`COLLISION_SEARCH_INSECURE_SKIP_VERIFY` for a self-signed certificate). Without it the API answers `?q=` with 503 and no indexer
+runs. PostgreSQL stays the source of truth; the index is derived from it every minute and can be rebuilt from Admin, Overview.
+See `docs/decisions/0006-search-in-opensearch.md`.
+
 ## Web UI
 `web/` is a React + Vite + TypeScript app (map, trends, incident detail, review queue, and an admin area for sources and queries). Types come from
 `api/openapi.yaml`. `cd web && npm run dev` serves on :5173 and proxies `/v1` to `collisionctl api` on :8080. The

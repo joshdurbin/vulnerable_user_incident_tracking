@@ -76,6 +76,8 @@ func TestEveryAdminRouteNeedsTheToken(t *testing.T) {
 		{"POST", "/v1/admin/backfills"},
 		{"POST", "/v1/admin/reprocesses"},
 		{"POST", "/v1/admin/incidents/6f1c1f8e-2d7a-4a55-9d0e-8a3f7d1c2b11/split"},
+		{"GET", "/v1/admin/search"},
+		{"POST", "/v1/admin/search/reindex"},
 		{"GET", "/v1/admin/queries"},
 		{"POST", "/v1/admin/queries"},
 		{"PUT", "/v1/admin/queries/x"},

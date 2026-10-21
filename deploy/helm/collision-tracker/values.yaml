@@ -17,6 +17,17 @@ secrets:
   adminToken: { name: collision-api, key: admin-token } # bearer token for POST routes; omit the Secret to disable them
   llmApiKey: { name: "", key: api-key }                # only if the gateway needs a key (Bifrost in-cluster does not)
 
+# Full-text search over incidents, on an OpenSearch cluster. PostgreSQL stays the source of truth: the index is
+# derived from it and can be rebuilt from the admin page. Off by default; the API then refuses ?q= and no indexer runs.
+search:
+  enabled: false
+  url: https://opensearch.opensearch.svc.cluster.local:9200
+  username: collision
+  # The operator-managed cluster uses a self-signed certificate (there is no CA to verify against).
+  insecureSkipVerify: true
+  replicas: 1          # replicas of the incident index; 0 on a single-node cluster
+  passwordSecret: { name: collision-opensearch, key: password }
+
 temporal:
   address: temporal-frontend.temporal.svc.cluster.local:7233
   namespace: collisions
@@ -94,6 +105,7 @@ networkPolicy:
   postgresNamespace: postgres
   temporalNamespace: temporal
   bifrostNamespace: bifrost
+  opensearchNamespace: opensearch
   # The worker and crawler fetch arbitrary public sites. Never let them reach private ranges,
   # as a second layer behind the crawler's own SSRF guard.
   privateRanges: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10, 127.0.0.0/8]

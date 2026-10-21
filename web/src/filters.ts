@@ -9,6 +9,8 @@ export interface Filters {
   vru: VruCategory[];
   severity?: string;
   hit_and_run?: string;
+  /** Free text, answered by the search index. Only the incident list uses it; statistics ignore it. */
+  q?: string;
 }
 
 // Typed against the API spec (itself checked against the classifier schema by a Go test), so a
@@ -27,6 +29,7 @@ export function parseFilters(p: URLSearchParams): Filters {
     vru,
     severity: p.get("severity") || undefined,
     hit_and_run: p.get("hit_and_run") || undefined,
+    q: p.get("q")?.trim().slice(0, 200) || undefined,
   };
 }
 
@@ -40,6 +43,11 @@ export function toQuery(f: Filters) {
     severity: f.severity as "fatal" | "serious" | "minor" | "unknown" | undefined,
     hit_and_run: f.hit_and_run as "yes" | "no" | "unknown" | undefined,
   };
+}
+
+/** Query for the incident list: the filters plus the search text. Statistics use toQuery, which has no text. */
+export function toListQuery(f: Filters) {
+  return { ...toQuery(f), q: f.q };
 }
 
 /** Filters live in the URL, so a view can be bookmarked or shared and survives navigation between pages. */

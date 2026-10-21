@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/dedupe"
 	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/domain"
+	"github.com/joshdurbin/vulnerable_user_incident_tracking/internal/search"
 	"time"
 
 	"github.com/google/uuid"
@@ -291,6 +292,18 @@ func RetentionWorkflow(ctx workflow.Context) (int64, error) {
 		workflow.GetLogger(ctx).Warn("fingerprinting older articles failed", "error", err)
 	}
 	return n, nil
+}
+
+// SearchIndexWorkflow brings the search index up to date. A Schedule runs it every minute while search
+// is configured. A failure is retried by the next run, which resumes from the saved watermark.
+func SearchIndexWorkflow(ctx workflow.Context) (search.Result, error) {
+	var res search.Result
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		TaskQueue: TQDB, StartToCloseTimeout: 5 * time.Minute,
+		RetryPolicy: &temporal.RetryPolicy{InitialInterval: 5 * time.Second, BackoffCoefficient: 2, MaximumInterval: time.Minute, MaximumAttempts: 3},
+	})
+	err := workflow.ExecuteActivity(ctx, act.IndexIncidents).Get(ctx, &res)
+	return res, err
 }
 
 // ---- wrappers for callers that are not workflows ----

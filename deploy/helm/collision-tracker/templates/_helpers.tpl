@@ -56,6 +56,21 @@ capabilities:
   value: json
 {{- end -}}
 
+{{- define "ct.searchEnv" -}}
+{{- if .Values.search.enabled }}
+- name: COLLISION_SEARCH_URL
+  value: {{ .Values.search.url | quote }}
+- name: COLLISION_SEARCH_USERNAME
+  value: {{ .Values.search.username | quote }}
+- name: COLLISION_SEARCH_PASSWORD
+  valueFrom: { secretKeyRef: { name: {{ .Values.search.passwordSecret.name }}, key: {{ .Values.search.passwordSecret.key }} } }
+- name: COLLISION_SEARCH_INSECURE_SKIP_VERIFY
+  value: {{ .Values.search.insecureSkipVerify | quote }}
+- name: COLLISION_SEARCH_REPLICAS
+  value: {{ .Values.search.replicas | quote }}
+{{- end }}
+{{- end -}}
+
 {{- define "ct.antiAffinity" -}}
 {{- if .ctx.Values.podAntiAffinity }}
 affinity:

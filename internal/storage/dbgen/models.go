@@ -249,3 +249,10 @@ type MatchReview struct {
 	DecidedAt           *time.Time `json:"decided_at"`
 	CreatedAt           time.Time  `json:"created_at"`
 }
+
+type SearchIndexState struct {
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
+	LastID    uuid.UUID `json:"last_id"`
+	IndexedAt time.Time `json:"indexed_at"`
+}

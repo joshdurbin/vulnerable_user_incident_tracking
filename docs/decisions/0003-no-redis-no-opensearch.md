@@ -1,6 +1,6 @@
 # 0003: No Redis and no OpenSearch
 
-Status: accepted
+Status: accepted for Redis. The OpenSearch half is superseded by [0006](0006-search-in-opensearch.md).
 
 ## Context
 The plan reserved Redis (cached statistics, possibly shared rate limits) and OpenSearch (full-text search)

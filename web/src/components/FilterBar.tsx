@@ -1,11 +1,34 @@
+import { useEffect, useState } from "react";
 import { SEVERITIES, VRU_OPTIONS, useFilters, type VruCategory } from "../filters";
 import { label } from "../format";
 
-export function FilterBar() {
+/** Free-text search, submitted with Enter so a request is not sent per keystroke. */
+function SearchBox() {
+  const [f, set] = useFilters();
+  const [text, setText] = useState(f.q ?? "");
+  useEffect(() => setText(f.q ?? ""), [f.q]); // follows the URL (back button, a shared link)
+  return (
+    <form
+      className="search" role="search" aria-label="Search incidents"
+      onSubmit={(e) => { e.preventDefault(); set({ q: text.trim() }); }}
+    >
+      <label>
+        Search
+        <input type="search" value={text} maxLength={200} placeholder="street, city, “fatal cyclist”, a headline" onChange={(e) => setText(e.target.value)} />
+      </label>
+      <button type="submit">Search</button>
+      {f.q && <button type="button" onClick={() => set({ q: "" })}>Clear</button>}
+    </form>
+  );
+}
+
+export function FilterBar({ search = false }: { search?: boolean }) {
   const [f, set] = useFilters();
   const toggleVru = (v: VruCategory) => set({ vru: f.vru.includes(v) ? f.vru.filter((x) => x !== v) : [...f.vru, v] });
   return (
-    <div className="filters" role="search" aria-label="Filters">
+    <>
+    {search && <SearchBox />}
+    <div className="filters" role="group" aria-label="Filters">
       <label>
         From
         <input type="date" value={f.from ?? ""} onChange={(e) => set({ from: e.target.value })} />
@@ -44,5 +67,6 @@ export function FilterBar() {
         ))}
       </fieldset>
     </div>
+    </>
   );
 }

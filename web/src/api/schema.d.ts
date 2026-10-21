@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List incidents (newest first) */
+        /**
+         * List incidents (newest first, or best match first with q)
+         * @description With q, incidents are ranked by how well they match the text (street, city, county, state, categories, circumstances, and the titles and publishers of their articles; typos are tolerated) and the other filters then narrow that result. Only the 500 best matches are considered. Needs search to be configured.
+         */
         get: operations["listIncidents"];
         put?: never;
         post?: never;
@@ -368,6 +371,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** State of the search index */
+        get: operations["getSearchStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/search/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rewrite every incident into the search index
+         * @description Forgets how far the indexer got and runs it now. Searches keep working meanwhile; the index fills over a few minutes for a large database.
+         */
+        post: operations["reindexSearch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/queries": {
         parameters: {
             query?: never;
@@ -428,6 +468,33 @@ export interface components {
             error: string;
             /** @description Every validation problem */
             problems?: string[];
+        };
+        SearchStatus: {
+            /** @description Whether search is configured on this API. */
+            enabled: boolean;
+            index: string;
+            /**
+             * Format: int64
+             * @description Documents in the index; absent when OpenSearch cannot be reached.
+             */
+            documents?: number | null;
+            /**
+             * Format: int64
+             * @description Incidents changed since the indexer last wrote them.
+             */
+            pending: number;
+            /**
+             * Format: date-time
+             * @description Change time of the last incident indexed.
+             */
+            watermark?: string | null;
+            /**
+             * Format: date-time
+             * @description When the indexer last wrote.
+             */
+            indexed_at?: string | null;
+            /** @description Why OpenSearch could not be reached. */
+            error?: string | null;
         };
         BackfillRequest: {
             /** @description Source slugs. */
@@ -896,6 +963,7 @@ export interface operations {
     listIncidents: {
         parameters: {
             query?: {
+                q?: string;
                 /** @description minLon,minLat,maxLon,maxLat (WGS84). Incidents without coordinates are excluded when set. */
                 bbox?: components["parameters"]["Bbox"];
                 from?: components["parameters"]["From"];
@@ -926,6 +994,15 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            /** @description Search is not configured or not reachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     getIncident: {
@@ -1562,6 +1639,57 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description The article cannot be split off */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSearchStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    reindexSearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Search is not configured */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -40,6 +40,7 @@ spec:
             {{- end }}
           env:
             {{- include "ct.env" $ | nindent 12 }}
+            {{- include "ct.searchEnv" $ | nindent 12 }}
             - name: COLLISION_METRICS_LISTEN
               value: ":9100"
             - name: COLLISION_LLM_BASE_URL

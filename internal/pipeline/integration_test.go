@@ -429,19 +429,56 @@ func TestRetentionRemovesExpiredTextButKeepsTheRecord(t *testing.T) {
 
 func TestMaintenanceScheduleIsCreatedOnceAndLeftAlone(t *testing.T) {
 	ctx := context.Background()
-	created, err := SyncMaintenanceSchedules(ctx, tc)
+	created, err := SyncMaintenanceSchedules(ctx, tc, false)
 	require.NoError(t, err)
-	assert.True(t, created)
+	assert.Equal(t, 1, created)
 	h := tc.ScheduleClient().GetHandle(ctx, MaintenanceScheduleID)
 	defer h.Delete(ctx)
 	require.NoError(t, h.Pause(ctx, client.SchedulePauseOptions{Note: "operator"}))
 
-	created, err = SyncMaintenanceSchedules(ctx, tc)
+	created, err = SyncMaintenanceSchedules(ctx, tc, false)
 	require.NoError(t, err)
-	assert.False(t, created)
+	assert.Zero(t, created)
 	d, err := h.Describe(ctx)
 	require.NoError(t, err)
 	assert.True(t, d.Schedule.State.Paused, "a pause survives a re-sync")
+}
+
+func TestSearchScheduleExistsOnlyWhileSearchIsConfigured(t *testing.T) {
+	ctx := context.Background()
+	has := func() bool {
+		_, err := tc.ScheduleClient().GetHandle(ctx, SearchScheduleID).Describe(ctx)
+		return err == nil
+	}
+	defer tc.ScheduleClient().GetHandle(ctx, MaintenanceScheduleID).Delete(ctx)
+	defer tc.ScheduleClient().GetHandle(ctx, SearchScheduleID).Delete(ctx)
+
+	_, err := SyncMaintenanceSchedules(ctx, tc, false)
+	require.NoError(t, err)
+	assert.False(t, has(), "no search configured, no search schedule")
+
+	created, err := SyncMaintenanceSchedules(ctx, tc, true)
+	require.NoError(t, err)
+	assert.Equal(t, 1, created, "only the search schedule is new")
+	require.True(t, has())
+	d, err := tc.ScheduleClient().GetHandle(ctx, SearchScheduleID).Describe(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, SearchIndexInterval, d.Schedule.Spec.Intervals[0].Every)
+
+	require.NoError(t, tc.ScheduleClient().GetHandle(ctx, SearchScheduleID).Pause(ctx, client.SchedulePauseOptions{Note: "operator"}))
+	_, err = SyncMaintenanceSchedules(ctx, tc, true)
+	require.NoError(t, err)
+	d, err = tc.ScheduleClient().GetHandle(ctx, SearchScheduleID).Describe(ctx)
+	require.NoError(t, err)
+	assert.True(t, d.Schedule.State.Paused, "a pause survives a re-sync")
+
+	_, err = SyncMaintenanceSchedules(ctx, tc, false)
+	require.NoError(t, err)
+	assert.False(t, has(), "removing the search configuration removes the schedule")
+	_, err = SyncMaintenanceSchedules(ctx, tc, false)
+	assert.NoError(t, err, "and removing it twice is fine")
+
+	assert.Error(t, TriggerSearchIndex(ctx, tc), "triggering a missing schedule is an error the caller can report")
 }
 
 // ---- schedules driven from the admin API ----
@@ -492,7 +529,7 @@ func TestDeletingAndPruningSchedules(t *testing.T) {
 	for _, slug := range []string{"prune-keep", "prune-gone"} {
 		require.NoError(t, ApplySource(ctx, tc, discovery.Source{Slug: slug, Type: "rss", PollInterval: time.Hour, Enabled: true}, Options{}, false))
 	}
-	_, err := SyncMaintenanceSchedules(ctx, tc)
+	_, err := SyncMaintenanceSchedules(ctx, tc, false)
 	require.NoError(t, err)
 	defer tc.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID("prune-keep")).Delete(ctx)
 	defer tc.ScheduleClient().GetHandle(ctx, MaintenanceScheduleID).Delete(ctx)

@@ -432,3 +432,43 @@ describe("Backfill and reprocess", () => {
     confirm.mockRestore();
   });
 });
+
+describe("Search index card", () => {
+  const status = (over = {}) => ({ enabled: true, index: "collision-incidents-v1", documents: 1234, pending: 5, indexed_at: new Date(Date.now() - 3 * 60_000).toISOString(), ...over });
+  const overview = (st: object, extra?: Handler): Handler => (r, p) => {
+    if (p === "/v1/admin/sources") return Response.json([source()]);
+    if (p === "/v1/admin/search" && r.method === "GET") return Response.json(st);
+    return extra?.(r, p);
+  };
+
+  it("shows how far the index has got", async () => {
+    renderAt("/admin", overview(status()));
+    expect(await screen.findByText("1,234")).toBeInTheDocument();
+    expect(screen.getByText("Waiting to be indexed").nextElementSibling).toHaveTextContent("5");
+    expect(screen.getByText("3 min ago")).toBeInTheDocument();
+  });
+
+  it("says search is off when it is not configured, with nothing to click", async () => {
+    renderAt("/admin", overview({ enabled: false, index: "collision-incidents-v1", pending: 0 }));
+    expect(await screen.findByText(/search is not configured/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /rebuild index/i })).toBeNull();
+  });
+
+  it("warns when OpenSearch cannot be reached and shows an unknown count", async () => {
+    renderAt("/admin", overview(status({ documents: undefined, error: "OpenSearch cannot be reached" })));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/cannot be reached/);
+    expect(screen.getByText("unknown")).toBeInTheDocument();
+  });
+
+  it("rebuilds only after confirming, and shows the new state", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const calls = renderAt("/admin", overview(status(), (r, p) => (p === "/v1/admin/search/reindex" && r.method === "POST" ? Response.json(status({ pending: 77, indexed_at: undefined }), { status: 202 }) : undefined)));
+    const btn = await screen.findByRole("button", { name: /rebuild index/i });
+    await userEvent.click(btn);
+    expect(calls.some((c) => c.path === "/v1/admin/search/reindex")).toBe(false);
+    await userEvent.click(btn);
+    await waitFor(() => expect(screen.getByText("Waiting to be indexed").nextElementSibling).toHaveTextContent("77"));
+    expect(calls.find((c) => c.path === "/v1/admin/search/reindex")?.auth).toBe("Bearer tok");
+    confirm.mockRestore();
+  });
+});

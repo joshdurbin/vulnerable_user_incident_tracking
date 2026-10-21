@@ -44,6 +44,8 @@ type Workflows interface {
 	ListJobs(ctx context.Context, kind string, limit int) ([]pipeline.Job, error)
 	GetJob(ctx context.Context, id string) (*pipeline.Job, error)
 	ControlJob(ctx context.Context, id, action string) error
+	// TriggerSearchIndex runs the search indexer now.
+	TriggerSearchIndex(ctx context.Context) error
 	// TestSource runs a source configuration once through the discovery worker, saving nothing.
 	TestSource(ctx context.Context, src discovery.Source) (*pipeline.SourceTestResult, error)
 }
@@ -52,6 +54,8 @@ type Workflows interface {
 type TemporalWorkflows struct {
 	C       client.Client
 	Options pipeline.Options
+	// SearchEnabled says whether the search-index schedule should exist (search is configured).
+	SearchEnabled bool
 }
 
 func (t TemporalWorkflows) DecideReview(ctx context.Context, incidentID uuid.UUID, d pipeline.ReviewDecision) (*pipeline.ReviewOutcome, error) {
@@ -152,7 +156,7 @@ func (t TemporalWorkflows) SyncSchedules(ctx context.Context, srcs []discovery.S
 		return created, updated, removed, mapTemporalErr(err)
 	}
 	// The daily retention schedule belongs to no source; syncing here is what a first deploy needs.
-	if _, err = pipeline.SyncMaintenanceSchedules(ctx, t.C); err != nil {
+	if _, err = pipeline.SyncMaintenanceSchedules(ctx, t.C, t.SearchEnabled); err != nil {
 		return created, updated, removed, mapTemporalErr(err)
 	}
 	return created, updated, removed, nil
@@ -180,6 +184,15 @@ func (t TemporalWorkflows) GetJob(ctx context.Context, id string) (*pipeline.Job
 
 func (t TemporalWorkflows) ControlJob(ctx context.Context, id, action string) error {
 	return mapTemporalErr(pipeline.ControlJob(ctx, t.C, id, action))
+}
+
+func (t TemporalWorkflows) TriggerSearchIndex(ctx context.Context) error {
+	err := pipeline.TriggerSearchIndex(ctx, t.C)
+	var nf *serviceerror.NotFound
+	if errors.As(err, &nf) {
+		return ErrNoSchedule
+	}
+	return mapTemporalErr(err)
 }
 
 // testRunTimeout bounds one test run end to end; the HTTP server's write timeout is longer.

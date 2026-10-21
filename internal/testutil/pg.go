@@ -67,8 +67,42 @@ func (p *Postgres) Reset(t testing.TB, s *storage.Store) {
 	t.Helper()
 	_, err := s.Pool.Exec(context.Background(), `TRUNCATE incident_events, match_reviews, incident_observations, incident_articles,
 		incident_participants, incidents, article_extractions, article_fetch_attempts, articles,
-		article_discoveries, discovered_urls, discovery_queries, discovery_sources RESTART IDENTITY CASCADE`)
+		article_discoveries, discovered_urls, discovery_queries, discovery_sources, search_index_state RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
+
+// OpenSearch is a single-node OpenSearch container with the security plugin off, for integration tests.
+type OpenSearch struct {
+	URL       string
+	container testcontainers.Container
+}
+
+// StartOpenSearch boots OpenSearch. The version matches the cluster's operator-managed one.
+func StartOpenSearch(ctx context.Context) (*OpenSearch, error) {
+	req := testcontainers.ContainerRequest{
+		Image: "opensearchproject/opensearch:3.2.0",
+		Env: map[string]string{
+			"discovery.type": "single-node", "DISABLE_SECURITY_PLUGIN": "true", "DISABLE_INSTALL_DEMO_CONFIG": "true",
+			"OPENSEARCH_JAVA_OPTS": "-Xms512m -Xmx512m",
+		},
+		ExposedPorts: []string{"9200/tcp"},
+		WaitingFor:   wait.ForHTTP("/_cluster/health").WithPort("9200/tcp").WithStartupTimeout(3 * time.Minute),
+	}
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: req, Started: true})
+	if err != nil {
+		return nil, fmt.Errorf("start opensearch container: %w", err)
+	}
+	host, err := c.Host(ctx)
+	if err != nil {
+		return nil, err
+	}
+	port, err := c.MappedPort(ctx, "9200/tcp")
+	if err != nil {
+		return nil, err
+	}
+	return &OpenSearch{URL: fmt.Sprintf("http://%s:%s", host, port.Port()), container: c}, nil
+}
+
+func (o *OpenSearch) Terminate(ctx context.Context) { _ = o.container.Terminate(ctx) }

@@ -16,8 +16,13 @@ paths:
     get:
       tags: [incidents]
       operationId: listIncidents
-      summary: List incidents (newest first)
+      summary: List incidents (newest first, or best match first with q)
+      description: >
+        With q, incidents are ranked by how well they match the text (street, city, county, state, categories,
+        circumstances, and the titles and publishers of their articles; typos are tolerated) and the other filters
+        then narrow that result. Only the 500 best matches are considered. Needs search to be configured.
       parameters:
+        - {name: q, in: query, schema: {type: string, minLength: 1, maxLength: 200}}
         - $ref: '#/components/parameters/Bbox'
         - $ref: '#/components/parameters/From'
         - $ref: '#/components/parameters/To'
@@ -32,6 +37,7 @@ paths:
       responses:
         '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/IncidentList'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
+        '503': {description: Search is not configured or not reachable, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
   /incidents/{id}:
     get:
       tags: [incidents]
@@ -342,6 +348,26 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {description: The article cannot be split off, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  /admin/search:
+    get:
+      tags: [admin]
+      operationId: getSearchStatus
+      summary: State of the search index
+      security: [{adminToken: []}]
+      responses:
+        '200': {description: OK, content: {application/json: {schema: {$ref: '#/components/schemas/SearchStatus'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /admin/search/reindex:
+    post:
+      tags: [admin]
+      operationId: reindexSearch
+      summary: Rewrite every incident into the search index
+      description: Forgets how far the indexer got and runs it now. Searches keep working meanwhile; the index fills over a few minutes for a large database.
+      security: [{adminToken: []}]
+      responses:
+        '202': {description: Started, content: {application/json: {schema: {$ref: '#/components/schemas/SearchStatus'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '503': {description: Search is not configured, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
   /admin/queries:
     get:
       tags: [admin]
@@ -429,6 +455,17 @@ components:
       properties:
         error: {type: string}
         problems: {type: array, items: {type: string}, description: Every validation problem, when there is more than one.}
+    SearchStatus:
+      type: object
+      required: [enabled, index, pending]
+      properties:
+        enabled: {type: boolean, description: Whether search is configured on this API.}
+        index: {type: string}
+        documents: {type: integer, format: int64, nullable: true, description: Documents in the index; absent when OpenSearch cannot be reached.}
+        pending: {type: integer, format: int64, description: Incidents changed since the indexer last wrote them.}
+        watermark: {type: string, format: date-time, nullable: true, description: Change time of the last incident indexed.}
+        indexed_at: {type: string, format: date-time, nullable: true, description: When the indexer last wrote.}
+        error: {type: string, nullable: true, description: Why OpenSearch could not be reached.}
     BackfillRequest:
       type: object
       required: [sources, from, to]

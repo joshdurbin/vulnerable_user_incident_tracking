@@ -104,25 +104,27 @@ WHERE v.merged_into IS NULL AND v.verification_status <> 'withdrawn'
   AND ($10::text IS NULL OR v.severity = $10::text)
   AND ($11::text IS NULL OR v.verification_status = $11::text)
   AND ($12::text IS NULL OR v.hit_and_run = $12::text)
-ORDER BY v.occurred_on DESC NULLS LAST, v.id
-LIMIT $14::int OFFSET $13::int
+  AND ($13::uuid[] IS NULL OR v.id = ANY($13::uuid[]))
+ORDER BY array_position($13::uuid[], v.id), v.occurred_on DESC NULLS LAST, v.id
+LIMIT $15::int OFFSET $14::int
 `
 
 type ListIncidentsAPIParams struct {
-	MinLon       *float64   `json:"min_lon"`
-	MinLat       *float64   `json:"min_lat"`
-	MaxLon       *float64   `json:"max_lon"`
-	MaxLat       *float64   `json:"max_lat"`
-	FromDate     *time.Time `json:"from_date"`
-	ToDate       *time.Time `json:"to_date"`
-	State        *string    `json:"state"`
-	City         *string    `json:"city"`
-	Vru          []string   `json:"vru"`
-	Severity     *string    `json:"severity"`
-	Verification *string    `json:"verification"`
-	HitAndRun    *string    `json:"hit_and_run"`
-	SkipRows     int32      `json:"skip_rows"`
-	MaxRows      int32      `json:"max_rows"`
+	MinLon       *float64    `json:"min_lon"`
+	MinLat       *float64    `json:"min_lat"`
+	MaxLon       *float64    `json:"max_lon"`
+	MaxLat       *float64    `json:"max_lat"`
+	FromDate     *time.Time  `json:"from_date"`
+	ToDate       *time.Time  `json:"to_date"`
+	State        *string     `json:"state"`
+	City         *string     `json:"city"`
+	Vru          []string    `json:"vru"`
+	Severity     *string     `json:"severity"`
+	Verification *string     `json:"verification"`
+	HitAndRun    *string     `json:"hit_and_run"`
+	Ids          []uuid.UUID `json:"ids"`
+	SkipRows     int32       `json:"skip_rows"`
+	MaxRows      int32       `json:"max_rows"`
 }
 
 type ListIncidentsAPIRow struct {
@@ -161,6 +163,7 @@ type ListIncidentsAPIRow struct {
 
 // Read models for the REST API. Filters are optional (NULL = no filter) and shared by
 // the list and statistics queries. Merged and withdrawn incidents are never listed.
+// With ids (search results, best first) the order is theirs; without, array_position is NULL for every row.
 func (q *Queries) ListIncidentsAPI(ctx context.Context, arg ListIncidentsAPIParams) ([]ListIncidentsAPIRow, error) {
 	rows, err := q.db.Query(ctx, listIncidentsAPI,
 		arg.MinLon,
@@ -175,6 +178,7 @@ func (q *Queries) ListIncidentsAPI(ctx context.Context, arg ListIncidentsAPIPara
 		arg.Severity,
 		arg.Verification,
 		arg.HitAndRun,
+		arg.Ids,
 		arg.SkipRows,
 		arg.MaxRows,
 	)

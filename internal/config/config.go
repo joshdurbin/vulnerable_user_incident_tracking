@@ -41,7 +41,18 @@ type Sources struct {
 	SeedFile string
 }
 
+// Search locates the OpenSearch cluster. With no URL, search is off: the API refuses `q` and no
+// indexer runs.
+type Search struct {
+	URL                string
+	Username           string
+	Password           string
+	InsecureSkipVerify bool // accept the operator-generated self-signed certificate
+	Replicas           int  // replicas of the incident index
+}
+
 type Config struct {
+	Search        Search
 	Sources       Sources
 	MetricsListen string // address for /metrics, separate from any public listener
 	API           API
@@ -71,6 +82,9 @@ func NewViper() *viper.Viper {
 	v.SetDefault("crawler.render_fallback", false)
 	v.SetDefault("metrics.listen", ":9100")
 	v.SetDefault("sources.seed_file", "")
+	v.SetDefault("search.url", "")
+	v.SetDefault("search.replicas", 1)
+	v.SetDefault("search.insecure_skip_verify", false)
 	v.SetDefault("api.listen", ":8080")
 	v.SetDefault("api.admin_token", "")
 	v.SetDefault("temporal.address", "temporal-frontend.temporal.svc.cluster.local:7233")
@@ -112,7 +126,11 @@ func Load(v *viper.Viper) (Config, error) {
 		RenderFallback:    v.GetBool("crawler.render_fallback"),
 		MetricsListen:     v.GetString("metrics.listen"),
 		Sources:           Sources{SeedFile: v.GetString("sources.seed_file")},
-		API:               API{Listen: v.GetString("api.listen"), AdminToken: v.GetString("api.admin_token")},
+		Search: Search{
+			URL: v.GetString("search.url"), Username: v.GetString("search.username"), Password: v.GetString("search.password"),
+			InsecureSkipVerify: v.GetBool("search.insecure_skip_verify"), Replicas: v.GetInt("search.replicas"),
+		},
+		API: API{Listen: v.GetString("api.listen"), AdminToken: v.GetString("api.admin_token")},
 		Temporal: Temporal{
 			Address: v.GetString("temporal.address"), Namespace: v.GetString("temporal.namespace"),
 			SearchAttributes: v.GetBool("temporal.search_attributes"),

@@ -1,4 +1,4 @@
-import { parseFilters, toQuery } from "./filters";
+import { parseFilters, toListQuery, toQuery } from "./filters";
 
 describe("filters", () => {
   it("round-trips the URL", () => {
@@ -13,5 +13,18 @@ describe("filters", () => {
     const q = toQuery(parseFilters(new URLSearchParams("state=&vru=")));
     expect(q.state).toBeUndefined();
     expect(q.vru).toBeUndefined();
+  });
+});
+
+describe("search text", () => {
+  it("is read from the URL, trimmed and bounded", () => {
+    expect(parseFilters(new URLSearchParams("q=%20telegraph%20ave%20")).q).toBe("telegraph ave");
+    expect(parseFilters(new URLSearchParams("q=" + "x".repeat(300))).q).toHaveLength(200);
+    expect(parseFilters(new URLSearchParams("q=%20%20")).q).toBeUndefined();
+  });
+  it("goes to the incident list but not to the statistics", () => {
+    const f = parseFilters(new URLSearchParams("q=oakland&state=CA"));
+    expect(toListQuery(f)).toMatchObject({ q: "oakland", state: "CA" });
+    expect(toQuery(f)).not.toHaveProperty("q");
   });
 });

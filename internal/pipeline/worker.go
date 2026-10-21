@@ -110,6 +110,7 @@ func NewWorkers(c client.Client, a *Activities, cfg WorkerConfig) []worker.Worke
 		w.RegisterWorkflow(ReprocessWorkflow)
 		w.RegisterWorkflow(ReprocessArticleWorkflow)
 		w.RegisterWorkflow(RetentionWorkflow)
+		w.RegisterWorkflow(SearchIndexWorkflow)
 		w.RegisterWorkflow(CrawlFetchWorkflow)
 		w.RegisterWorkflow(CrawlLinksWorkflow)
 		ws = append(ws, w)
@@ -159,45 +160,69 @@ func Run(ctx context.Context, ws []worker.Worker) error {
 // paused if the source is disabled; existing schedules keep whatever pause
 // state an operator set in the UI, and only their interval and action are updated.
 func SyncSchedules(ctx context.Context, c client.Client, sources []discovery.Source, opts Options) (created, updated int, err error) {
-	sc := c.ScheduleClient()
 	for _, s := range sources {
-		interval := s.PollInterval
-		if interval <= 0 {
-			interval = time.Hour
+		wasCreated, err := syncOne(ctx, c, s, opts, nil)
+		if err != nil {
+			return created, updated, err
 		}
-		action := &client.ScheduleWorkflowAction{
-			ID: "discovery-" + s.Slug, Workflow: DiscoveryWorkflow, TaskQueue: TQWorkflow,
-			Args: []any{DiscoveryInput{Slug: s.Slug, Options: opts}},
-		}
-		spec := client.ScheduleSpec{Intervals: []client.ScheduleIntervalSpec{{Every: interval}}, Jitter: interval / 10}
-		id := DiscoveryScheduleID(s.Slug)
-		_, cerr := sc.Create(ctx, client.ScheduleOptions{
-			ID: id, Spec: spec, Action: action,
-			Overlap:       enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
-			CatchupWindow: 2 * interval,
-			Paused:        !s.Enabled,
-			Note:          "managed by collisionctl; pause state is yours",
-		})
-		switch {
-		case cerr == nil:
+		if wasCreated {
 			created++
-		case errors.Is(cerr, temporal.ErrScheduleAlreadyRunning):
-			uerr := sc.GetHandle(ctx, id).Update(ctx, client.ScheduleUpdateOptions{
-				DoUpdate: func(in client.ScheduleUpdateInput) (*client.ScheduleUpdate, error) {
-					in.Description.Schedule.Spec = &spec
-					in.Description.Schedule.Action = action
-					return &client.ScheduleUpdate{Schedule: &in.Description.Schedule}, nil
-				},
-			})
-			if uerr != nil {
-				return created, updated, fmt.Errorf("update schedule %s: %w", id, uerr)
-			}
+		} else {
 			updated++
-		default:
-			return created, updated, fmt.Errorf("create schedule %s: %w", id, cerr)
 		}
 	}
 	return created, updated, nil
+}
+
+// syncOne creates a source's Schedule, or updates an existing one. A non-nil setPaused also sets the
+// pause state, inside the same update as the interval and action. That matters: an update writes the
+// whole schedule, including the pause flag read when it started, and a separate Pause or Unpause sent
+// right after can be applied first and then overwritten by that stale flag.
+func syncOne(ctx context.Context, c client.Client, s discovery.Source, opts Options, setPaused *bool) (created bool, err error) {
+	sc := c.ScheduleClient()
+	interval := s.PollInterval
+	if interval <= 0 {
+		interval = time.Hour
+	}
+	action := &client.ScheduleWorkflowAction{
+		ID: "discovery-" + s.Slug, Workflow: DiscoveryWorkflow, TaskQueue: TQWorkflow,
+		Args: []any{DiscoveryInput{Slug: s.Slug, Options: opts}},
+	}
+	spec := client.ScheduleSpec{Intervals: []client.ScheduleIntervalSpec{{Every: interval}}, Jitter: interval / 10}
+	id := DiscoveryScheduleID(s.Slug)
+	_, cerr := sc.Create(ctx, client.ScheduleOptions{
+		ID: id, Spec: spec, Action: action,
+		Overlap:       enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		CatchupWindow: 2 * interval,
+		Paused:        !s.Enabled,
+		Note:          "managed by collisionctl; pause state is yours",
+	})
+	switch {
+	case cerr == nil:
+		return true, nil
+	case errors.Is(cerr, temporal.ErrScheduleAlreadyRunning):
+		uerr := sc.GetHandle(ctx, id).Update(ctx, client.ScheduleUpdateOptions{
+			DoUpdate: func(in client.ScheduleUpdateInput) (*client.ScheduleUpdate, error) {
+				in.Description.Schedule.Spec = &spec
+				in.Description.Schedule.Action = action
+				if setPaused != nil {
+					in.Description.Schedule.State.Paused = *setPaused
+					if *setPaused {
+						in.Description.Schedule.State.Note = "source disabled"
+					} else {
+						in.Description.Schedule.State.Note = "source enabled"
+					}
+				}
+				return &client.ScheduleUpdate{Schedule: &in.Description.Schedule}, nil
+			},
+		})
+		if uerr != nil {
+			return false, fmt.Errorf("update schedule %s: %w", id, uerr)
+		}
+		return false, nil
+	default:
+		return false, fmt.Errorf("create schedule %s: %w", id, cerr)
+	}
 }
 
 // ApplySource creates or updates one source's Schedule after it was saved in the admin UI.
@@ -205,17 +230,13 @@ func SyncSchedules(ctx context.Context, c client.Client, sources []discovery.Sou
 // enabledChanged: disabling pauses, enabling resumes, and any other edit leaves a pause an
 // operator set alone.
 func ApplySource(ctx context.Context, c client.Client, src discovery.Source, opts Options, enabledChanged bool) error {
-	if _, _, err := SyncSchedules(ctx, c, []discovery.Source{src}, opts); err != nil {
-		return err
+	var setPaused *bool
+	if enabledChanged {
+		p := !src.Enabled
+		setPaused = &p
 	}
-	if !enabledChanged {
-		return nil
-	}
-	h := c.ScheduleClient().GetHandle(ctx, DiscoveryScheduleID(src.Slug))
-	if src.Enabled {
-		return h.Unpause(ctx, client.ScheduleUnpauseOptions{Note: "source enabled"})
-	}
-	return h.Pause(ctx, client.SchedulePauseOptions{Note: "source disabled"})
+	_, err := syncOne(ctx, c, src, opts, setPaused)
+	return err
 }
 
 // DeleteSourceSchedule removes a source's Schedule; a missing one is not an error.
@@ -256,10 +277,30 @@ func PruneSchedules(ctx context.Context, c client.Client, keep map[string]bool) 
 // MaintenanceScheduleID is the Schedule that enforces article text retention.
 const MaintenanceScheduleID = "maintenance-retention"
 
-// SyncMaintenanceSchedules ensures the daily retention Schedule exists. It leaves an existing
-// one (and any pause on it) alone.
-func SyncMaintenanceSchedules(ctx context.Context, c client.Client) (created bool, err error) {
-	_, err = c.ScheduleClient().Create(ctx, client.ScheduleOptions{
+// SearchScheduleID is the Schedule that copies changed incidents into the search index. It exists only
+// while search is configured.
+const SearchScheduleID = "maintenance-search-index"
+
+// SearchIndexInterval is how often changed incidents reach the index. A change is searchable within
+// about this long plus the indexer's safety lag.
+const SearchIndexInterval = time.Minute
+
+// SyncMaintenanceSchedules makes sure the housekeeping Schedules exist: the daily retention run always,
+// and the search-index run when searchEnabled (it is removed when not, so an install without search
+// does no pointless work). Existing schedules are left as they are, including a pause an operator set.
+// It returns how many it created.
+func SyncMaintenanceSchedules(ctx context.Context, c client.Client, searchEnabled bool) (created int, err error) {
+	ensure := func(opts client.ScheduleOptions) error {
+		_, err := c.ScheduleClient().Create(ctx, opts)
+		if errors.Is(err, temporal.ErrScheduleAlreadyRunning) {
+			return nil
+		}
+		if err == nil {
+			created++
+		}
+		return err
+	}
+	if err := ensure(client.ScheduleOptions{
 		ID:   MaintenanceScheduleID,
 		Spec: client.ScheduleSpec{Intervals: []client.ScheduleIntervalSpec{{Every: 24 * time.Hour}}, Jitter: time.Hour},
 		Action: &client.ScheduleWorkflowAction{
@@ -267,9 +308,30 @@ func SyncMaintenanceSchedules(ctx context.Context, c client.Client) (created boo
 		},
 		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
 		Note:    "deletes article text past its retention date; managed by collisionctl",
-	})
-	if errors.Is(err, temporal.ErrScheduleAlreadyRunning) {
-		return false, nil
+	}); err != nil {
+		return created, err
 	}
-	return err == nil, err
+	if !searchEnabled {
+		err := c.ScheduleClient().GetHandle(ctx, SearchScheduleID).Delete(ctx)
+		var nf *serviceerror.NotFound
+		if err != nil && !errors.As(err, &nf) {
+			return created, err
+		}
+		return created, nil
+	}
+	err = ensure(client.ScheduleOptions{
+		ID:   SearchScheduleID,
+		Spec: client.ScheduleSpec{Intervals: []client.ScheduleIntervalSpec{{Every: SearchIndexInterval}}},
+		Action: &client.ScheduleWorkflowAction{
+			ID: "search-index", Workflow: SearchIndexWorkflow, TaskQueue: TQWorkflow,
+		},
+		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		Note:    "copies changed incidents into the search index; managed by collisionctl",
+	})
+	return created, err
+}
+
+// TriggerSearchIndex runs the indexer now instead of at the next interval.
+func TriggerSearchIndex(ctx context.Context, c client.Client) error {
+	return c.ScheduleClient().GetHandle(ctx, SearchScheduleID).Trigger(ctx, client.ScheduleTriggerOptions{})
 }

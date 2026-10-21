@@ -127,3 +127,7 @@ button.danger { color: var(--danger); border-color: var(--danger); }
 .test-result { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
 .ok { color: #2b8a3e; font-weight: 600; }
 @media (prefers-color-scheme: dark) { .ok { color: #8ce99a; } }
+
+.search { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.search label { display: flex; flex-direction: column; font-size: 0.8rem; color: var(--muted); gap: 0.2rem; flex: 1 1 18rem; }
+.search input[type="search"] { width: 100%; }

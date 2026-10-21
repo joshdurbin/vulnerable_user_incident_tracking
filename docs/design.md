@@ -131,6 +131,33 @@ classDiagram
 - Every sighting is recorded (`article_discoveries`), so source quality can be measured: duplicates, exclusive finds,
   delay, fetch success and relevance.
 
+### Search
+
+Incident search is an OpenSearch index derived from PostgreSQL ([ADR 0006](decisions/0006-search-in-opensearch.md)).
+
+```mermaid
+flowchart LR
+  pg[(PostgreSQL<br/>incidents, articles)] -- "changed since watermark,<br/>every minute" --> idx[SearchIndexWorkflow<br/>Temporal Schedule]
+  idx -- "bulk upsert / delete" --> os[(OpenSearch<br/>collision-incidents-v1)]
+  web[Map search box] -- "GET /incidents?q=" --> api[API]
+  api -- "ranked IDs" --> os
+  api -- "load, filter, order by rank" --> pg
+```
+
+- **What is indexed:** one document per live incident: street, city, county, state, the categories and outcome in plain words
+  ("fatal bicyclist hit and run"), circumstances, and the titles, publishers and descriptions of its articles. No article
+  text, so nothing outlives the 90-day text retention.
+- **How it stays current:** every change to an incident bumps `updated_at`, so the indexer needs no hook in the code that
+  changes incidents. It reads after a stored `(updated_at, id)` watermark, writes in bulk, then advances the watermark. A crash
+  repeats a batch, which is harmless because writes are by ID. Merged and withdrawn incidents are deleted from the index.
+  Rows younger than ten seconds wait, so a transaction that set `updated_at` but has not committed cannot be skipped.
+- **How a search runs:** the query is a `simple_query_string` (all words, prefix and phrase allowed, never a syntax error)
+  together with a fuzzy `multi_match` (typos, a missing word). The top 500 IDs come back best first; PostgreSQL then applies
+  the date, place, category and bounding-box filters to exactly those IDs and returns them in rank order.
+- **Operations:** Admin, Overview shows documents, pending changes and the last write, and "Rebuild index" forgets the
+  watermark and runs the indexer now. Without `COLLISION_SEARCH_URL` none of this exists. See
+  [`docs/runbooks/search.md`](runbooks/search.md).
+
 ### Managing sources
 
 Sources (`discovery_sources`) and search queries (`discovery_queries`) are rows in the database, managed in the `/admin`

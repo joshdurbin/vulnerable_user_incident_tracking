@@ -45,13 +45,20 @@ configured they are disabled. Read routes work even if Temporal is unreachable.`
 			}
 			defer tc.Close()
 
-			wf := api.TemporalWorkflows{C: tc, Options: a.pipelineOptions()}
+			sc, err := a.searchClient()
+			if err != nil {
+				return err
+			}
+			wf := api.TemporalWorkflows{C: tc, Options: a.pipelineOptions(), SearchEnabled: sc != nil}
 			// Checked on every start; writes only when the database has no sources.
 			if err := api.SeedSources(ctx, st, wf, nil, a.cfg.Sources.SeedFile, a.log); err != nil {
 				return err
 			}
-			h, err := api.NewServer(st, wf,
-				api.Config{AdminToken: a.cfg.API.AdminToken, Log: a.log, Metrics: api.NewHTTPMetrics(reg)}).Handler()
+			cfg := api.Config{AdminToken: a.cfg.API.AdminToken, Log: a.log, Metrics: api.NewHTTPMetrics(reg)}
+			if sc != nil {
+				cfg.Search = sc // a nil *Client must not become a non-nil interface
+			}
+			h, err := api.NewServer(st, wf, cfg).Handler()
 			if err != nil {
 				return err
 			}

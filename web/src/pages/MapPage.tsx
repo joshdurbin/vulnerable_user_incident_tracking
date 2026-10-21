@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { api, unwrap } from "../api/client";
 import { SeverityBadge, ErrorNote, Loading } from "../components/bits";
 import { FilterBar } from "../components/FilterBar";
-import { toQuery, useFilters } from "../filters";
+import { toListQuery, useFilters } from "../filters";
 import { casualties, label, when, where } from "../format";
 
 // MapLibre is large; load it only when the map page is opened.
@@ -15,14 +15,14 @@ export default function MapPage() {
   const [selected, setSelected] = useState<string>();
   const q = useQuery({
     queryKey: ["incidents", "map", filters],
-    queryFn: async () => unwrap(await api.GET("/incidents", { params: { query: { ...toQuery(filters), limit: 1000 } } })),
+    queryFn: async () => unwrap(await api.GET("/incidents", { params: { query: { ...toListQuery(filters), limit: 1000 } } })),
   });
   const items = q.data?.items ?? [];
   const located = items.filter((i) => i.lat != null).length;
 
   return (
     <>
-      <FilterBar />
+      <FilterBar search />
       <div className="map-layout">
         <div className="map-wrap">
           <Suspense fallback={<Loading what="map" />}>
@@ -35,7 +35,8 @@ export default function MapPage() {
           {q.data && (
             <p className="muted">
               {q.data.total} incident{q.data.total === 1 ? "" : "s"}
-              {q.data.total > items.length && ` (showing newest ${items.length})`}. {located} on the map
+              {filters.q && ` matching “${filters.q}”, best match first`}
+              {q.data.total > items.length && ` (showing ${filters.q ? "best" : "newest"} ${items.length})`}. {located} on the map
               {items.length > located && `; ${items.length - located} have no coordinates yet and appear only here`}.
             </p>
           )}
