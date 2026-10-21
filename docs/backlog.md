@@ -54,3 +54,10 @@ NuExtract (worth testing only once item 3 exists; published results are vendor-r
 - A "re-fetch no-content pages with rendering" command; pages stored as `NO_CONTENT` before rendering was enabled are not retried.
 - Show who did what in the admin UI. The shared token carries no identity, so source edits, job controls and incident splits are
   attributed only to a typed name (splits) or nobody (the rest). Per-user login would fix both this and the audit-trail item above.
+- **Jev (classifier models) as a gate or cross-check.** Parked. Jev's native API (`POST /v1/systemone`, typed questions, no generated
+  text) returns calibrated probabilities for yes/no, choice and score questions, which match our relevance, road-user and severity
+  fields. It cannot extract locations, dates, counts or verifiable evidence quotes, so it would not replace the chat model. The
+  OpenAI-SDK client in `internal/llm` cannot call it; it needs a separate small client and probably a direct network path to the
+  inference server (Bifrost likely does not route it, and the worker's network policy blocks private addresses). First step: a
+  comparison tool that scores stored articles with Jev and lists where it disagrees with the stored chat extractions. Then, if it
+  holds up, a relevance gate before extraction and a category/severity cross-check that routes disagreements to review.
